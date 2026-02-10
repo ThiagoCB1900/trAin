@@ -4,18 +4,19 @@ import numpy as np
 import io
 import joblib
 import os
+import base64
+import html
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QPushButton, QFileDialog, QComboBox, QLabel, QSpinBox, 
     QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, 
     QMessageBox, QListWidget, QGroupBox, QProgressBar,
-    QFormLayout, QDoubleSpinBox, QLineEdit, QStackedWidget, QAbstractButton
+    QFormLayout, QDoubleSpinBox, QLineEdit, QStackedWidget, QAbstractButton,
+    QScrollArea, QHeaderView, QAbstractItemView
 )
 from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6.QtCore import Qt, QRect, QThread, pyqtSignal
 from PyQt6.QtGui import QPalette, QColor, QPainter
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 # Importando lógica existente
 from data_handler import load_data, separate_features_target, identify_problem_type, split_data
@@ -73,6 +74,23 @@ class MLWorker(QThread):
                 X, y, self.params['test_size'], self.params['seed'], self.problem_type
             )
             n_classes = y_train.nunique() if self.problem_type == "Classification" else 0
+
+            dataset_info = {
+                "filename": self.params['filename'],
+                "target_column": self.target_column,
+                "total_samples": len(self.df),
+                "total_features": len(X.columns)
+            }
+            if self.problem_type == "Classification":
+                dataset_info["class_distribution_train"] = y_train.value_counts().to_dict()
+                dataset_info["class_distribution_test"] = y_test.value_counts().to_dict()
+            else:
+                dataset_info["target_stats"] = {
+                    "mean": float(y_train.mean()),
+                    "std": float(y_train.std()),
+                    "min": float(y_train.min()),
+                    "max": float(y_train.max())
+                }
             
             all_results = {}
             for idx, instance in enumerate(self.selected_models, start=1):
@@ -99,8 +117,9 @@ class MLWorker(QThread):
                 plots = generate_plots(y_test, res["y_pred"], res["y_score"], self.problem_type)
                 
                 report = generate_report(
-                    {"filename": self.params['filename'], "target_column": self.target_column, "total_samples": len(self.df), "total_features": len(X.columns)},
+                    dataset_info,
                     {"test_size": self.params['test_size'], "scaler_name": self.params['scaler'], "sampler_name": self.params['sampler'], "model_name": run_name},
+                    model_params,
                     res["metrics"], self.problem_type, self.params['seed']
                 )
                 
@@ -137,6 +156,7 @@ class MLApp(QMainWindow):
         self.model_instance_counter = 1
         self.current_instance_id = None
         self.is_dark_theme = False
+        self.last_metrics = []
         
         self.init_ui()
         
@@ -335,26 +355,42 @@ class MLApp(QMainWindow):
         while self.tabs.count() > 1: self.tabs.removeTab(1)
         
         # Aba Comparação
-        comp_tab = QWidget(); comp_layout = QVBoxLayout(comp_tab)
-        table = QTableWidget(); comp_layout.addWidget(QLabel("<h2>Comparação de Métricas</h2>")); comp_layout.addWidget(table)
+        comp_tab = QWidget()
+        comp_layout = QVBoxLayout(comp_tab)
+        comp_header = QHBoxLayout()
+        comp_header.addWidget(QLabel("<h2>Comparacao de Metricas</h2>"))
+        comp_header.addStretch()
+        btn_export_results = QPushButton("Exportar Resultados")
+        btn_export_results.clicked.connect(self.export_results)
+        comp_header.addWidget(btn_export_results)
+        comp_layout.addLayout(comp_header)
+
+        table = QTableWidget()
+        table.setSizeAdjustPolicy(QAbstractItemView.SizeAdjustPolicy.AdjustToContents)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        comp_layout.addWidget(table)
         self.tabs.addTab(comp_tab, "Comparação")
         
         metrics_list = []
         for m_name, m_res in results.items():
             # Aba Individual
-            model_tab = QWidget(); model_layout = QHBoxLayout(model_tab)
-            left = QVBoxLayout(); right = QVBoxLayout()
+            model_tab = QWidget()
+            tab_layout = QVBoxLayout(model_tab)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            content = QWidget()
+            model_layout = QVBoxLayout(content)
             
-            txt = QTextEdit(); txt.setPlainText(m_res["report"]); txt.setReadOnly(True)
+            report_html = self.build_report_html(m_name, m_res["report"], m_res["plots"])
+            txt = QTextEdit(); txt.setHtml(report_html); txt.setReadOnly(True)
             btn_exp = QPushButton(f"Exportar Pipeline ({m_name})")
             btn_exp.clicked.connect(lambda ch, p=m_res["pipeline"], n=m_name: self.export_pipeline(p, n))
-            left.addWidget(QLabel(f"<h3>{m_name}</h3>")); left.addWidget(txt); left.addWidget(btn_exp)
-            
-            if m_res["plots"]:
-                for fig in m_res["plots"].values(): right.addWidget(FigureCanvas(fig))
-            else: right.addWidget(QLabel("Sem gráficos disponíveis."))
-            
-            model_layout.addLayout(left, 1); model_layout.addLayout(right, 2)
+            model_layout.addWidget(txt)
+            model_layout.addWidget(btn_exp)
+            scroll.setWidget(content)
+            tab_layout.addWidget(scroll)
             self.tabs.addTab(model_tab, m_name)
             
             m_data = {"Modelo": m_name}; m_data.update(m_res["metrics"])
@@ -362,6 +398,7 @@ class MLApp(QMainWindow):
             
         # Preencher Tabela
         if metrics_list:
+            self.last_metrics = metrics_list
             headers = list(metrics_list[0].keys())
             table.setColumnCount(len(headers)); table.setRowCount(len(metrics_list))
             table.setHorizontalHeaderLabels(headers)
@@ -371,6 +408,50 @@ class MLApp(QMainWindow):
                     table.setItem(r, c, QTableWidgetItem(f"{v:.4f}" if isinstance(v, float) else str(v)))
         
         self.tabs.setCurrentIndex(1)
+
+    def export_results(self):
+        if not self.last_metrics:
+            QMessageBox.warning(self, "Aviso", "Nenhum resultado para exportar.")
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Salvar Resultados", "resultados.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+
+        df = pd.DataFrame(self.last_metrics)
+        df.to_csv(path, index=False)
+        QMessageBox.information(self, "Sucesso", "Resultados exportados!")
+
+    def build_report_html(self, title: str, report_text: str, plots: dict) -> str:
+        safe_report = html.escape(report_text)
+        parts = [
+            f"<h2>{html.escape(title)}</h2>",
+            "<pre style='font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap;'>",
+            safe_report,
+            "</pre>"
+        ]
+
+        if plots:
+            parts.append("<h3>Graficos</h3>")
+            for fig in plots.values():
+                uri = self.figure_to_data_uri(fig)
+                parts.append(
+                    "<div style='margin: 12px 0;'>"
+                    f"<img src='{uri}' style='max-width: 100%; height: auto;'/>"
+                    "</div>"
+                )
+        else:
+            parts.append("<p>Sem graficos disponiveis.</p>")
+
+        return "".join(parts)
+
+    def figure_to_data_uri(self, fig) -> str:
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", bbox_inches="tight")
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
 
     def export_pipeline(self, pipeline, model_name):
         path, _ = QFileDialog.getSaveFileName(self, "Salvar", f"pipeline_{model_name.lower()}.joblib", "Joblib (*.joblib)")

@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QHeaderView, QAbstractItemView
 )
 from PyQt6.QtWidgets import QListWidgetItem
-from PyQt6.QtCore import Qt, QRect, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QRect, QThread, pyqtSignal, QEvent, QTimer
 from PyQt6.QtGui import QPalette, QColor, QPainter
 
 # Importando lógica existente
@@ -51,6 +51,70 @@ class ToggleSwitch(QAbstractButton):
         knob_rect = QRect(knob_x, 2, knob_size, knob_size)
         painter.setBrush(knob_color)
         painter.drawEllipse(knob_rect)
+
+
+class LiteraturePanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("literaturePanel")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._dragging = False
+        self._drag_start_y = 0.0
+        self._start_height = 0
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.handle = QWidget(self)
+        self.handle.setObjectName("literatureHandle")
+        self.handle.setFixedHeight(32)
+        self.handle.setCursor(Qt.CursorShape.SizeVerCursor)
+        self.handle.installEventFilter(self)
+
+        handle_layout = QHBoxLayout(self.handle)
+        handle_layout.setContentsMargins(12, 0, 12, 0)
+        handle_layout.addWidget(QLabel("Literatura"))
+        handle_layout.addStretch()
+
+        self.content = QWidget(self)
+        self.content.setObjectName("literatureContent")
+        content_layout = QVBoxLayout(self.content)
+        content_layout.setContentsMargins(12, 12, 12, 12)
+        content_layout.addWidget(QLabel("Coming soon..."))
+        content_layout.addStretch()
+
+        layout.addWidget(self.handle)
+        layout.addWidget(self.content, 1)
+
+        self.setFixedHeight(32)
+
+    def eventFilter(self, obj, event):
+        if obj is self.handle:
+            if event.type() == QEvent.Type.MouseButtonPress:
+                self._dragging = True
+                self._drag_start_y = event.globalPosition().y()
+                self._start_height = self.height()
+                return True
+            if event.type() == QEvent.Type.MouseMove and self._dragging:
+                delta = event.globalPosition().y() - self._drag_start_y
+                max_height = max(self.handle.height(), self.parent().height())
+                new_height = int(self._start_height - delta)
+                new_height = max(self.handle.height(), min(new_height, max_height))
+                self.setFixedHeight(new_height)
+                self.update_position()
+                return True
+            if event.type() == QEvent.Type.MouseButtonRelease:
+                self._dragging = False
+                return True
+        return super().eventFilter(obj, event)
+
+    def update_position(self):
+        parent = self.parent()
+        if parent is None:
+            return
+        rect = parent.rect()
+        self.setGeometry(0, rect.height() - self.height(), rect.width(), self.height())
 
 # --- Worker Thread para Processamento Pesado ---
 class MLWorker(QThread):
@@ -273,7 +337,19 @@ class MLApp(QMainWindow):
         self.tabs.addTab(self.welcome_tab, "Início")
         
         main_layout.addWidget(sidebar)
-        main_layout.addWidget(self.tabs)
+
+        self.right_container = QWidget()
+        self.right_layout = QVBoxLayout(self.right_container)
+        self.right_layout.setContentsMargins(0, 0, 0, 0)
+        self.right_layout.addWidget(self.tabs)
+        main_layout.addWidget(self.right_container)
+
+        self.literature_panel = LiteraturePanel(self.right_container)
+        reserved = self.literature_panel.handle.height()
+        self.right_layout.setContentsMargins(0, 0, 0, reserved)
+        self.literature_panel.setFixedHeight(reserved)
+        self.literature_panel.update_position()
+        self.literature_panel.raise_()
         self.apply_theme()
 
     def load_file(self):
@@ -708,6 +784,9 @@ class MLApp(QMainWindow):
                 "QScrollBar:vertical { background: #1f1f1f; width: 12px; margin: 2px; }"
                 "QScrollBar::handle:vertical { background: #3a3a3a; border-radius: 6px; min-height: 24px; }"
                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+                "#literaturePanel { background: #1b1b1b; border-top: 1px solid #3a3a3a; }"
+                "#literatureHandle { background: #2b2b2b; border-top: 1px solid #3a3a3a; }"
+                "#literatureHandle QLabel { color: #e6e6e6; font-weight: bold; }"
             )
         else:
             if app:
@@ -738,7 +817,23 @@ class MLApp(QMainWindow):
                 "QScrollBar:vertical { background: #f4f1ec; width: 12px; margin: 2px; }"
                 "QScrollBar::handle:vertical { background: #d6d3cf; border-radius: 6px; min-height: 24px; }"
                 "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+                "#literaturePanel { background: #ffffff; border-top: 1px solid #d6d3cf; }"
+                "#literatureHandle { background: #e8e3dc; border-top: 1px solid #d6d3cf; }"
+                "#literatureHandle QLabel { color: #1f1f1f; font-weight: bold; }"
             )
+
+        if hasattr(self, "literature_panel"):
+            self.literature_panel.update_position()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "literature_panel"):
+            self.literature_panel.update_position()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if hasattr(self, "literature_panel"):
+            QTimer.singleShot(0, self.literature_panel.update_position)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

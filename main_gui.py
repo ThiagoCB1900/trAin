@@ -1,9 +1,11 @@
 import sys
+import time
 import pandas as pd
 import numpy as np
 import io
 import joblib
 import os
+import json
 import base64
 import html
 from PyQt6.QtWidgets import (
@@ -171,11 +173,13 @@ class MLWorker(QThread):
                             model_params["solver"] = "lbfgs"
 
                 self.progress.emit(f"Treinando {run_name}...")
+                start_time = time.perf_counter()
                 pipeline = build_pipeline(
                     self.params['scaler'], self.params['sampler'], 
                     model_name, model_params, self.problem_type, self.params['seed']
                 )
                 res = evaluate_model(pipeline, X_train, y_train, X_test, y_test, self.problem_type)
+                duration_sec = time.perf_counter() - start_time
                 
                 self.progress.emit(f"Gerando gráficos para {run_name}...")
                 plots = generate_plots(y_test, res["y_pred"], res["y_score"], self.problem_type)
@@ -192,6 +196,8 @@ class MLWorker(QThread):
                     "pipeline": res["pipeline"],
                     "plots": plots,
                     "report": report,
+                    "params": model_params,
+                    "duration_sec": duration_sec,
                     "y_test": y_test,
                     "y_pred": res["y_pred"]
                 }
@@ -221,8 +227,11 @@ class MLApp(QMainWindow):
         self.current_instance_id = None
         self.is_dark_theme = False
         self.last_metrics = []
+        self.history_records = []
+        self.history_path = os.path.join(os.path.dirname(__file__), "history.json")
         
         self.init_ui()
+        self.load_history()
         
     def init_ui(self):
         central_widget = QWidget()
@@ -304,7 +313,7 @@ class MLApp(QMainWindow):
         self.welcome_tab = QWidget()
         welcome_layout = QVBoxLayout(self.welcome_tab)
         header_row = QHBoxLayout()
-        header_row.addWidget(QLabel("<h1>ML Reprodutível v3</h1>"))
+        header_row.addWidget(QLabel("<h1>trAIn V.5</h1>"))
         header_row.addStretch()
         theme_wrap = QHBoxLayout()
         theme_wrap.setContentsMargins(0, 0, 0, 0)
@@ -335,6 +344,27 @@ class MLApp(QMainWindow):
         welcome_layout.addWidget(self.model_editor_stack, 1)
         welcome_layout.addStretch()
         self.tabs.addTab(self.welcome_tab, "Início")
+
+        self.history_tab = QWidget()
+        history_layout = QVBoxLayout(self.history_tab)
+        history_header = QHBoxLayout()
+        history_header.addWidget(QLabel("<h2>Historico de Execucoes</h2>"))
+        history_header.addStretch()
+        btn_export_history = QPushButton("Exportar Historico")
+        btn_export_history.clicked.connect(self.export_history)
+        btn_clear_history = QPushButton("Limpar Historico")
+        btn_clear_history.clicked.connect(self.clear_history)
+        history_header.addWidget(btn_export_history)
+        history_header.addWidget(btn_clear_history)
+        history_layout.addLayout(history_header)
+
+        self.history_table = QTableWidget()
+        self.history_table.setSizeAdjustPolicy(QAbstractItemView.SizeAdjustPolicy.AdjustToContents)
+        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.history_table.horizontalHeader().setStretchLastSection(True)
+        self.history_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        history_layout.addWidget(self.history_table)
+        self.tabs.addTab(self.history_tab, "Historico")
         
         main_layout.addWidget(sidebar)
 
@@ -427,8 +457,11 @@ class MLApp(QMainWindow):
         self.btn_run.setEnabled(True)
         self.progress_bar.setVisible(False)
         self.lbl_status.setText("Concluído!")
-        
-        while self.tabs.count() > 1: self.tabs.removeTab(1)
+
+        for i in reversed(range(self.tabs.count())):
+            widget = self.tabs.widget(i)
+            if widget not in (self.welcome_tab, self.history_tab):
+                self.tabs.removeTab(i)
         
         # Aba Comparação
         comp_tab = QWidget()
@@ -471,6 +504,15 @@ class MLApp(QMainWindow):
             
             m_data = {"Modelo": m_name}; m_data.update(m_res["metrics"])
             metrics_list.append(m_data)
+
+            history_entry = {
+                "timestamp": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "modelo": m_name,
+                "params": m_res.get("params", {}),
+                "tempo_sec": float(m_res.get("duration_sec", 0.0)),
+                "metricas": m_res.get("metrics", {})
+            }
+            self.history_records.append(history_entry)
             
         # Preencher Tabela
         if metrics_list:
@@ -484,6 +526,8 @@ class MLApp(QMainWindow):
                     table.setItem(r, c, QTableWidgetItem(f"{v:.4f}" if isinstance(v, float) else str(v)))
         
         self.tabs.setCurrentIndex(1)
+        self.update_history_table()
+        self.save_history()
 
     def export_results(self):
         if not self.last_metrics:
@@ -499,6 +543,67 @@ class MLApp(QMainWindow):
         df = pd.DataFrame(self.last_metrics)
         df.to_csv(path, index=False)
         QMessageBox.information(self, "Sucesso", "Resultados exportados!")
+
+    def export_history(self):
+        if not self.history_records:
+            QMessageBox.warning(self, "Aviso", "Historico vazio.")
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Salvar Historico", "historico.json", "JSON (*.json)"
+        )
+        if not path:
+            return
+
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(self.history_records, handle, ensure_ascii=True, indent=2)
+        QMessageBox.information(self, "Sucesso", "Historico exportado!")
+
+    def clear_history(self):
+        self.history_records = []
+        self.update_history_table()
+        self.save_history()
+
+    def load_history(self):
+        if not os.path.exists(self.history_path):
+            return
+        try:
+            with open(self.history_path, "r", encoding="utf-8") as handle:
+                self.history_records = json.load(handle) or []
+        except (json.JSONDecodeError, OSError):
+            self.history_records = []
+        self.update_history_table()
+
+    def save_history(self):
+        try:
+            with open(self.history_path, "w", encoding="utf-8") as handle:
+                json.dump(self.history_records, handle, ensure_ascii=True, indent=2)
+        except OSError:
+            pass
+
+    def update_history_table(self):
+        headers = ["timestamp", "modelo", "tempo_sec", "params", "metricas"]
+        self.history_table.setColumnCount(len(headers))
+        self.history_table.setHorizontalHeaderLabels(headers)
+        self.history_table.setRowCount(len(self.history_records))
+        self.history_table.setWordWrap(True)
+
+        for r, item in enumerate(self.history_records):
+            values = [
+                item.get("timestamp", ""),
+                item.get("modelo", ""),
+                f"{item.get('tempo_sec', 0.0):.4f}",
+                self._dict_to_multiline(item.get("params", {})),
+                self._dict_to_multiline(item.get("metricas", {}))
+            ]
+            for c, value in enumerate(values):
+                self.history_table.setItem(r, c, QTableWidgetItem(str(value)))
+        self.history_table.resizeRowsToContents()
+
+    def _dict_to_multiline(self, data: dict) -> str:
+        if not data:
+            return ""
+        return "\n".join([f"{k}: {v}" for k, v in data.items()])
 
     def build_report_html(self, title: str, report_text: str, plots: dict) -> str:
         safe_report = html.escape(report_text)

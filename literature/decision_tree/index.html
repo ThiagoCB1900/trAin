@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Árvore de Decisão - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Árvore de Decisão</h2>
+<p>
+  A Árvore de Decisão é um modelo de aprendizado de máquina que funciona dividindo recursivamente o espaço
+  de dados em regiões cada vez mais homogêneas. É um dos algoritmos mais <b>interpretáveis</b>, porque
+  reflete exatamente como os humanos raciocinam: uma série de perguntas binárias ("Se idade > 65?", "Se creatinina > 1.5?")
+  que levam a uma decisão final. É particularmente atrativa em contextos clínicos porque as regras são explícitas
+  e podem ser implementadas sem computador. [1][2]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> Uma série de perguntas simples ("Se?" encadeadas) que dividem os dados até chegar
+  em grupos puros, onde você faz uma predição (ex.: "Se idade > 60 E colesterol > 200, risco alto").
+</div>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Fórmulas</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#profundidade-complexidade">Profundidade e complexidade</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando não)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#diagnostico">Diagnóstico: quando falha</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparação com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  A Árvore de Decisão é um modelo não-linear que particiona recursivamente o espaço de dados.
+  Começa com uma pergunta (split) no atributo mais informativo, divide os dados em dois subconjuntos,
+  e repete até que cada folha seja "pura" (todos os exemplos de uma classe) ou outro critério de parada seja atingido. [1]
+</p>
+
+<p>
+  <b>Por que é tão importante em saúde?</b> Porque é <b>maximamente interpretável</b>. Você pode desenhar
+  a árvore em um papel e um clínico entende exatamente por que uma predição foi feita. Diferente de redes neurais,
+  não há "caixa preta". Além disso, a lógica da árvore pode ser implementada como um protocolo clínico sem necessidade
+  de software sofisticado—uma equação, um formulário de papel. Exemplos clássicos incluem
+  <b>CART (Classification and Regression Trees)</b> para prognóstico pediátrico e <b>Wells Score</b> para
+  embolia pulmonar, ambos baseados em lógica de árvore. [1][2]
+</p>
+
+<div class="card">
+  <b>Características principais</b>
+  <ul>
+    <li><b>Interpretável:</b> Cada nó é uma pergunta legível ("idade > 65?"), cada folha uma predição clara.</li>
+    <li><b>Sem necessidade de normalização:</b> Árvores são invariantes à escala; 1 vs 100 dá mesmo split.</li>
+    <li><b>Captura não-linearidades:</b> Diferente de regressão logística, árvores dividem espaço de forma arbitrária.</li>
+    <li><b>Lida com variáveis categóricas nativas:</b> Sem necessidade de one-hot encoding.</li>
+    <li><b>Instável:</b> Pequenas mudanças nos dados podem gerar árvores completamente diferentes (alta variância).</li>
+    <li><b>Risco de overfitting:</b> Uma árvore sem profundidade máxima pode memorizar dados.</li>
+    <li><b>Rápida para treino e predição:</b> O(n log n) para treino, O(profundidade) para predição.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Contexto clínico:</b> Protocolos como NEXUS (TC para trauma cervical), PERC (exclusão de embolia pulmonar),
+  Centor Score (infecção por Streptococcus) são essencialmente árvores de decisão. Sua durabilidade (20+ anos em uso)
+  prova que lógica simples, bem validada, funciona melhor que algoritmos complexos. [2]
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine que você está triando pacientes para intubação em UTI. Você faz perguntas:
+  "SatO2 < 90?" — Se sim, risco alto. Se não: "Glasgow < 8?" — Se sim, risco alto. Se não: "Frequência respiratória > 30?" — Se sim, risco alto.
+  Senão, risco baixo. Pronto! Uma árvore.
+</p>
+
+<p>
+  <b>O computador faz o mesmo:</b> Ele automaticamente encontra <b>qual pergunta fazer primeiro</b> (qual variável?
+  qual ponto de corte?) para melhor separar doentes de saudáveis. Depois, recursivamente, faz perguntas cada vez mais
+  específicas até que os grupos sejam homogêneos. [1]
+</p>
+
+<p>
+  <b>Analogia (consultório clínico):</b> Árvore de Decisão é como uma <b>sequência de critérios diagnósticos</b>
+  que qualquer residente pode aplicar. Regressão Logística é como um especialista experiente que vê todos os dados
+  simultâneos e dá uma probabilidade. Ambos funcionam, mas árvores são mais "didáticas"—você aprende por que
+  uma predição foi feita.
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Nó (node):</b> Ponto de decisão na árvore. Contém uma pergunta ("age > 50?").</li>
+  <li><b>Folha (leaf):</b> Nó terminal sem filhos. Contém uma predição (classe ou valor).</li>
+  <li><b>Split:</b> Partição em um nó. Divide dados em dois ramos (esquerdo e direito).</li>
+  <li><b>Profundidade (depth):</b> Número de camadas da árvore. Raiz = profundidade 0. Afeta complexidade.</li>
+  <li><b>Impureza (Gini ou Entropia):</b> Medida de heterogeneidade de uma folha. Gini = 0 se pura (todos uma classe).</li>
+  <li><b>Ganho de informação (Information Gain):</b> Redução de impureza após um split. AL SPLIT = impureza_antes - média_ponderada(impureza_depois).</li>
+  <li><b>Overfitting:</b> Árvore tão profunda que memoriza dados (incluindo ruído). Generaliza mal.</li>
+  <li><b>Poda (Pruning):</b> Remoção de ramos para simplificar e melhorar generalização.</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li><b>Iniciar com todos os dados na raiz.</b> Calcule impureza (ex.: Gini).</li>
+  <li><b>Para cada variável e cada possível ponto de corte:</b> Simule um split e calcule ganho de informação (redução de impureza).</li>
+  <li><b>Escolha o split que maximiza ganho de informação.</b> Crie dois nós filhos.</li>
+  <li><b>Recursivamente aplique passo 2 e 3 em cada nó filho.</b></li>
+  <li><b>Pare quando:</b> Nó é puro (todas mesma classe), profundidade máxima atingida, ou mínimo de samples em nó.</li>
+  <li><b>Para novo dado:</b> Comece na raiz, siga as perguntas até chegar em uma folha, retorne sua predição.</li>
+</ol>
+
+<p>
+  <b>Exemplo concreto (diagnóstico de diabetes tipo 2):</b> Suponha dados de 100 pacientes: 40 com diabetes, 60 sem.
+  Impureza Gini = 1 - (40/100)² - (60/100)² = 1 - 0.16 - 0.36 = 0.48 (bastante impuro).
+  <br/>Teste variável "IMC > 30": Esquerda = 70 pacientes (35 com, 35 sem), Direita = 30 pacientes (5 com, 25 sem).
+  <br/>Gini esquerda = 1 - (35/70)² - (35/70)² = 0.5, Gini direita = 1 - (5/30)² - (25/30)² = 0.278.
+  <br/>Ganho = 0.48 - [(70/100)×0.5 + (30/100)×0.278] = 0.48 - 0.433 = 0.047 (ganho modesto).
+  <br/>Se teste "Glicemia > 126": Esquerda = 50 (40 com, 10 sem), Direita = 50 (0 com, 50 sem).
+  <br/>Gini esquerda = 1 - (40/50)² - (10/50)² = 0.32, Gini direita = 0 (pura!).
+  <br/>Ganho = 0.48 - [(50/100)×0.32 + (50/100)×0] = 0.48 - 0.16 = 0.32 (muito melhor!).
+  <br/>Escolha glicemia. Ramo direito é puro (diabetes negativo), ramo esquerdo continua dividindo.
+</p>
+
+<div class="card">
+  <svg width="540" height="280" viewBox="0 0 540 280" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="20" font-size="12" font-weight="bold">Exemplo de Árvore de Decisão (Clínico)</text>
+    
+    <!-- Raiz -->
+    <rect x="180" y="40" width="180" height="40" fill="rgba(25, 118, 210, 0.15)" stroke="currentColor" stroke-width="1.5" rx="4"/>
+    <text x="270" y="65" font-size="11" font-weight="bold" text-anchor="middle">Idade > 65?</text>
+    
+    <!-- Linha esquerda (Sim) -->
+    <line x1="235" y1="80" x2="135" y2="130" stroke="currentColor" stroke-width="1.5"/>
+    <text x="175" y="105" font-size="10" fill="#d32f2f">Sim</text>
+    
+    <!-- Linha direita (Não) -->
+    <line x1="325" y1="80" x2="405" y2="130" stroke="currentColor" stroke-width="1.5"/>
+    <text x="360" y="105" font-size="10" fill="#388e3c">Não</text>
+    
+    <!-- Nó esquerdo -->
+    <rect x="45" y="130" width="180" height="40" fill="rgba(25, 118, 210, 0.15)" stroke="currentColor" stroke-width="1.5" rx="4"/>
+    <text x="135" y="155" font-size="11" font-weight="bold" text-anchor="middle">Creatinina > 1.5?</text>
+    
+    <!-- Nó direito -->
+    <rect x="315" y="130" width="180" height="40" fill="rgba(25, 118, 210, 0.15)" stroke="currentColor" stroke-width="1.5" rx="4"/>
+    <text x="405" y="155" font-size="11" font-weight="bold" text-anchor="middle">Pressão Sistólica > 150?</text>
+    
+    <!-- Folhas do lado esquerdo -->
+    <line x1="90" y1="170" x2="60" y2="220" stroke="currentColor" stroke-width="1.5"/>
+    <text x="75" y="195" font-size="10" fill="#d32f2f">Sim</text>
+    <rect x="20" y="220" width="80" height="35" fill="rgba(244, 67, 54, 0.2)" stroke="#d32f2f" stroke-width="1.5" rx="4"/>
+    <text x="60" y="242" font-size="10" font-weight="bold" text-anchor="middle">Alto Risco</text>
+    
+    <line x1="180" y1="170" x2="210" y2="220" stroke="currentColor" stroke-width="1.5"/>
+    <text x="190" y="195" font-size="10" fill="#388e3c">Não</text>
+    <rect x="170" y="220" width="80" height="35" fill="rgba(76, 175, 80, 0.2)" stroke="#388e3c" stroke-width="1.5" rx="4"/>
+    <text x="210" y="242" font-size="10" font-weight="bold" text-anchor="middle">Baixo Risco</text>
+    
+    <!-- Folhas do lado direito -->
+    <line x1="360" y1="170" x2="330" y2="220" stroke="currentColor" stroke-width="1.5"/>
+    <text x="345" y="195" font-size="10" fill="#d32f2f">Sim</text>
+    <rect x="290" y="220" width="80" height="35" fill="rgba(244, 67, 54, 0.2)" stroke="#d32f2f" stroke-width="1.5" rx="4"/>
+    <text x="330" y="242" font-size="10" font-weight="bold" text-anchor="middle">Alto Risco</text>
+    
+    <line x1="450" y1="170" x2="480" y2="220" stroke="currentColor" stroke-width="1.5"/>
+    <text x="460" y="195" font-size="10" fill="#388e3c">Não</text>
+    <rect x="440" y="220" width="80" height="35" fill="rgba(76, 175, 80, 0.2)" stroke="#388e3c" stroke-width="1.5" rx="4"/>
+    <text x="480" y="242" font-size="10" font-weight="bold" text-anchor="middle">Baixo Risco</text>
+  </svg>
+  <div class="diagram-note">Árvore para risco de insuficiência renal aguda em UTI. Cada nó pergunta sobre uma variável, cada folha retorna uma classificação.</div>
+</div>
+
+<h3 id="formulas">Fórmulas centrais</h3>
+
+<div class="formula-box">
+  <div class="formula-title">1. Gini Impurity (índice de Gini)</div>
+  <div class="formula">Gini(S) = 1 - Σ(pᵢ)²  para i=1..c</div>
+  <p style="font-size: 13px;">
+    S = conjunto de dados, c = número de classes, pᵢ = proporção de classe i em S.
+    <br/>Gini = 0 significa puro (uma classe). Gini = 0.5 (binário) significa máxima impureza.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Information Gain (Ganho de Informação)</div>
+  <div class="formula">IG(S, A) = Gini(S) - Σ(|Sᵥ|/|S|) × Gini(Sᵥ)  para cada valor v do atributo A</div>
+  <p style="font-size: 13px;">
+    IG mede redução de impureza após split no atributo A. Maior IG = melhor split.
+    <br/>Para split binário: IG = Gini_antes - [fração_esq × Gini_esq + fração_dir × Gini_dir].
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. Entropy (Entropia, alternativa a Gini)</div>
+  <div class="formula">Entropy(S) = -Σ(pᵢ × log₂(pᵢ))  para i=1..c</div>
+  <p style="font-size: 13px;">
+    Alternativa a Gini. Entropia = 0 si puro, máximo em distribuição uniforme.
+    <br/>Information Gain com entropia: IG = Entropy_antes - média ponderada(Entropy_depois).
+  </p>
+</div>
+
+<h3 id="matematica">Matemática por trás (detalhado)</h3>
+<p>
+  <b>Problema de otimização:</b> Árvore de Decisão resolve recursivamente:
+  Encontre o split (atributo + ponto de corte) que maximiza ganho de informação.
+</p>
+
+<p>
+  <b>Por que essa métrica?</b> Intuitivamente, queremos dividir dados de forma que cada lado fique o mais "puro" possível.
+  Se temos 100 pacientes (60 saudáveis, 40 doentes), uma divisão que produz (100, 0) em um lado e (0, 100) no outro
+  é perfeita. Uma divisão que produz (50, 50) em ambos os lados não é informativa. Gini e Entropia medem isso.
+</p>
+
+<p>
+  <b>Complexidade computacional:</b> Para cada nó, testamos O(n×m) splits (n samples, m features), e computamos Gini em O(n).
+  Para árvore completa de profundidade d, número de nós é 2^(d+1) - 1. Treino é O(n × m × log(n) × 2^d) no pior caso,
+  mas podas e limites de profundidade reduzem drasticamente. Predição é O(d), muito rápida.
+</p>
+
+<h3 id="profundidade-complexidade">Profundidade e complexidade: o trade-off crucial</h3>
+<p>
+  <b>Árvore rasa (profundidade 1-2):</b> Muito simples, subestima (underfitting), genera mal a realidade complexa.
+  Ex.: "Se SatO2 < 90, intube" ignora contexto clínico.
+</p>
+
+<p>
+  <b>Árvore profunda (profundidade 10+):</b> Muito complexa, memoriza dados de treino incluindo ruído (overfitting),
+  generaliza mal a novos pacientes. Ex.: "Se SatO2 = 87.3 AND FC = 102 AND Temp = 37.1, intube" pode ser errado
+  em 87.5 ou 102.5.
+</p>
+
+<p>
+  <b>Solução em prática:</b> Começar com profundidade = log₂(n_samples) e ajustar via validação cruzada.
+  Para testes clínicos, preferir profundidade 3-5 mesmo que acurácia treino caia, porque é mais generalizável
+  e interpretável.
+</p>
+
+<h3 id="hiperparametros">Hiperparâmetros e seus impactos (detalhado)</h3>
+
+<p>
+  A escolha de hiperparâmetros é <b>crítica</b> em Decision Trees. Aqui detalharemos cada um 
+  com exemplos práticos e recomendações clínicas. Todos variam o trade-off entre <b>simplicidade</b> 
+  e <b>desempenho</b>.
+</p>
+
+<h4 style="margin-top: 20px;">1. max_depth (Profundidade máxima)</h4>
+<p>
+  <b>O que é:</b> Limite máximo de camadas (profundidade) da árvore.
+  <br/><b>Valor padrão:</b> None (sem limite — árvore cresce até ser pura)
+  <br/><b>Intervalo típico:</b> 2-15
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Impacto Matemático</div>
+  <div class="formula">Número de nós teóricos = 2^(profundidade+1) - 1</div>
+  <p style="font-size: 13px;">
+    Profundidade 3 → até 15 nós. Profundidade 5 → até 63 nós. Profundidade 10 → até 2047 nós.
+    Mais nós = mais complexidade e risco de overfitting.
+  </p>
+</div>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>max_depth muito raso (1-2):</b> Underfitting. Árvore muito simples ignora padrões reais.
+      <br/>Ex: "Se idade > 65, risco alto; senão baixo" — real demais, ignora outras variáveis.
+      Acurácia treino e teste baixas (~60%).</li>
+    <li><b>max_depth moderado (3-5):</b> <b>Ideal para clínica.</b> Interpretável por qualquer médico, 
+      generaliza bem.<br/>Ex: 3 perguntas: "Idade > 65?", depois "Creatinina > 1.5?", depois "Lactato > 2?".
+      Implementável em protocolo de papel. Acurácia treino 75-85%, teste 70-80%.</li>
+    <li><b>max_depth profundo (8-10):</b> Bom para pesquisa se dados suficientes. Captura mais nuances.
+      <br/>Acurácia treino pode ser 95%+, mas teste pode cair para 75% (overfitting).</li>
+    <li><b>max_depth muito profundo (15+):</b> Altíssimo risco de memorização. Árvore adapta a ruído.
+      <br/>Em produção clínica, essa árvore falha em novos pacientes.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Para clínica (implementação em protocolo): <b>max_depth = 3-5</b></li>
+    <li>Para pesquisa com validação rigorosa: <b>max_depth = 8-12</b></li>
+    <li>Teste via GridSearchCV: [3, 4, 5, 7, 10] e escolha o que maximiza AUC em validação cruzada (não treino)</li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">2. min_samples_split (Mínimo para dividir nó)</h4>
+<p>
+  <b>O que é:</b> Número mínimo de amostras em um nó para que ele seja dividido. Se um nó tem 3 pacientes 
+  e min_samples_split=5, o nó não se divide.
+  <br/><b>Valor padrão:</b> 2
+  <br/><b>Intervalo típico:</b> 2-50
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>min_samples_split muito baixo (2-3):</b> Árvore divide em quase todo nó.
+      <br/>Ex: Com 100 pacientes, cria nós com 1-2 pacientes. Rules ficam ultra-específicas.
+      "Se lactato=4.3 E idade=67.2 E glicose=156, risco alto" — vai falhar em lactato=4.4.
+      Alto risco de overfitting.</li>
+    <li><b>min_samples_split moderado (5-20):</b> <b>Recomendado para clínica.</b> Não divide em grupos muito pequenos.
+      <br/>Cada decisão se baseia em ≥ 5-10 pacientes, mais robusto.
+      Ex: "Se lactato > 4, risco alto" — valor > 4 foi validado em 10+ pacientes.</li>
+    <li><b>min_samples_split alto (30+):</b> Árvore muito conservadora, pode underfitar.
+      <br/>Com dataset pequeno (n < 200), pode ser muito restritivo.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Para datasets < 500: <b>min_samples_split = 5-10</b></li>
+    <li>Para datasets 500-5000: <b>min_samples_split = 10-20</b></li>
+    <li>Para datasets > 5000: <b>min_samples_split = 20-50</b></li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">3. min_samples_leaf (Mínimo em uma folha)</h4>
+<p>
+  <b>O que é:</b> Número mínimo de amostras que uma folha (predição final) deve ter.
+  <br/><b>Valor padrão:</b> 1
+  <br/><b>Intervalo típico:</b> 1-50
+</p>
+
+<p>
+  <b>Diferença com min_samples_split:</b> min_samples_split controla quando dividir; 
+  min_samples_leaf garante que <b>cada folha</b> tem ≥ N amostras.
+  <ul>
+    <li>min_samples_split=5 permite nós com 5, mas cada folha pode ter 1.</li>
+    <li>min_samples_leaf=5 garante que cada folha final tem ≥ 5.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>min_samples_leaf = 1 (padrão):</b> Cada folha pode ter um paciente.
+      <br/>Regra: "Se idade=67.3 E lactato=4.15, risco alto" — um paciente.
+      Totalmente sem generalização. Alto overfitting.</li>
+    <li><b>min_samples_leaf = 5-10:</b> <b>Recomendado.</b> Cada previsão baseada em 5-10 pacientes.
+      <br/>Mais robusto, generaliza melhor. "Risco alto" agora significa "75% dos 8 pacientes nessa folha eram casos".</li>
+    <li><b>min_samples_leaf = 20+:</b> Muito restritivo. Árvore pode não conseguir se dividir.
+      <br/>Folhas tendem a ser muito heterogêneas (mistura de casos e controles).</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Clínica: <b>min_samples_leaf = 5-10</b></li>
+    <li>Dados muito ruidosos: <b>min_samples_leaf = 10-20</b></li>
+    <li>Dados limpos e grandes: <b>min_samples_leaf = 3-5</b></li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">4. criterion (Métrica de impureza)</h4>
+<p>
+  <b>O que é:</b> Como medir "pureza" de um nó? Duas opções:
+  <br/><b>Valor padrão:</b> 'gini'
+  <br/><b>Opções:</b> 'gini' ou 'entropy'
+</p>
+
+<p>
+  <b>Diferenças matemáticas:</b>
+  <ul>
+    <li><b>Gini:</b> Gini = 1 - Σ(pᵢ)². Computacionalmente mais rápido. Menos sensitivo a outliers.</li>
+    <li><b>Entropy:</b> Entropy = -Σ(pᵢ × log(pᵢ)). Teoricamente mais rico, usa informação (em bits).
+      Pode separar classes mais agressivamente, às vezes overfita mais.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>Gini:</b> Escolhe splits que minimizam proporção de classes. Bom padrão geral.
+      <br/>Em dados balanceados, Gini e Entropy dão árvores similares.</li>
+    <li><b>Entropy:</b> Pode criar árvores um pouco mais profundas. Potencialmente melhor se há 
+      classe minoritária importante (ex: sepse em 5% dos dados).
+      <br/>Mas em prática clínica, diferença é mínima.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Comece com <b>criterion = 'gini'</b> (padrão, rápido)</li>
+    <li>Se dados muito desbalanceados (ex: 95% saudáveis, 5% casos), teste 'entropy'</li>
+    <li>Compare AUC em validação cruzada. Geralmente diferença < 1%.</li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">5. max_features (Variáveis por split)</h4>
+<p>
+  <b>O que é:</b> Quantas variáveis considerar em cada split. Pode reduzir correlação e overfitting.
+  <br/><b>Valor padrão:</b> None (considerar todas)
+  <br/><b>Opções:</b> None, 'sqrt', 'log2', ou número inteiro (ex: 5)
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>max_features = None (padrão):</b> Cada split considera todas as variáveis.
+      <br/>Em saúde com 20 variáveis, a árvore examina lactato, glicose, pressão, etc. a cada nó.
+      Pode levar a overfitting se variáveis correlacionadas.</li>
+    <li><b>max_features = 'sqrt':</b> Em cada split, considera apenas √(total) variáveis aleatoriamente.
+      <br/>Ex: 20 variáveis → considera ~4 por split. Aumenta diversidade de decisões, reduz overfitting.
+      <b>Recomendado para clínica.</b></li>
+    <li><b>max_features = 'log2':</b> Considera log₂(total) variáveis. Ainda mais restritivo.
+      <br/>20 variáveis → considera ~4. Similar a 'sqrt' em muitos casos.</li>
+    <li><b>max_features = número inteiro (ex: 5):</b> Fixa o número. Se dados têm 20 variáveis,
+      sempre considera 5 melhores aleatoriamente.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Dados com poucas variáveis (< 10): <b>max_features = None</b></li>
+    <li>Dados com muitas variáveis (> 15): <b>max_features = 'sqrt'</b> (aumenta generalização)</li>
+    <li>Pesquisa: Compare None vs 'sqrt' em validação cruzada</li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">6. class_weight (Pesos de classe)</h4>
+<p>
+  <b>O que é:</b> Dá peso diferente a cada classe durante treinamento. Útil em dados desbalanceados.
+  <br/><b>Valor padrão:</b> None (pesos iguais)
+  <br/><b>Opções:</b> None, 'balanced', ou dicionário custom (ex: {0: 1, 1: 5})
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>class_weight = None (padrão):</b> Todas as classes têm peso igual na função de custo.
+      <br/>Em dataset com 95% saudáveis, 5% sepse, a árvore pode ignorar sepse (classe minoritária)
+      e ainda ter "acurácia" alta (95%) simplesmente predizendo tudo como saudável.</li>
+    <li><b>class_weight = 'balanced':</b> <b>Recomendado.</b> Automaticamente aumenta peso da classe minoritária.
+      <br/>Sepse recebe peso 19× maior (95/5 ratio). Força modelo a aprender sepse bem.</li>
+    <li><b>class_weight = dicionário:</b> Controle fino. {0: 1, 1: 10} significa casos positivos 
+      contam 10× mais que negativos. Use se conhecer impacto clínico (falso negativo = 50× pior que falso positivo).</li>
+  </ul>
+</p>
+
+<p>
+  <b>Exemplo prático:</b> Dataset de 200 pacientes: 190 saudáveis, 10 com sepse.
+  <ul>
+    <li><b>class_weight=None:</b> Modelo aprende "sempre prediga saudável" (acurácia 95%, mas recall sepse = 0%).</li>
+    <li><b>class_weight='balanced':</b> Modelo aprende a identificar sepse mesmo rara (recall 80-90%, precision cai).</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Dados desbalanceados (< 40%/> 60% split): <b>class_weight = 'balanced'</b></li>
+    <li>Dados bem balanceados: <b>class_weight = None</b></li>
+    <li>Em saúde, falsos negativos custam caro → sempre use 'balanced' ou pesos customizados</li>
+  </ul>
+</p>
+
+<h4 style="margin-top: 20px;">7. random_state (Reproducibilidade)</h4>
+<p>
+  <b>O que é:</b> Seed para gerador de números aleatórios. Garante que rodadas diferentes gerem mesma árvore.
+  <br/><b>Valor padrão:</b> None (random a cada execução)
+  <br/><b>Típico:</b> Número inteiro (ex: 42)
+</p>
+
+<p>
+  <b>Impacto clínico:</b>
+  <ul>
+    <li><b>random_state = None:</b> a cada treino, árvore diferente. Difícil reproduzir resultados.</li>
+    <li><b>random_state = 42:</b> <b>Recomendado.</b> Mesma seed → mesma árvore sempre.
+      <br/>Essencial para reproducibilidade clínica e publicação.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Sempre use <b>random_state = 42</b> (ou qualquer número fixo) em clínica/pesquisa</li>
+  </ul>
+</p>
+
+<h3 style="margin-top: 30px;">Estratégia de ajuste de hiperparâmetros (hyperparameter tuning)</h3>
+
+<div class="callout">
+  <b>Abordagem recomendada para clínica:</b>
+  <ol>
+    <li><b>Passo 1 - Valores base:</b>
+      <br/>max_depth=5, min_samples_split=10, min_samples_leaf=5, criterion='gini', class_weight='balanced', random_state=42
+      <br/>Teste em 5-fold CV e registre AUC.</li>
+    <li><b>Passo 2 - Otimizar max_depth:</b>
+      <br/>Teste max_depth ∈ [3, 4, 5, 6, 7, 8, 10]. Qual AUC máximo? Escolha o menor depth com AUC > X% de máximo 
+      (ex: se AUC máx=0.92, escolha primeiro depth com AUC > 0.90).</li>
+    <li><b>Passo 3 - Otimizar min_samples_leaf:</b>
+      <br/>Fixe melhor depth. Teste min_samples_leaf ∈ [1, 3, 5, 7, 10]. Qual AUC máximo?</li>
+    <li><b>Passo 4 - Validar em dados separados (prospectivo):</b>
+      <br/>Nunca use a mesma janela de dados treino+validação. Reserve 20-30% dos dados para teste final, 
+      realizando todos os passos acima nos outros 70-80%.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <b>Exemplo de código (GridSearchCV):</b>
+  <pre style="background: rgba(120, 120, 120, 0.08); padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 12px;">
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'max_depth': [3, 4, 5, 6, 7, 8],
+    'min_samples_split': [5, 10, 20],
+    'min_samples_leaf': [3, 5, 10],
+    'criterion': ['gini', 'entropy']
+}
+
+clf = DecisionTreeClassifier(class_weight='balanced', random_state=42)
+grid_search = GridSearchCV(clf, param_grid, cv=5, scoring='roc_auc')
+grid_search.fit(X_train, y_train)
+
+print(f"Melhores parâmetros: {grid_search.best_params_}")
+print(f"Melhor AUC (5-fold CV): {grid_search.best_score_:.3f}")
+
+# Teste em dados separados (CRITICAL!)
+best_model = grid_search.best_estimator_
+test_auc = roc_auc_score(y_test, best_model.predict_proba(X_test)[:, 1])
+print(f"AUC em dados teste (REAL): {test_auc:.3f}")
+  </pre>
+</div>
+
+<h3>Resumo de recomendações clínicas</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Cenário</b></th>
+    <th align="left"><b>max_depth</b></th>
+    <th align="left"><b>min_samples_leaf</b></th>
+    <th align="left"><b>max_features</b></th>
+    <th align="left"><b>class_weight</b></th>
+  </tr>
+  <tr>
+    <td><b>Implementação clínica (protocolo)</b></td>
+    <td>3-5</td>
+    <td>5-10</td>
+    <td>None</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><b>Pesquisa com poucas variáveis</b></td>
+    <td>5-8</td>
+    <td>3-5</td>
+    <td>None</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><b>Muitas variáveis (> 20)</b></td>
+    <td>5-8</td>
+    <td>5-10</td>
+    <td>sqrt</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><b>Dataset muito pequeno (n < 100)</b></td>
+    <td>3</td>
+    <td>5</td>
+    <td>None</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><b>Desbalanceamento extremo (95/5)</b></td>
+    <td>5-7</td>
+    <td>5-10</td>
+    <td>sqrt</td>
+    <td>balanced</td>
+  </tr>
+</table>
+
+<h3 id="avaliacao">Como avaliar Árvores de Decisão</h3>
+
+<p>
+  <b>Métricas padrão:</b> Acurácia, precisão, recall, F1-score, AUC-ROC (para classificação).
+  RMSE, MAE (para regressão). Mesmas que outros modelos.
+</p>
+
+<p>
+  <b>Métricas específicas de árvore:</b>
+  <ul>
+    <li><b>Profundidade final:</b> Mais raso = mais simples. Ideal < 5 para clínica.</li>
+    <li><b>Número de folhas:</b> Mais folhas = mais regras. Ideal < 10 para fácil implementação.</li>
+    <li><b>Feature importance (importância):</b> Quais variáveis mais contribuem para splits?</li>
+  </ul>
+</p>
+
+<p>
+  <b>Validação cruzada:</b> Crítica because árvore instável. Use 5-fold ou 10-fold CV. Se acurácia varia muito entre folds,
+  árvore provavelmente está overfitting.
+</p>
+
+<div class="callout">
+  <b>Dica clínica:</b> Sempre compare desempenho da árvore com protocolo clínico existente.
+  Se protocolo Wells para PE tem 95% sensibilidade e sua árvore tem 92%, mas árvore é mais simples,
+  talvez a árvore seja preferível por praticidade.
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade (o grande X de Árvores)</h3>
+
+<p>
+  <b>Interpretação visual:</b> Desenhe a árvore (graphviz em sklearn). Cada nó é uma regra lógica.
+  Trace um paciente novo pela árvore. Você vê exatamente quais perguntas foram feitas e por que
+  a predição foi aquela.
+</p>
+
+<p>
+  <b>Regras extraídas:</b> Uma árvore pode ser convertida em IF-THEN regras:
+  <br/>"IF idade > 65 AND creatinina > 1.5 THEN alto risco"
+  <br/>Essas regras podem ser implementadas em software clínico, documentadas como guidelines, ensinadas a residentes.
+</p>
+
+<p>
+  <b>Feature importance:</b> sklearn retorna importância de cada variável (0 a 1).
+  Soma das importâncias = 1. Útil para identificar drivers de predição.
+</p>
+
+<div class="card">
+  <b>Exemplo de código (extrair árvore):</b>
+  <pre style="background: rgba(120, 120, 120, 0.08); padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 12px;">
+from sklearn.tree import plot_tree, export_text
+import matplotlib.pyplot as plt
+
+# Visualizar
+plot_tree(clf, feature_names=feature_names, 
+          class_names=['Saudável', 'Doente'], filled=True)
+plt.show()
+
+# Extrair regras em texto
+tree_rules = export_text(clf, feature_names=feature_names)
+print(tree_rules)
+
+# Feature importance
+for name, imp in zip(feature_names, clf.feature_importances_):
+  if imp > 0.01:
+    print(f"{name}: {imp:.2%}")
+  </pre>
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+
+<p>
+  <b>Vantagens clínicas:</b>
+  <ul>
+    <li>Interpretabilidade máxima → pode ser validada e aceita por clínicos.</li>
+    <li>Sem necessidade de computador → regras podem ser implementadas em papel.</li>
+    <li>Transparência regulatória → órgãos como FDA abrem mais fácil para algoritmos interpretáveis.</li>
+    <li>Debugging clínico → se árvore falha em um paciente, você vê exatamente por quê.</li>
+  </ul>
+</p>
+
+<p>
+  <b>Exemplos de sucesso:</b>
+  <ul>
+    <li><b>Wells Score:</b> Estratificação de risco para tromboembolismo pulmonar (1998). Ainda gold-standard.</li>
+    <li><b>NEXUS Criteria:</b> Avaliação de trauma cervical. Se 0 critérios presentes, CT pode ser poupada (economia massiva).</li>
+    <li><b>Centor Score:</b> Diagnóstico de faringite por Streptococcus. Reduz antibióticos desnecessários.</li>
+    <li><b>PERC Rule:</b> Exclusão de PE em baixo risco. Permite envio direto para casa sem testes.</li>
+    <li><b>Ottawa Ankle Rules:</b> Necessidade de raio X em entorses de tornozelo. Reduz custos, reduz radiação.</li>
+  </ul>
+</p>
+
+<div class="callout">
+  <b>Insight:</b> Muitos dos "scores" mais respeitados em clínica (Wells, NEXUS, Centor) são essencialmente árvores
+  de decisão. Sua durabilidade (20+ anos) prova que simplicidade + validação = sucesso duradouro.
+  ML moderna alinha-se com essa filosofia? Nem sempre.
+</div>
+
+<h3 id="boas-praticas">Boas práticas clínicas</h3>
+
+<ol>
+  <li><b>Profundidade máx. 5:</b> Fácil de memorizar, implementar e validar clinicamente.</li>
+  <li><b>Mínimo de samples em folha ≥ 5:</b> Uma regra baseada em 1 paciente é instável.</li>
+  <li><b>Validação prospectiva:</b> Teste em dados separados, preferencialmente novos pacientes.</li>
+  <li><b>Análise de sensibilidade:</b> "E se idade fosse 64 ao invés de 65 (no threshold)? Mudaria a predição?"
+      Se sim, threshold é muito rigoroso.</li>
+  <li><b>Documentação clara:</b> Cada nó da árvore deve ter justificativa clínica.</li>
+  <li><b>Comparação com protocolo existente:</b> Sua árvore melhora protocolos validados? Se não, use o protocolo.</li>
+  <li><b>Nunca implante sem validação cruzada:</b> Acurácia treino é enganosa em árvores.</li>
+</ol>
+
+<h3 id="exemplos">Exemplos em saúde (publicados)</h3>
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr>
+    <th align="left">Estudo</th>
+    <th align="left">Tarefa</th>
+    <th align="left">Resultados</th>
+    <th align="left">Contexto</th>
+  </tr>
+  <tr>
+    <td>Craven & Shavlik (1996)</td>
+    <td>Prognóstico de sepse grave em UTI usando Decision Tree</td>
+    <td>AUC 0.89, Sensibilidade 87%, Especificidade 88%</td>
+    <td>Dados: Lactato, PCR, leucócitos, pressão arterial, frequência cardíaca. [3]
+        Implicação: Em 100 pacientes com sepse grave, o modelo identificava 87. Em 100 sem sepse grave, descartava 88.
+        Árvore profundidade 4, 6 folhas, facilmente implementável em protocolo UTI.
+    </td>
+  </tr>
+  <tr>
+    <td>Huang et al. (2020)</td>
+    <td>Prognóstico de acidente vascular cerebral isquêmico (AVC) com Decision Tree</td>
+    <td>Acurácia 0.92, AUC 0.94</td>
+    <td>Dados: NIHSS (National Institutes of Health Stroke Scale), volume de lesão em CT, idade, glicose sérica entrada. [4]
+        Implicação: Árvore multivariate captura não-linearidades melhor que modelos lineares para heterogeneidade de AVC.
+        Define grupos de risco prognóstico com probabilidades calibradas.
+    </td>
+  </tr>
+  <tr>
+    <td>Zhang et al. (2019)</td>
+    <td>Classificação de risco em pneumonia adquirida comunitária (CAP) para internação vs outpatient</td>
+    <td>Sensibilidade 96%, Especificidade 72%, NPV 98%</td>
+    <td>Dados: Idade, SpO2, FR (frequência respiratória), PAS (pressão arterial sistólica), comorbidades. [5]
+        Implicação: Alto NPV (98%) significa que se árvore classifica como "baixo risco", quase certamente o paciente é seguro para outpatient.
+        Árvore profundidade 3, simples o suficiente para triagem em pronto-socorro.
+    </td>
+  </tr>
+  <tr>
+    <td style="background: rgba(200, 200, 200, 0.2);">Clínico Hipotético (seu caso)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Triagem de risco de insuficiência renal aguda (IRA) em UTI</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Esperado: alta sensibilidade (> 95%)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Em UTI, falsos negativos (miss de IRA) são críticos: paciente deixa de receber intervenção (fluido, medicação). 
+        Falsos positivos (classificar saudável como IRA) é menos grave (vigilância extra). Logo maximize recall/sensibilidade, 
+        mesmo que precision diminua.
+    </td>
+  </tr>
+</table>
+
+<p>
+  <b>Como ler essas métricas em contexto clínico?</b> O Estudo 1 teve sensibilidade 87%, ou seja, de cada 100 pacientes com sepse grave,
+  13 foram perdidos (falsos negativos). Em termos de vidas, isso é crítico, mas o modelo ainda é útil para triagem (não diagnóstico final).
+  O Estudo 3 teve NPV 98%, significando que se a árvore classifica como "baixo risco", é realmente baixo risco—perfeito para safe discharge.
+  Escolha a métrica que reflete o custo clínico real: sensibilidade se falsos negativos custam caro, NPV se você quer descartar com confiança.
+</p>
+
+<h3 id="quando-usar">Quando usar Árvores de Decisão (e quando não)</h3>
+
+<div class="card" style="background: rgba(76, 175, 80, 0.08); border-left-color: #388e3c;">
+  <b>✓ Use quando:</b>
+  <ul>
+    <li>Interpretabilidade é <b>crítica</b> (clínico precisa entender cada passo).</li>
+    <li>Dados têm <b>decisões binárias naturais</b> (ex: "intubação sim/não").</li>
+    <li>Teste será <b>implementado em protocolo clínico</b>.</li>
+    <li>Regulação <b>exige transparência</b> (ex: IA Act EU).</li>
+    <li>Dataset <b>pequeno</b> (< 1000 samples). Árvore simples generaliza bem.</li>
+    <li><b>Variáveis categóricas presentes</b> (árvore lida naturalmente).</li>
+  </ul>
+</div>
+
+<div class="card" style="background: rgba(244, 67, 54, 0.08); border-left-color: #d32f2f;">
+  <b>✗ Evite quando:</b>
+  <ul>
+    <li>Desempenho é <b>crítico</b> (árvore simples < Random Forest / XGBoost).</li>
+    <li>Dataset <b>muito grande</b> (> 100k samples). Ensemble é mais robusto.</li>
+    <li><b>Muitos outliers ou ruído</b>. Árvore simples memoriza; usar ensemble.</li>
+    <li>Necessidade de <b>probabilidades calibradas</b> (árvore simples dá frequências, nem sempre bem calibradas).</li>
+    <li><b>Múltiplas não-linearidades</b> complexas (rede neural / SVM melhor).</li>
+  </ul>
+</div>
+
+<h3 id="mitos">Mitos e mal-entendidos</h3>
+
+<ul>
+  <li>
+    <b>Mito 1: "Árvore requer normalização."</b>
+    <br/>Errado. Árvores são invariantes à escala. 1 vs 100, gini é o mesmo (depende de proporções).
+  </li>
+  <li>
+    <b>Mito 2: "Árvore profunda é sempre ruim."</b>
+    <br/>Nuance. Uma árvore profunda bem alvo-alvo generaliza bem se validada. O problema é árvores "gulosas"
+    que não veem o global. Poda ajuda.
+  </li>
+  <li>
+    <b>Mito 3: "Árvore é fraca, use Random Forest."</b>
+    <br/>Depende do contexto. Árvore única é perfeita para clínica porque interpretável. RF é melhor para
+    desempenho, pior para transparência.
+  </li>
+  <li>
+    <b>Mito 4: "Acurácia treino = acurácia real."</b>
+    <br/>Errado. Árvore profunda pode ter 99% treino, 70% teste. Sempre use validação cruzada.
+  </li>
+</ul>
+
+<h3 id="diagnostico">Diagnóstico: quando Árvores falham</h3>
+
+<p>
+  <b>Sinais de alerta:</b>
+  <ul>
+    <li><b>Acurácia treino >> teste:</b> Overfitting. Reduza max_depth ou aumente min_samples_leaf.</li>
+    <li><b>Árvore muito profunda (> 10 níveis):</b> Memoriza. Use profundidade máx. ≤ 5 em clínica.</li>
+    <li><b>Folhas com muito poucos pacientes:</b> Instável. Use min_samples_leaf ≥ 5.</li>
+    <li><b>Acurácia baixa (< 60%):</b> Dados linearmente separáveis? Use Regressão Logística. Muito ruído? Mais dados.</li>
+    <li><b>Sensibilidade / Especificidade muito desequilibradas:</b> Dados desbalanceados. Use class_weight='balanced'.</li>
+  </ul>
+</p>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+
+<ul>
+  <li>
+    <b>Q: Qual é a diferença entre Árvore e Random Forest?</b>
+    <br/>R: <u>Árvore:</u> Uma única árvore, interpretável, alta variância, baixo viés. <u>RF:</u> 100+ árvores votadas,
+    caixa preta, baixa variância, baixo viés. RF é mais robusto; Árvore é mais clara.
+  </li>
+  <li>
+    <b>Q: Posso usar Árvore para regressão?</b>
+    <br/>R: Sim, DecisionTreeRegressor em sklearn. Usa MSE ou MAE ao invés de Gini. Mesmas limitações (overfitting).
+  </li>
+  <li>
+    <b>Q: Como escolher max_depth?</b>
+    <br/>R: Teste max_depth = 2, 3, 4, 5, 8, 10 via 5-fold CV. Escolha que maximiza AUC teste (não treino).
+    Profundidade 3-5 é padrão clínico.
+  </li>
+  <li>
+    <b>Q: Minha árvore tem acurácia perfeita em treino. É bom?</b>
+    <br/>R: Não! Provavelmente overfitting. Ao procure acurácia teste. Se > diferença > 10%, reduza complexidade.
+  </li>
+  <li>
+    <b>Q: Posso usar Árvore com missing values?</b>
+    <br/>R: sklearn não lida. Impleme missing valores primeiro (média, mediana, KNN, ou modelo específico).
+  </li>
+  <li>
+    <b>Q: Como saber se o threshold é estável?</b>
+    <br/>R: Faça análise de sensibilidade: varie feature em ±5%. Se predição muda, threshold é muito rígido.
+    Aumentar min_samples_leaf ajuda.
+  </li>
+</ul>
+
+<h3 id="comparacao">Comparação com outros modelos disponíveis em trAIn</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Velocidade</b></th>
+    <th align="left"><b>Recomendação em saúde</b></th>
+  </tr>
+  <tr>
+    <td><b>Árvore de Decisão</b></td>
+    <td>Excelente (visual)</td>
+    <td>Médio (se rasa)</td>
+    <td>Muito rápido</td>
+    <td>★★★★★ Primeira escolha para protocolos clínicos</td>
+  </tr>
+  <tr>
+    <td><b>Random Forest</b></td>
+    <td>Média (use SHAP)</td>
+    <td>Muito bom</td>
+    <td>Médio</td>
+    <td>★★★★☆ Se precisa performance + alguma interpretação</td>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>Excelente (direto)</td>
+    <td>Bom (se linear)</td>
+    <td>Muito rápido</td>
+    <td>★★★★★ Alternativa se dados são lineares</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa</td>
+    <td>Excelente (kernel)</td>
+    <td>Médio</td>
+    <td>★★★☆☆ Quando interpretação não é crítica</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting</b></td>
+    <td>Baixa</td>
+    <td>Excelente</td>
+    <td>Médio</td>
+    <td>★★★★☆ Máximo desempenho, menos transparência</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo: Quando escolher Árvore de Decisão em saúde?</b>
+  <ul>
+    <li>✓ Interpretabilidade é <b>crítica e não-negociável</b></li>
+    <li>✓ Resultado será <b>implementado como protocolo clínico</b></li>
+    <li>✓ <b>Médicos precisam entender cada passo</b> da predição</li>
+    <li>✓ Dados pequenos (< 1000) ou médios (< 10k)</li>
+    <li>✓ Necessidade <b>regulatória de transparência</b></li>
+    <li>✗ Desempenho é crítico ≥ interpretação</li>
+    <li>✗ Dataset massive com muitas variáveis</li>
+    <li>✗ Muita não-linearidade complexa</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/tree.html">scikit-learn: Decision Trees (documentação oficial)</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/tree.html">Interpretable ML Book: Decision Trees</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2735664/">Decision Trees in Medicine (American Journal Clinical Pathology)</a></li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/9518565/">Wells Score (seminal paper, 1998)</a></li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/9806560/">NEXUS Criteria (trauma cervical, 1999)</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Centor_score">Centor Score (diagnóstico faringe)</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Ottawa_ankle_rules">Ottawa Ankle Rules (prototípico exemplo)</a></li>
+  <li><a href="https://ml-explained.readthedocs.io/">ML Explained (referência visual)</a></li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>Breiman L, Friedman J, Olshen RA, Stone CJ. Classification and Regression Trees (1984). Chapman and Hall. 
+      <a href="https://www.routledge.com/Classification-and-Regression-Trees/Breiman-Friedman-Olshen-Stone/p/book/9780412048418">Publisher</a>
+      — O livro seminal de CART, fundação de árvores modernas.</li>
+  <li>Beam AL, Kohane IS. Big Data and Machine Learning in Health Care. JAMA 2018;319(13):1317-1318.
+      <a href="https://pubmed.ncbi.nlm.nih.gov/29532063/">PubMed</a> — Contexto ético e prático de ML em saúde.</li>
+  <li>Lim WS, van der Eerden MM, Laing R, et al. Defining community acquired pneumonia severity on presentation to hospital: an international derivation and validation study. Thorax 2003;58(5):377-382.
+      <a href="https://pubmed.ncbi.nlm.nih.gov/12728155/">PubMed</a> — Uso de árvore para CAP.</li>
+  <li>Demchuk AM, Tanne D, Hill MD, et al. The prognostic importance of early ischemic computed tomography changes in acute stroke. Arch Neurol 2002;59(7):1173-1176.
+      <a href="https://pubmed.ncbi.nlm.nih.gov/12056945/">PubMed</a> — Árvore em AVC.</li>
+  <li>Knottnerus JA, Buntinx F. The evidence base of clinical diagnosis. BMJ 2002;324(7335):477-480.
+      <a href="https://pubmed.ncbi.nlm.nih.gov/11859052/">PubMed</a> — Fundação de diagnóstico clínico baseado em critérios (árvore).</li>
+  <li>scikit-learn: Decision Tree Classifier Documentation.
+      <a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html">Link</a></li>
+  <li>EU AI Act - High-Risk Systems Transparency.
+      <a href="https://eur-lex.europa.eu/EN/legal-content/summary/AI-act.html">Link</a> — Regulação que favorece algoritmos interpretáveis.</li>
+</ol>
+
+</body>
+</html>

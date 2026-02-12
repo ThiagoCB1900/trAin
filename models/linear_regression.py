@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 from sklearn.linear_model import LinearRegression
 from .specs import ModelSpec, ParamSpec
 

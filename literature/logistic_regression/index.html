@@ -1,0 +1,716 @@
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+</style>
+
+<h2 style="margin-top:0;">Regressão Logística</h2>
+<p>
+  A Regressão Logística é um modelo estatístico clássico que transforma uma combinação linear de
+  variáveis em uma <b>probabilidade</b> (entre 0 e 1) usando a função logística. Apesar do nome,
+  é usada para <b>classificação</b>, não regressão. É um dos algoritmos mais interpretáveis e
+  amplamente validados em medicina clínica, sendo considerado padrão-ouro em muitas aplicações
+  de diagnóstico e prognóstico. [1]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> Uma medida linear dos seus dados é transformada em uma probabilidade,
+  permitindo predizer a chance de algo acontecer (ex.: "risco de 75% de ter doença").
+</div>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Fórmulas</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#normalizacao">Normalização e escalas</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar LR (e quando não)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#diagnostico">Diagnóstico: quando falha</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparação com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  A Regressão Logística é um modelo linear de classificação que estima probabilidades.
+  Ela combina múltiplas variáveis de entrada de forma linear, depois aplica a função
+  logística (sigmoid) para converter o resultado em uma probabilidade entre 0 e 1. [1]
+</p>
+
+<p>
+  <b>Por que é tão importante em saúde?</b> Porque os resultados são <b>diretos</b> e
+  <b>interpretáveis</b>: cada variável tem um coeficiente que você pode explicar. Se o
+  coeficiente da idade é 0.05, significa que cada ano a mais de idade aumenta as chances
+  (odds) em 5%. Isso é muito mais claro que "a variável é importante" (como em Random Forest).
+  [1]
+</p>
+
+<div class="card">
+  <b>Características principais</b>
+  <ul>
+    <li><b>Simples e transparente:</b> Fácil de entender, treinar e explicar para médicos.</li>
+    <li><b>Calibração nativa:</b> As saídas são probabilidades reais, não pseudo-probabilidades.</li>
+    <li><b>Assume linearidade:</b> Espera relações lineares entre variáveis e log-odds (pode ser limitação).</li>
+    <li><b>Escalabilidade:</b> Rápido para treinar em datasets grandes.</li>
+    <li><b>Bases estatísticas:</b> Fundamentada em 200+ anos de teoria estatística (Maximum Likelihood).</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Contexto clínico:</b> Modelos como SOFA (sepse), CHA2DS2-VASc (fibrilação atrial) e QRISK3 (risco cardiovascular)
+  são essencialmente Regressão Logística. Sua durabilidade clínica (ainda usados 20+ anos depois)
+  prova a robustez. [1]
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine que você quer prever risco de doença cardíaca usando idade, colesterol e pressão.
+  Uma regressão linear simples diria "risco = 10 + 0.5 × idade + 0.1 × colesterol". Mas há um problema:
+  essa fórmula pode dar "risco = -5" (impossível!) ou "risco = 200" (maior que 100%, também impossível).
+  [1]
+</p>
+
+<p>
+  <b>A solução:</b> A Regressão Logística usa a função logística (sigmoid), que garante que o
+  resultado está sempre entre 0 e 1, sem importar os valores das variáveis. É como colocar
+  uma "guardrail matemática" que mantém a saída em um intervalo válido. [1]
+</p>
+
+<p>
+  <b>Analogia (teste clínico):</b> Diferente de Random Forest (múltiplos especialistas votam),
+  Regressão Logística é como um especialista que lê os dados e fornece uma única predição calibrada.
+  A diferença é que esse especialista segue regras matemáticas explícitas (cada variável tem um peso fixo)
+  e vem com intervalos de confiança (você sabe quanto de incerteza há na predição). [1]
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Odds (chances):</b> Razão de probabilidades. Se P(doença) = 0.75, então odds = 0.75 / (1 - 0.75) = 3 (três para um).</li>
+  <li><b>Log-odds:</b> Logaritmo natural das odds. É linear! Mais fácil de trabalhar matematicamente.</li>
+  <li><b>Função logística (sigmoid):</b> Transforma log-odds para probabilidade. Forma de "S".</li>
+  <li><b>Coeficiente:</b> Peso de uma variável. Positivo = aumenta risco; negativo = diminui risco.</li>
+  <li><b>Intercept (viés):</b> Probabilidade base quando todas as variáveis são zero.</li>
+  <li><b>Regularização (L1, L2):</b> Penalidade para evitar overfitting reduzindo tamanho de coeficientes.</li>
+  <li><b>Classification threshold:</b> Ponto de corte da probabilidade (padrão 0.5, mas ajustável).</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li>Compute z = w₀ + w₁ × x₁ + w₂ × x₂ + ... + wₚ × xₚ (combinação linear).</li>
+  <li>Aplique a função logística: P(y=1|x) = 1 / (1 + exp(-z)) (transforma em probabilidade).</li>
+  <li>Compare com rótulo verdadeiro e calcule erro (log-loss).</li>
+  <li>Atualize pesos usando gradiente descendente para minimizar erro.</li>
+  <li>Repita até convergência.</li>
+  <li>Para novo dado, compute z e P(y=1|x). Se P > 0.5, classifique como 1; senão 0.</li>
+</ol>
+
+<p>
+  <b>Exemplo concreto (diagnóstico de sepse):</b> Suponha que treinamos com 3 variáveis: lactato (w₁ = 2.5),
+  leucócitos (w₂ = 1.2), e pressão (w₃ = -0.8), com intercept = -5.
+  <br/>Para um novo paciente: lactato = 4, leucócitos = 15, pressão = 90:
+  <br/>z = -5 + 2.5×4 + 1.2×15 - 0.8×90 = -5 + 10 + 18 - 72 = -49 (muito negativo!)
+  <br/>P = 1 / (1 + exp(49)) ≈ 0.000000001 (praticamente 0, baixo risco). 
+  <br/>Mas se pressão = 60 em vez de 90:
+  <br/>z = -5 + 10 + 18 - 0.8×60 = -5 + 10 + 18 - 48 = -25 (ainda negativo)
+  <br/>P = 1 / (1 + exp(25)) ≈ 0.0000000001 (ainda muito baixo).
+  Este exemplo ilustra como os coeficientes controlam o impacto: pressão tem coef. maior (em valor absoluto),
+  então tem mais impacto que lactato nesse modelo hipotético. [1]
+</p>
+
+<div class="card">
+  <svg width="520" height="200" viewBox="0 0 520 200" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="20" font-size="12" font-weight="bold">Função Logística (Sigmoid)</text>
+    <!-- Eixo X -->
+    <line x1="50" y1="150" x2="500" y2="150" stroke="currentColor" stroke-width="1.5"/>
+    <!-- Eixo Y -->
+    <line x1="50" y1="30" x2="50" y2="150" stroke="currentColor" stroke-width="1.5"/>
+    <!-- Rótulos -->
+    <text x="505" y="155" font-size="11">z (log-odds)</text>
+    <text x="35" y="30" font-size="11">P(y=1)</text>
+    <!-- Marcas nos eixos -->
+    <text x="45" y="165" font-size="10">-4</text>
+    <text x="170" y="165" font-size="10">0</text>
+    <text x="370" y="165" font-size="10">4</text>
+    <!-- Curva sigmoide (aproximada com polyline) -->
+    <polyline points="50,147 70,140 90,125 110,105 130,85 150,65 170,52 190,48 210,47 230,47 250,48 270,52 290,65 310,85 330,105 350,125 370,140 390,147" 
+              fill="none" stroke="currentColor" stroke-width="2"/>
+    <!-- Linha de referência em 0.5 -->
+    <line x1="50" y1="90" x2="500" y2="90" stroke="currentColor" stroke-dasharray="4 4" stroke-width="1"/>
+    <text x="15" y="94" font-size="10">0.5</text>
+    <!-- Anotações -->
+    <circle cx="170" cy="52" r="3" fill="currentColor"/>
+    <text x="140" y="30" font-size="10">Risco alto</text>
+    <circle cx="330" cy="140" r="3" fill="currentColor"/>
+    <text x="350" y="155" font-size="10">Risco baixo</text>
+  </svg>
+  <div class="diagram-note">A curva em S garante que a saída está sempre entre 0 e 1. z=0 corresponde a P=0.5 (ponto de corte).</div>
+</div>
+
+<h3 id="formulas">Fórmulas básicas</h3>
+<div class="formula-box">
+  <div class="formula-title">Função Logística e Probabilidade</div>
+  <div class="formula">P(y=1|x) = 1 / (1 + e<sup>-z</sup>)  [Função logística / sigmoid]</div>
+  <div class="formula">z = w₀ + w₁x₁ + w₂x₂ + ... + wₚxₚ  [Combinação linear]</div>
+  <div class="formula">log-odds = log(P / (1 - P)) = z  [Transformação inversa]</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Loss function (Binary Cross-Entropy)</div>
+  <div class="formula">L = -(1 / n) × [∑ y_i × log(ŷ_i) + (1 - y_i) × log(1 - ŷ_i)]</div>
+  <div class="formula">[Mede erro entre probabilidade prevista e rótulo real]</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Odds Ratio (interpretação)</div>
+  <div class="formula">OR = e<sup>w_j</sup>  [Mudança nas odds para aumento unitário em x_j]</div>
+  <div class="formula">[Exemplo: se w = 0.69, então OR = e^0.69 ≈ 2.0, ou seja, odds dobram]</div>
+</div>
+
+<h3 id="matematica">Matemática por trás (intuitiva e objetiva)</h3>
+<p>
+  A Regressão Logística usa <b>Maximum Likelihood Estimation (MLE)</b> para encontrar os pesos ótimos.
+  A ideia: encontre os pesos que tornam os dados observados <b>mais prováveis</b>. [1]
+</p>
+
+<p>
+  <b>Analogia clínica:</b> Imagine que você tem 100 pacientes: 30 com doença (y=1) e 70 sem (y=0).
+  Você testa diferentes modelos. O modelo "bom" é aquele que:
+  - Dá probabilidade ALTA (próximo a 1) para os 30 pacientes com doença.
+  - Dá probabilidade BAIXA (próximo a 0) para os 70 pacientes sem doença.
+  
+  A likelihood é o produto de todas essas probabilidades. MLE encontra os pesos que maximizam
+  esse produto (equivalentemente, minimizam o log-loss). [1]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Odds Ratio e Interpretação</div>
+  <div class="formula">Se w = 0.10 (coeficiente de idade)</div>
+  <div class="formula">OR = e<sup>0.10</sup> ≈ 1.105</div>
+  <div class="formula">Interpretação: Para cada ano a mais de idade, as odds de doença aumentam 10.5% (multiplicam por 1.105)</div>
+</div>
+
+<p>
+  <b>Cálculo de probabilidade com coeficientes:</b> Se o modelo diz que intercepto = -2 e coef. idade = 0.05,
+  então para idade = 50:
+  <br/>z = -2 + 0.05×50 = 0.5
+  <br/>P = 1 / (1 + e^(-0.5)) = 1 / (1 + 0.606) ≈ 0.622 (62.2% de risco)
+  <br/>Para idade = 60:
+  <br/>z = -2 + 0.05×60 = 1.0
+  <br/>P = 1 / (1 + e^(-1.0)) ≈ 0.731 (73.1% de risco)
+  <br/>A diferença é não-linear: 10 anos não aumentam risco em uma quantidade fixa, mas o efeito é
+  maior em probabilidades intermediárias (0.3-0.7) que nos extremos. [1]
+</p>
+
+<h3 id="normalizacao">Normalização e escalas</h3>
+<p>
+  Para Regressão Logística, <b>normalização é MUITO IMPORTANTE</b>, ao contrário de Random Forest.
+  [2]
+</p>
+
+<p>
+  <b>Por quê?</b> Os coeficientes refletem a escala das variáveis. Se idade está em anos (0-120)
+  e uma variável categórica está em 0-1, o coeficiente da primeira será muito menor em magnitude,
+  mesmo que ambas sejam igualmente importantes. Além disso, otimizadores (gradiente descendente)
+  convergem mais rápido em dados normalizados. [2]
+</p>
+
+<p>
+  <b>Como normalizar?</b> Use Standardization (Z-score normalization):
+  <br/>x_norm = (x - mean) / std_dev
+  <br/>Ou MinMax scaling (0-1):
+  <br/>x_norm = (x - min) / (max - min)
+  <br/><b>Recomendação:</b> Standardization é mais comum em Regressão Logística porque preserva
+  interpretabilidade (coeficientes refletem mudanças em desvios padrão). [2]
+</p>
+
+<div class="callout">
+  <b>Resumo prático:</b> Sempre normalize seus dados antes de treinar Regressão Logística.
+  Isso melhora convergência, interpretabilidade e comparação entre coeficientes.
+</div>
+
+<h3 id="hiperparametros">Hiperparâmetros mais importantes (e impacto)</h3>
+<ul>
+  <li><b>C (regularização inversa):</b> Controla força da penalidade. C grande = menos regularização (risco de overfitting);
+    C pequeno = mais regularização (modelo mais simples). Padrão é C=1.0. [1]
+    <br/><i>Em saúde:</i> Use C menor (ex: 0.1) se dados são ruidosos ou dataset pequeno.
+  </li>
+  <li><b>penalty (tipo de regularização):</b> L2 (padrão, todos coef. não-zero), L1 (sparse, alguns coef. zerados),
+    ou ElasticNet (misto). [1]
+    <br/><i>L1 → feature selection natural:</i> Coeficientes irrelevantes viram exatamente zero, reduzindo modelo.
+  </li>
+  <li><b>solver (algoritmo de otimização):</b> 'liblinear' (pequenos datasets, rápido), 'lbfgs' (padrão, robusto),
+    'saga' (grandes datasets, paralelo), 'newton-cg' (datasets muito grandes). [1]
+  </li>
+  <li><b>max_iter (máximo de iterações):</b> Padrão 100. Se modelo não converge, aumente. [1]
+    <br/><i>Nota:</i> Monitore warning sobre convergência.
+  </li>
+  <li><b>class_weight:</b> Para dados desbalanceados, use 'balanced' para pesar classes inversamente à frequência. [1]
+    <br/><i>Em saúde:</i> Essencial se evento raro (ex: sepse = 5% dos dados).
+  </li>
+</ul>
+
+<div class="callout">
+  <b>Configuração recomendada (saúde):</b> C=0.5, penalty='l2', solver='lbfgs', class_weight='balanced'.
+  Comece com esses e ajuste C via cross-validation se necessário.
+</div>
+
+<h3 id="avaliacao">Como avaliar um modelo</h3>
+<ul>
+  <li><b>Acurácia:</b> Porcentagem geral de acertos (cuidado com dados desbalanceados).</li>
+  <li><b>Precisão:</b> Entre os positivos previstos, quantos eram reais (falsos alarmes).</li>
+  <li><b>Recall (sensibilidade):</b> Entre os positivos reais, quantos detectamos (casos perdidos).</li>
+  <li><b>Especificidade:</b> Entre os negativos reais, quantos corretamente descartamos.</li>
+  <li><b>AUC-ROC:</b> Medida geral de separação (0.5 = aleatório; 1.0 = perfeito). Insensível a threshold.</li>
+  <li><b>Calibração:</b> Se modelo diz "risco 30%", isso ocorre em ~30% dos dados? Crítico para medicina.</li>
+</ul>
+
+<div class="card">
+  <svg width="520" height="170" viewBox="0 0 520 170" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="10" width="200" height="150" rx="6" fill="none" stroke="currentColor"/>
+    <line x1="10" y1="85" x2="210" y2="85" stroke="currentColor"/>
+    <line x1="110" y1="10" x2="110" y2="160" stroke="currentColor"/>
+    <text x="40" y="45" font-size="12">VP</text>
+    <text x="140" y="45" font-size="12">FP</text>
+    <text x="40" y="125" font-size="12">FN</text>
+    <text x="140" y="125" font-size="12">VN</text>
+    <text x="15" y="170" font-size="11">Matriz de confusão</text>
+
+    <rect x="250" y="10" width="250" height="150" rx="6" fill="none" stroke="currentColor"/>
+    <polyline points="260,150 290,120 330,90 380,60 430,35 490,20" fill="none" stroke="currentColor"/>
+    <line x1="260" y1="150" x2="490" y2="20" stroke="currentColor" stroke-dasharray="4 4"/>
+    <text x="260" y="170" font-size="11">Curva ROC (AUC mede área)</text>
+  </svg>
+  <div class="diagram-note">Matriz mostra acertos/erros. ROC plota sensibilidade vs (1 - especificidade) em diferentes limiares.</div>
+</div>
+
+<p>
+  <b>Calibração em saúde:</b> Use calibration plots ou Brier score. Um modelo bem calibrado dá confiança
+  na predição de risco individual. [2]
+</p>
+
+<p>
+  <b>Escolha de limiar:</b> Padrão é 0.5, mas não é obrigatório. Para triagem (máx. sensibilidade),
+  use 0.3-0.4. Para confirmação (máx. precisão), use 0.6-0.7. [1]
+</p>
+
+<h3 id="interpretabilidade">Interpretabilidade: a maior vantagem</h3>
+
+<p>
+  A grande vantagem de Regressão Logística é que <b>é fácil explicar</b>. Cada coeficiente tem
+  um significado direto.
+</p>
+
+<ul>
+  <li><b>Coeficiente direto:</b> "Cada aumento de 1 unidade em X aumenta log-odds em [coef]."
+    <br/><i>Exemplo:</i> Coef. de lactato = 2.0 → cada aumento de 1 mmol/L aumenta log-odds de sepse em 2.0.
+  </li>
+  <li><b>Odds Ratio:</b> Exponencial do coef. → "Cada aumento de 1 aumenta odds em [OR-1]×100%."
+    <br/><i>Exemplo:</i> OR = 1.5 → cada aumento de 1 multiplica odds por 1.5 (aumento de 50%).
+  </li>
+  <li><b>Probabilidade absoluta:</b> A saída direta é uma probabilidade calibrada.
+    <br/><i>Exemplo:</i> "Este paciente tem 73% de risco de sepse" é comunicável ao médico.
+  </li>
+  <li><b>Confidence intervals:</b> Você pode computar intervalos de confiança para coeficientes (uso statsmodels).
+    <br/><i>Exemplo:</i> "Lactato aumenta log-odds de sepse em 2.0 ± 0.5 (IC95%)."
+  </li>
+  <li><b>Feature importance:</b> Magnitude do coef. (em dados normalizados) mostra relevância.
+    <br/><i>Atenção:</i> Um coef. grande pode indicar multicolinearidade, não apenas importância.
+  </li>
+</ul>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Exemplo de explicação clínica:</b>
+  <br/>Modelo para risco de AVC: coef. idade = 0.08, coef. fibrilação atrial = 2.5, coef. pressão = 0.05.
+  <br/>Para um paciente de 65 anos, COM fibrilação atrial, pressão = 150:
+  <br/>z = -5 + 0.08×65 + 2.5×1 + 0.05×150 = -5 + 5.2 + 2.5 + 7.5 = 10.2
+  <br/>P = 1 / (1 + e^(-10.2)) ≈ 0.9998 (quase 100%, risco muito alto!)
+  <br/><b>Como comunicar:</b> "Este paciente tem aproximadamente 100% de risco de AVC em 10 anos.
+  A fibrilação atrial é o fator dominante (+2.5 no log-odds), seguido por pressão e idade."
+  <br/>(Na prática, nunca diga exatamente 100%, mas "risco extremamente alto, requer ação urgente".)
+</div>
+
+<h3 id="saude">Aplicações em saúde: contexto e importância</h3>
+<ul>
+  <li><b>Escalas clínicas:</b> SOFA (sepse), QRISK3 (cardiovascular), CHA2DS2-VASc (fibrilação atrial) são LR.</li>
+  <li><b>Diagnóstico precoce:</b> Modelos para detecção de câncer, infarto, etc.</li>
+  <li><b>Estratificação de risco:</b> Identificar pacientes de alto risco para intervenção preventiva.</li>
+  <li><b>Prognóstico:</b> Predizer mortalidade, complicações, resposta ao tratamento.</li>
+</ul>
+
+<p>
+  <b>Vantagens em contexto clínico:</b> Resultados são calibrados (reais), interpretáveis
+  (posso explicar para qualquer médico), e bem validados (literatura centenária de estatística). [1]
+</p>
+
+<p>
+  <b>Limitações em contexto clínico:</b> Assume relações lineares em log-odds, que pode não capturar
+  interações complexas. Se dados têm muitas não-linearidades, modelos como Random Forest podem ser necessários.
+  Mas então você perde interpretabilidade. [1]
+</p>
+
+<p>
+  <b>Drift clínico:</b> Como em qualquer modelo, mudanças de protocolo ou população podem prejudicar desempenho.
+  Recomenda-se revalidação a cada 6-12 meses e retreinamento anual. [2]
+</p>
+
+<h3 id="boas-praticas">Boas práticas para uso clínico (passo a passo)</h3>
+<ol>
+  <li><b>Coleta de dados rigorosa:</b>
+    <br/><i>Por quê:</i> Regressão Logística é sensível a viés de coleta. Se uma variável for medida diferente
+    em dois períodos, o modelo falhará.
+    <br/><i>Passo:</i> Documente protocolo de coleta, unidades de medida, critérios de inclusão/exclusão.
+  </li>
+  <li><b>Prepare dados com cuidado:</b>
+    <ul>
+      <li>Faltantes: Use imputação apropriada (média, mediana, ou algoritmo). Documento método.</li>
+      <li>Outliers: Revise clinicamente. São erros ou casos legítimos extremos?</li>
+      <li>Categóricas: Codifique consistentemente (ex: sexo = 0 mulher, 1 homem). Sempre.</li>
+      <li>Normalize: StandardScaler ou MinMaxScaler antes do treino.</li>
+    </ul>
+  </li>
+  <li><b>Validação interna:</b> Use 5-fold ou 10-fold cross-validation. Não confie apenas em teste/validação.</li>
+  <li><b>Validação externa obrigatória:</b> Teste em outro hospital, outra coorte, período futuro.
+    <br/><i>Crítico:</i> É aqui que você descobre viés de coleta e drift.
+  </li>
+  <li><b>Verificar calibração:</b> Calibration plot ou Hosmer-Lemeshow test.
+    <br/><i>Esperado:</i> Se prediz 30% risco para 100 pacientes, ~30 devem ter evento.
+  </li>
+  <li><b>Documentar claramente:</b>
+    <br/>- Que população? (Idade, sexo, critérios)?
+    <br/>- Que período? (2020-2023)?
+    <br/>- Desempenho? (AUC, sensibilidade, especificidade, calibration slope).
+    <br/>- Limitações? (Não testado em pediátricos, em diabéticos não controlados, etc.).
+  </li>
+  <li><b>Monitoramento contínuo:</b>
+    <br/>- Calcule AUC e calibração a cada mês em dados novos.
+    <br/>- Se AUC cair < 0.80 e era > 0.85, alertar.
+    <br/>- Se mudança de protocolo, prever reavaliação.
+  </li>
+  <li><b>Comunicação clara para médicos:</b>
+    <br/>- Mostre coeficientes e ORs em tabela amigável.
+    <br/>- Exemplo de caso: "Paciente com idade 70, pressão 160, colesterol 250 → risco 45%."
+    <br/>- Nunca substituir julgamento clínico. O modelo é <b>uma ferramenta</b>.
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Segurança clínica:</b> Regressão Logística pode dar falsa confiança por ser "simples".
+  Mas simplificidade não = confiabilidade. Validação rigorosa é essencial. Qualquer modelo
+  que impacta decisões de saúde requer revisão clínica, protocolos de discordância, e
+  monitoramento contínuo. [1]
+</div>
+
+<h3 id="exemplos">Exemplos em saúde (publicados)</h3>
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Aplicação</b></th>
+    <th align="left"><b>Resultados / Impacto</b></th>
+    <th align="left"><b>Contexto</b></th>
+  </tr>
+  <tr>
+    <td><b>SOFA Score (Singer et al., 2016)</b></td>
+    <td>Predição de mortalidade em sepse</td>
+    <td>AUC 0.89 (excelente) em 50,000+ pacientes. Adotado globalmente, recomendado pela WHO.</td>
+    <td>Escala clínica-LR com 6 componentes (respiração, coagulação, bilirrubina, pressão arterial, Glasgow, creatinina).
+        Totalmente interpretável: cada ponto = um sistema corporal. [1]
+    </td>
+  </tr>
+  <tr>
+    <td><b>QRISK3 (Hippisley-Cox et al., 2017)</b></td>
+    <td>Risco cardiovascular em 10 anos (população geral)</td>
+    <td>Calibrado em > 2 milhões britânicos. Validado em múltiplas etnias. Usado em prática clínica rotineira.</td>
+    <td>LR com 13 variáveis (idade, pressão, colesterol, diabetes, etc.). Aplicativo online.
+        Resultado direto: "Risco de 12% em 10 anos" → comunicável imediatamente. [2]
+    </td>
+  </tr>
+  <tr>
+    <td><b>CHA2DS2-VASc Score (Lip et al., 2010)</b></td>
+    <td>Risco de AVC em fibrilação atrial</td>
+    <td>Simples (8 componentes), AUC 0.81. Recomendado internacionalmente. Milhões de pacientes.</td>
+    <td>Pontos: age, hipertensão, diabetes, doença vascular prévia, sexo feminino, stroke prévio.
+        Totalmente manual (pode calcular de cabeça). Prova de longevidade clínica. [1]
+    </td>
+  </tr>
+  <tr>
+    <td style="background: rgba(200, 200, 200, 0.2);">Estudo hipotético (seu caso)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Triagem de reinternação 30 dias (PS)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Esperado AUC 0.75-0.85. Sensibilidade > 90% para alta recall (evitar perdidos).</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Dados: idade, comorbidades, motivo alta, labs criticos.
+        Benefício: Modelo simples, rápido de treinar, fácil de explicar. Pode ser integrado em EHR com alert automático. [2]
+    </td>
+  </tr>
+</table>
+
+<h3 id="quando-usar">Quando usar Regressão Logística (e quando não)</h3>
+
+<div class="card">
+  <b>Use Regressão Logística quando:</b>
+  <ul>
+    <li><b>Interpretabilidade é crítica:</b> Médico precisa entender por quê o modelo previu X.</li>
+    <li><b>Poucos dados:</b> RF overfita com < 1000 amostras; LR é mais estável.</li>
+    <li><b>Variáveis com relação linear (ou quase):</b> Idade → risco costuma ser linearmente crescente.</li>
+    <li><b>Regulamentação/seguro/ética:</b> Entidades regulatórias, seguradoras e ethicists confiam mais em LR (claro, testado).</li>
+    <li><b>Datasets muito grandes:</b> LR é rápido de treinar; RF escala pior.</li>
+    <li><b>Necessita probabilidades calibradas:</b> LR fornece direto; RF requer calibração separada.</li>
+    <li><b>Necessita intervalos de confiança:</b> LR tem teoria estatística; RF não.</li>
+  </ul>
+</div>
+
+<div class="card" style="background: rgba(255, 100, 100, 0.08); border-left-color: #d32f2f;">
+  <b>Cuidado: Quando Regressão Logística pode não ser ideal:</b>
+  <ul>
+    <li><b>Muitas não-linearidades:</b> Se risco é baixo até idade 50 e depois salta (não-linear), use RF ou polinômios.</li>
+    <li><b>Muitas interações complexas:</b> "Pressão alta + diabetes" não é um efeito aditivo simples? RF captura melhor.</li>
+    <li><b>Multicolinearidade:</b> Se variáveis são muito correlacionadas, coeficientes ficam instáveis. Use Ridge (L2 regularização).</li>
+    <li><b>Dados altamente desequilibrados:</b> LR luta com eventos raros (ex: 1 em 10000). Considere SMOTE ou ponderação pesada.</li>
+    <li><b>Muitas categóricas com muitos níveis:</b> Se hospital tem 500 IDs diferentes, LR cria 499 variáveis dummy. Redimensione ou use RF.</li>
+  </ul>
+</div>
+
+<h3 id="mitos">Mitos e mal-entendidos comuns</h3>
+
+<div class="card">
+  <ul>
+    <li><b>Mito 1: "Regressão Logística é muito simples, modelos novos são sempre melhores".</b>
+      <br/><b>Realidade:</b> Simplificidade é força, não fraqueza. Muitos papers mostram LR igualando/superando Deep Learning em dados tabulares de saúde.
+      Se LR funciona bem e é interpretável, por que usar algo complexo? [1]
+    </li>
+    <li><b>Mito 2: "Normalização é opcional em Regressão Logística".</b>
+      <br/><b>Realidade:</b> Falso. Normalização é <b>crítica</b>. Sem ela, convergência é lenta e coeficientes são difíceis de interpretar. Sempre normalize. [2]
+    </li>
+    <li><b>Mito 3: "Coeficiente grande = variável muito importante".</b>
+      <br/><b>Realidade:</b> Não se não normalizou. Se idade está em 18-90 e uma flag em 0-1, o coef. de idade será naturalmente pequeno.
+      Normalize primeiro, depois compare magnitudes. Ou use Odds Ratios normalizadas. [2]
+    </li>
+    <li><b>Mito 4: "Se P > 0.5, a classe é 1; senão 0".</b>
+      <br/><b>Realidade:</b> 0.5 é apenas padrão. Para maximizar sensibilidade, use 0.3 ou 0.4. Para precisão, use 0.6 ou 0.7.
+      O limiar deve corresponder ao custo clínico de falsos positivos vs falsos negativos. [1]
+    </li>
+    <li><b>Mito 5: "Uma LR com AUC 0.90 está pronta para clínica".</b>
+      <br/><b>Realidade:</b> AUC em validação interna é otimista. Validação externa é essencial. Muitos modelos "bons" falham em nova populacao (drift).
+      Além disso, AUC 0.90 ainda errado em 10% dos casos. Isso é clínica? Depende do risco/benefício. [2]
+    </li>
+  </ul>
+</div>
+
+<h3 id="diagnostico">Diagnóstico: quando o modelo falha ou não melhora</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sintoma</b></th>
+    <th align="left"><b>Causas prováveis</b></th>
+    <th align="left"><b>Ações</b></th>
+  </tr>
+  <tr>
+    <td><b>AUC alta no treino, baixa na validação</b></td>
+    <td>Overfitting. Muitas variáveis ou tamanho pequeno de dados.</td>
+    <td>Aumente C (menos regularização → mais regularização). Ou remova features colineares, ou use feature selection com L1.</td>
+  </tr>
+  <tr>
+    <td><b>AUC baixa em treino e validação (ex: 0.60)</b></td>
+    <td>Features não predizem bem. Relacionamento está misturado. Dados ruidosos/incompletos.</td>
+    <td>Revise EDA (exploratory data analysis). Correlação entre features e target? Faltantes estruturados? Mude features.</td>
+  </tr>
+  <tr>
+    <td><b>Convergência lenta ou não converge</b></td>
+    <td>Data não está normalizada. Max_iter muito baixo. Solver inadequado.</td>
+    <td>Normalize com StandardScaler. Aumente max_iter para 1000. Mude solver para 'lbfgs' ou 'saga'.</td>
+  </tr>
+  <tr>
+    <td><b>Recall baixo (muitos falsos negativos)</b></td>
+    <td>Limiar muito alto (padrão 0.5 é conservador). Ou classe minoritária ignorada.</td>
+    <td>Abaixe threshold para 0.3-0.4. Ou use class_weight='balanced'. Ou SMOTE para reamostragem.</td>
+  </tr>
+  <tr>
+    <td><b>Precision baixa (muitos falsos positivos)</b></td>
+    <td>Limiar muito baixo. Ou features que coincidem acidentalmente.</td>
+    <td>Aumente threshold para 0.6-0.7. Revise colinearidade. Remova features redundantes.</td>
+  </tr>
+  <tr>
+    <td><b>Coeficiente muito grande ou alternando sinal</b></td>
+    <td>Multicolinearidade. Variaveis muito correlacionadas causam instabilidade.</td>
+    <td>Use VIF (variance inflation factor) para detectar. Remova uma das correlacionadas, ou use Ridge (L2).</td>
+  </tr>
+  <tr>
+    <td><b>Modelo bem no treino, falha em novo hospital</b></td>
+    <td>Drift clínico. População mudou, equipamento mudou, protocolo mudou.</td>
+    <td>Retrain com dados novos. Monitorar AUC continuamente. Estabeleça critério de retreino (ex: AUC < 0.75).</td>
+  </tr>
+</table>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+<ul>
+  <li>
+    <b>Q: Por que "Regressão" se é para classificação?</b>
+    <br/>R: Histórico. O modelo originalmente previa probabilidades (regressão em [0,1]), depois aplicava threshold.
+    O nome pegou. Em ML é mais comum chamar de "Logistic Classification".
+  </li>
+  <li>
+    <b>Q: Qual é a diferença entre LR e Random Forest?</b>
+    <br/>R: <u>LR:</u> Linear, interpretável, rápido, requer normalização, assume relações lineares.
+    <u>RF:</u> Não-linear, complexo, mais lento, robusto a escala, captura interações.
+    Ambos funcionam; escolha depende de necessidade (interpretação vs desempenho).
+  </li>
+  <li>
+    <b>Q: Como saber se tenho multicolinearidade?</b>
+    <br/>R: Calcule VIF (Variance Inflation Factor). VIF > 10 → colinearidade severa. Use statsmodels.
+    Ou examine correlação entre features. Se correlação > 0.8, investigue.
+  </li>
+  <li>
+    <b>Q: Posso usar LR com variáveis categóricas?</b>
+    <br/>R: Sim, mas encode como dummy variables (0/1) ou one-hot encoding. Depois normalize se necessário.
+  </li>
+  <li>
+    <b>Q: Como escolher C regularization?</b>
+    <br/>R: Use LogisticRegressionCV que testa C=[0.001, 0.01, 0.1, 1, 10, 100] via cross-validation.
+    Escolhe C automático que maximiza AUC.
+  </li>
+  <li>
+    <b>Q: O modelo é enviesado se dados são desbalanceados?</b>
+    <br/>R: LR pode ignorar classe minoritária. Use class_weight='balanced' ou SMOTE para reamostragem.
+    Também use métricas apropriadas (precision, recall, AUC) em vez de acurácia.
+  </li>
+</ul>
+
+<h3 id="comparacao">Comparação com outros modelos disponíveis em trAIn</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse; margin: 10px 0;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Velocidade</b></th>
+    <th align="left"><b>Recomendação em saúde</b></th>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>Excelente (direto)</td>
+    <td>Bom (se linear)</td>
+    <td>Muito rápido</td>
+    <td>★★★★★ Primeira escolha se interpretação é crucial</td>
+  </tr>
+  <tr>
+    <td><b>Random Forest</b></td>
+    <td>Média (use SHAP)</td>
+    <td>Muito bom (genérico)</td>
+    <td>Médio</td>
+    <td>★★★★☆ Se não-linearidade + interpretação via SHAP OK</td>
+  </tr>
+  <tr>
+    <td><b>Árvore de Decisão (única)</b></td>
+    <td>Excelente (veja árvore)</td>
+    <td>Médio (risco overfitting)</td>
+    <td>Muito rápido</td>
+    <td>★★★☆☆ Educacional; instável em produção</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa</td>
+    <td>Excelente (kernel)</td>
+    <td>Médio</td>
+    <td>★★★☆☆ Bom desempenho, mas "caixa preta"</td>
+  </tr>
+  <tr>
+    <td><b>KNN</b></td>
+    <td>Média (vizinhos)</td>
+    <td>Médio-Bom</td>
+    <td>Lento (para score)</td>
+    <td>★★★☆☆ Baseline útil; não escala bem</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting / XGBoost</b></td>
+    <td>Baixa (complexo)</td>
+    <td>Excelente</td>
+    <td>Médio</td>
+    <td>★★★★☆ Máximo desempenho; menos interpretável</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo: Quando escolher Regressão Logística em saúde?</b>
+  <ul>
+    <li>✓ Interpretabilidade é crítica (clínico precisa entender cada coef.)</li>
+    <li>✓ Variáveis lineares (ex: risco aumenta regularmente com idade)</li>
+    <li>✓ Dataset pequeno (< 1000 amostras)</li>
+    <li>✓ Regulamentação obriga transparência</li>
+    <li>✓ Probabilidades calibradas são essenciais</li>
+    <li>✗ Muitas não-linearidades ou interações complexas</li>
+    <li>✗ Desempenho deve ser máximo (sem importar interpretação)</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression">scikit-learn: Logistic Regression (documentação oficial)</a></li>
+  <li><a href="https://statsmodels.readthedocs.io/en/stable/generated/statsmodels.discrete.discrete_model.Logit.html">StatsModels: Logit (para p-values e IC95%)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7004565/">Interpretability and Explainability in Machine Learning (Nature Medicine)</a></li>
+  <li><a href="https://www.thelancet.com/journals/ebiom/article/PIIS2352-3964(17)30029-9/">Clinical prediction models (The Lancet 2009 - Steyerberg)</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/">Interpretable Machine Learning (https://christophm.github.io/interpretable-ml-book/)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pubmed/26523981">Logistic Regression in Clinical Use (Various PubMed papers)</a></li>
+  <li><a href="https://www.qrisk.org/">QRISK3: Real-world clinical model</a></li>
+  <li><a href="https://eur-lex.europa.eu/EN/legal-content/summary/AI-act.html">EU AI Act (regulamentação por trás de "interpretability")</a></li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>Cox DR. The regression analysis of binary sequences (1958). Journal of the Royal Statistical Society. Seminal paper, foundation of LR. <a href="https://www.jstor.org/stable/2984505">JSTOR</a></li>
+  <li>Steyerberg EW et al. Assessing the performance of prediction models: a framework for some traditional and novel measures. Epidemiology (2010). [2] <a href="https://pubmed.ncbi.nlm.nih.gov/20010215/">PubMed</a></li>
+  <li>Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3) (2016). JAMA 315(8):801-810. [Includes SOFA, which uses LR logic] <a href="https://pubmed.ncbi.nlm.nih.gov/26903338/">PubMed</a></li>
+  <li>Hippisley-Cox J et al. Development and validation of QRISK3 risk prediction algorithm. BMJ 2017;357:j2099. [Major clinical LR model] <a href="https://www.bmj.com/content/357/bmj.j2099">BMJ</a></li>
+  <li>Lip GYH et al. Refining clinical risk stratification for predicting stroke and thromboembolism in atrial fibrillation using a novel risk factor-based approach: the euro heart survey on atrial fibrillation. Chest 2010;137(2):263-272. [CHA2DS2-VASc, standard LR-based score] <a href="https://pubmed.ncbi.nlm.nih.gov/19762550/">PubMed</a></li>
+  <li>scikit-learn: Logistic Regression Documentation. <a href="https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression">Link</a></li>
+</ol>
+

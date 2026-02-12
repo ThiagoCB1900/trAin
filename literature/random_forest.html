@@ -1,0 +1,272 @@
+<h2 style="margin-top:0;">Random Forest</h2>
+<p>
+  Random Forest (Floresta Aleatória) é um método de aprendizagem de máquina que
+  combina várias árvores de decisão para tomar uma decisão mais robusta.
+  Em vez de confiar em uma única árvore, ele consulta um conjunto de árvores e
+  usa a votação (classificação) ou a média (regressão).
+</p>
+
+<h3 id="sumario">Sumario</h3>
+<ul>
+  <li><a href="#visao-geral">Visao geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossario</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Formulas</a></li>
+  <li><a href="#hiperparametros">Hiperparametros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicacoes em saude</a></li>
+  <li><a href="#boas-praticas">Boas praticas clinicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referencias</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  A Floresta Aleatória é um modelo de ensemble baseado em árvores de decisão.
+  Cada árvore é treinada em uma amostra bootstrap (com reposição) e, a cada split,
+  considera apenas um subconjunto aleatório de variáveis. Isso aumenta a diversidade
+  entre as árvores e reduz o risco de overfitting. No final, o modelo combina as
+  previsões das árvores para obter uma decisão mais estável.
+</p>
+
+<div style="padding: 12px; border-radius: 8px;">
+  <b>Ideia central</b>
+  <ul>
+    <li>Bagging: treina varias arvores em amostras diferentes do mesmo conjunto de dados.</li>
+    <li>Aleatoriedade de features: cada divisao da arvore considera apenas parte das variaveis.</li>
+    <li>Combinacao final: votacao ou media reduz erros de uma unica arvore.</li>
+  </ul>
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Uma árvore de decisão é fácil de entender, mas pode errar muito se aprender detalhes
+  demais do conjunto de treino. A Floresta Aleatória cria várias árvores diferentes
+  e usa o consenso. Assim, erros individuais tendem a se cancelar.
+</p>
+
+<p>
+  Pense em uma junta de especialistas: cada arvore ve um pedaco diferente dos dados
+  e usa criterios levemente distintos. Se muitas arvores concordam, a chance de erro
+  tende a ser menor do que a decisao de uma unica arvore.
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Feature (variável)</b>: coluna dos dados (ex.: idade, pressão, glicose).</li>
+  <li><b>Classe</b>: categoria que queremos prever (ex.: tem diabetes / não tem).</li>
+  <li><b>Bootstrap</b>: amostras com reposição, como sorteios repetidos dos mesmos dados.</li>
+  <li><b>Split</b>: ponto onde a árvore divide os dados em dois grupos.</li>
+  <li><b>Overfitting</b>: quando o modelo aprende detalhes demais e erra fora do treino.</li>
+  <li><b>Bias x Variancia</b>: equilibrio entre erro por simplificacao e erro por instabilidade.</li>
+  <li><b>OOB</b>: dados que ficaram fora do bootstrap e servem para validacao interna.</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li>Crie várias amostras bootstrap dos dados.</li>
+  <li>Treine uma árvore para cada amostra.</li>
+  <li>Em cada divisão da árvore, considere apenas um subconjunto aleatório de features.</li>
+  <li>Para classificar, cada árvore vota; para regressão, cada árvore fornece um valor.</li>
+  <li>Agregue os resultados: voto da maioria ou média.</li>
+</ol>
+
+<div style="padding: 10px; border-radius: 6px;">
+  <svg width="520" height="170" viewBox="0 0 520 170" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="20" width="150" height="40" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="45" font-size="12">Dados originais</text>
+    <rect x="10" y="80" width="150" height="30" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="100" font-size="12">Bootstrap 1</text>
+    <rect x="10" y="120" width="150" height="30" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="140" font-size="12">Bootstrap 2</text>
+
+    <rect x="210" y="40" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <rect x="210" y="90" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <rect x="210" y="130" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <text x="225" y="60" font-size="12">Arvore 1</text>
+    <text x="225" y="110" font-size="12">Arvore 2</text>
+    <text x="225" y="150" font-size="12">Arvore 3</text>
+
+    <rect x="360" y="85" width="140" height="40" rx="6" fill="none" stroke="currentColor" />
+    <text x="375" y="110" font-size="12">Voto / Media</text>
+
+    <line x1="160" y1="95" x2="210" y2="55" stroke="currentColor" />
+    <line x1="160" y1="95" x2="210" y2="105" stroke="currentColor" />
+    <line x1="160" y1="95" x2="210" y2="145" stroke="currentColor" />
+    <line x1="310" y1="55" x2="360" y2="105" stroke="currentColor" />
+    <line x1="310" y1="105" x2="360" y2="105" stroke="currentColor" />
+    <line x1="310" y1="145" x2="360" y2="105" stroke="currentColor" />
+  </svg>
+  <div style="font-size: 12px;">Esquema simples: varios bootstrap -> varias arvores -> agregacao.</div>
+</div>
+
+<h3 id="formulas">Fórmulas básicas</h3>
+<pre style="white-space: pre-wrap; padding: 8px; border-radius: 6px;">
+Gini = 1 - sum_k p_k^2
+Entropia = - sum_k p_k * log2(p_k)
+Voto (class) = mode( arvore_i(x) )
+Media (reg) = (1 / T) * sum_i arvore_i(x)
+MSE (reg) = (1 / n) * sum_i (y_i - y_pred)^2
+</pre>
+
+<p>
+  Em classificação, o modelo escolhe a classe mais votada. Em regressão, calcula a média.
+  Gini e Entropia são medidas de impureza usadas para decidir como dividir os dados.
+</p>
+
+<h3>Matemática por trás (intuitiva e objetiva)</h3>
+<p>
+  Cada árvore aprende regras que minimizam a impureza após cada split. A ideia é encontrar
+  o ponto de divisão que mais “organiza” as classes em cada nó.
+</p>
+<pre style="white-space: pre-wrap; padding: 8px; border-radius: 6px;">
+Ganho de informacao (entropia):
+Gain = H(pai) - [ (n_esq / n_total) * H(esq) + (n_dir / n_total) * H(dir) ]
+
+Reducao de impureza (gini):
+Delta = Gini(pai) - [ (n_esq / n_total) * Gini(esq) + (n_dir / n_total) * Gini(dir) ]
+</pre>
+<p>
+  O split escolhido e o que maximiza o ganho (ou a reducao de impureza).
+</p>
+
+<h3>Por que a floresta reduz erro?</h3>
+<p>
+  Em termos simples, o erro de uma única árvore pode ser alto por variância. Ao combinar
+  várias árvores pouco correlacionadas, o erro agregado tende a diminuir.
+  É a mesma lógica de “média de especialistas”.
+</p>
+<pre style="white-space: pre-wrap; padding: 8px; border-radius: 6px;">
+Se as árvores forem pouco correlacionadas:
+Erro_ensemble ≈ Erro_individual / Numero_de_arvores
+
+Se forem muito correlacionadas:
+O ganho será menor.
+</pre>
+
+<h3>Quando usar Random Forest</h3>
+<ul>
+  <li>Dados tabulares com várias variáveis numéricas e categóricas.</li>
+  <li>Problemas onde não há relação linear simples entre variáveis e alvo.</li>
+  <li>Quando você quer um bom desempenho sem muito ajuste manual.</li>
+</ul>
+
+<h3>Quando ter cuidado</h3>
+<ul>
+  <li>Se o conjunto de dados for muito grande, o treino pode ser lento.</li>
+  <li>Interpretação não é direta; explique com cuidado para público leigo.</li>
+  <li>Se há grande desequilíbrio de classes, use técnicas como SMOTE ou class_weight.</li>
+</ul>
+
+<h3 id="hiperparametros">Hiperparâmetros mais importantes (e impacto)</h3>
+<ul>
+  <li><b>n_estimators</b>: número de árvores. Mais árvores = maior estabilidade e menor variância, mas aumenta tempo e memória.</li>
+  <li><b>max_depth</b>: profundidade máxima. Árvores muito profundas podem overfitar; limitar torna o modelo mais geral.</li>
+  <li><b>min_samples_split</b>: mínimo de amostras para dividir um nó. Valores maiores tornam o modelo mais conservador.</li>
+  <li><b>min_samples_leaf</b>: mínimo de amostras em uma folha. Aumentar reduz variância e pode melhorar generalização.</li>
+  <li><b>max_features</b>: número de variáveis por split. Menor valor aumenta diversidade entre árvores, podendo melhorar o ensemble.</li>
+  <li><b>bootstrap</b>: se verdadeiro, usa amostras com reposição. Ajuda na estimativa OOB.</li>
+  <li><b>class_weight</b>: balanceia a importância das classes. Importante em problemas desbalanceados (ex.: eventos raros).</li>
+</ul>
+
+<p>
+  Dica prática: altere um parâmetro por vez e observe impacto nas métricas. Em saúde,
+  valores de recall e sensibilidade costumam ser prioridade quando o custo de perder
+  um caso positivo é alto.
+</p>
+
+<h3 id="avaliacao">Como avaliar um modelo (sem jargão)</h3>
+<ul>
+  <li><b>Acurácia</b>: porcentagem de acertos totais.</li>
+  <li><b>Precisão</b>: entre os positivos previstos, quantos eram positivos de verdade.</li>
+  <li><b>Recall (sensibilidade)</b>: entre os positivos reais, quantos foram detectados.</li>
+  <li><b>Especificidade</b>: entre os negativos reais, quantos foram corretamente descartados.</li>
+  <li><b>AUC</b>: medida geral de separação entre classes (0.5 ruim, 1.0 excelente).</li>
+</ul>
+
+<p>
+  Em cenários clínicos, escolha a métrica conforme o risco:
+  alta sensibilidade para triagem (não perder casos), alta precisão para confirmação.
+</p>
+
+<h3 id="interpretabilidade">Interpretabilidade: como explicar para profissionais de saúde</h3>
+<ul>
+  <li>Mostre quais variáveis mais influenciam (feature importance).</li>
+  <li>Use explicações locais (ex.: SHAP) para entender casos individuais.</li>
+  <li>Explique que o modelo não substitui o julgamento clínico.</li>
+</ul>
+
+<p>
+  Em relatórios para clínicos, apresente gráficos simples: ranking de variáveis,
+  exemplos de casos, e como mudanças em uma variável alteram o risco.
+</p>
+
+<h3 id="saude">Aplicações em saúde: contexto e cuidados</h3>
+<ul>
+  <li>Modelos preditivos podem apoiar triagem, estratificação de risco e apoio à decisão.</li>
+  <li>Dados clínicos possuem vieses: faltas, mudanças de protocolo e populações diferentes.</li>
+  <li>Resultados devem ser contextualizados com epidemiologia local.</li>
+</ul>
+
+<h3 id="boas-praticas">Boas práticas para uso clínico</h3>
+<ul>
+  <li>Valide o modelo em dados externos (outro hospital ou período).</li>
+  <li>Monitore desempenho ao longo do tempo (mudanças de protocolo mudam dados).</li>
+  <li>Documente limites: população, faixa etária, tipo de coleta.</li>
+  <li>Inclua governança: responsável, revisões periódicas e critérios de atualização.</li>
+</ul>
+
+<h3 id="exemplos">Exemplos em saúde (publicados)</h3>
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr>
+    <th align="left">Estudo</th>
+    <th align="left">Tarefa</th>
+    <th align="left">Resultados</th>
+  </tr>
+  <tr>
+    <td>Wang et al., 2021</td>
+    <td>Predição de sepse em UTI (RF com dados de prontuário)</td>
+    <td>AUC 0.91, sensibilidade 87%, especificidade 89%</td>
+  </tr>
+  <tr>
+    <td>Wang et al., 2021</td>
+    <td>Classificação de alto risco para diabetes (RF + SVM-SMOTE + LASSO)</td>
+    <td>Acurácia 0.890, Precisão 0.869, Recall 0.919, F1 0.893, AUC 0.948</td>
+  </tr>
+</table>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+<ul>
+  <li><b>Preciso normalizar os dados?</b> Em geral, <b>não é obrigatório</b> para Random Forest.
+    Árvores de decisão usam divisões por limiar e não dependem da escala absoluta.
+    A normalização pode ser útil se você comparar com modelos sensíveis à escala
+    (ex.: regressão logística, SVM com kernel linear) ou se desejar estabilidade numérica.
+  </li>
+  <li><b>Normalizar é má prática?</b> Não. É uma prática aceitável, mas para Random Forest
+    geralmente não muda o desempenho. O mais importante é tratar dados faltantes,
+    outliers e variáveis inconsistentes.
+  </li>
+  <li><b>Quantas árvores devo usar?</b> Comece com 200 e ajuste conforme tempo e desempenho.</li>
+  <li><b>Por que o modelo errou?</b> Dados ruidosos, variáveis faltantes ou mudança de perfil.</li>
+  <li><b>Isso substitui o médico?</b> Não. É uma ferramenta de apoio, não um diagnóstico final.</li>
+</ul>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/ensemble.html#random-forests">scikit-learn: Random Forests (guia técnico)</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/">Interpretable Machine Learning (livro aberto)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8553999/">Estudo de sepse com RF (PMC)</a></li>
+  <li><a href="https://www.cdc.gov/sepsis/index.html">CDC: Sepsis (contexto clinico)</a></li>
+  <li><a href="https://www.who.int/health-topics/diabetes">WHO: Diabetes (contexto clinico)</a></li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>Breiman, L. Random Forests (2001). <a href="https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf">PDF</a></li>
+  <li>Wang D. et al. A Machine Learning Model for Accurate Prediction of Sepsis in ICU Patients (2021). <a href="https://pubmed.ncbi.nlm.nih.gov/34722452/">PubMed</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8553999/">PMC</a></li>
+  <li>Wang X. et al. Classification of Diabetes Mellitus via Combined RF (2021). <a href="https://pubmed.ncbi.nlm.nih.gov/33743696/">PubMed</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7980612/">PMC</a></li>
+</ol>

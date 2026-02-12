@@ -11,7 +11,7 @@ import html
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QPushButton, QFileDialog, QComboBox, QLabel, QSpinBox, 
-    QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, 
+    QTableWidget, QTableWidgetItem, QTabWidget, QTextEdit, QTextBrowser,
     QMessageBox, QListWidget, QGroupBox, QProgressBar,
     QFormLayout, QDoubleSpinBox, QLineEdit, QStackedWidget, QAbstractButton,
     QScrollArea, QHeaderView, QAbstractItemView
@@ -26,6 +26,7 @@ from pipeline_builder import build_pipeline, SCALER_OPTIONS, SAMPLER_OPTIONS
 from experiment_runner import evaluate_model, generate_plots, save_pipeline_to_buffer
 from reporter import generate_report
 from models.registry import get_model_specs_by_problem
+from literature_content import get_literature_html
 
 
 class ToggleSwitch(QAbstractButton):
@@ -83,8 +84,11 @@ class LiteraturePanel(QWidget):
         self.content.setObjectName("literatureContent")
         content_layout = QVBoxLayout(self.content)
         content_layout.setContentsMargins(12, 12, 12, 12)
-        content_layout.addWidget(QLabel("Coming soon..."))
-        content_layout.addStretch()
+        self.viewer = QTextBrowser(self)
+        self.viewer.setObjectName("literatureViewer")
+        self.viewer.setOpenExternalLinks(True)
+        self.viewer.setHtml("<h3>Selecione um modelo para ver a literatura.</h3>")
+        content_layout.addWidget(self.viewer)
 
         layout.addWidget(self.handle)
         layout.addWidget(self.content, 1)
@@ -117,6 +121,9 @@ class LiteraturePanel(QWidget):
             return
         rect = parent.rect()
         self.setGeometry(0, rect.height() - self.height(), rect.width(), self.height())
+
+    def set_html(self, html_text):
+        self.viewer.setHtml(html_text)
 
 # --- Worker Thread para Processamento Pesado ---
 class MLWorker(QThread):
@@ -782,15 +789,18 @@ class MLApp(QMainWindow):
         if current is None:
             self.current_editor_model = None
             self.model_editor_stack.setCurrentIndex(0)
+            self.update_literature_panel(None)
             return
 
         model_name = current.text()
         self.current_editor_model = model_name
         self.show_model_editor(model_name)
+        self.update_literature_panel(model_name)
 
     def selected_instance_changed(self, current, _previous=None):
         if current is None:
             self.current_instance_id = None
+            self.update_literature_panel(None)
             return
 
         instance_id = current.data(Qt.ItemDataRole.UserRole)
@@ -804,6 +814,14 @@ class MLApp(QMainWindow):
         self.current_editor_model = model_name
         self.show_model_editor(model_name)
         self.populate_model_editor(model_name, instance["params"])
+        self.update_literature_panel(model_name)
+
+    def update_literature_panel(self, model_name):
+        if not hasattr(self, "literature_panel"):
+            return
+        model_label = model_name or ""
+        html_text = get_literature_html(model_label, self.is_dark_theme)
+        self.literature_panel.set_html(html_text)
 
     def show_model_editor(self, model_name):
         editor = self.model_editors.get(model_name)
@@ -892,6 +910,7 @@ class MLApp(QMainWindow):
                 "#literaturePanel { background: #1b1b1b; border-top: 1px solid #3a3a3a; }"
                 "#literatureHandle { background: #2b2b2b; border-top: 1px solid #3a3a3a; }"
                 "#literatureHandle QLabel { color: #e6e6e6; font-weight: bold; }"
+                "#literatureViewer { background: #1f1f1f; color: #e6e6e6; border: 1px solid #3a3a3a; border-radius: 6px; padding: 6px; }"
             )
         else:
             if app:
@@ -925,10 +944,13 @@ class MLApp(QMainWindow):
                 "#literaturePanel { background: #ffffff; border-top: 1px solid #d6d3cf; }"
                 "#literatureHandle { background: #e8e3dc; border-top: 1px solid #d6d3cf; }"
                 "#literatureHandle QLabel { color: #1f1f1f; font-weight: bold; }"
+                "#literatureViewer { background: #ffffff; color: #1f1f1f; border: 1px solid #d6d3cf; border-radius: 6px; padding: 6px; }"
             )
 
         if hasattr(self, "literature_panel"):
             self.literature_panel.update_position()
+            current_name = self.current_editor_model or ""
+            self.literature_panel.set_html(get_literature_html(current_name, self.is_dark_theme))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

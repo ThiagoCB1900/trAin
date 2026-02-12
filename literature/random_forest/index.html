@@ -1,0 +1,786 @@
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+</style>
+
+<h2 style="margin-top:0;">Random Forest</h2>
+<p>
+  Random Forest (Floresta Aleatória) é um método de aprendizagem de máquina que
+  combina várias árvores de decisão para tomar uma decisão mais robusta.
+  Em vez de confiar em uma única árvore, ele consulta um conjunto de árvores e
+  usa a votação (classificação) ou a média (regressão). A base teórica foi descrita
+  por Breiman e é amplamente usada em saúde e outras áreas. [1]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> várias árvores diferentes aprendem padrões distintos e a decisão final
+  é o consenso delas. Isso reduz erros e aumenta estabilidade.
+</div>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Fórmulas</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#normalizacao">Normalização e escalas</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar RF (e quando não)</a></li>
+  <li><a href="#diagnostico">Diagnóstico: quando falha</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparação com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  A Floresta Aleatória é um modelo de <i>ensemble</i> baseado em árvores de decisão.
+  Cada árvore é treinada em uma amostra bootstrap (com reposição) e, a cada divisão,
+  considera apenas um subconjunto aleatório de variáveis. Isso aumenta a diversidade
+  entre as árvores e reduz o risco de overfitting. No final, o modelo combina as
+  previsões das árvores para obter uma decisão mais estável. [1]
+</p>
+
+<p>
+  Em termos práticos, o RF costuma funcionar bem quando há relações não lineares e
+  interações entre variáveis (ex.: idade + comorbidades + exames laboratoriais), algo
+  muito comum em dados clínicos. O preço dessa flexibilidade é uma interpretação menos
+  direta do que em modelos lineares, o que exige explicações claras e validação rigorosa.
+</p>
+
+<div class="card">
+  <b>Ideia central</b>
+  <ul>
+    <li>Bagging: treina várias árvores em amostras diferentes do mesmo conjunto de dados.</li>
+    <li>Aleatoriedade de features: cada divisão considera apenas parte das variáveis.</li>
+    <li>Combinação final: votação ou média reduz erros de uma única árvore.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Resumo clínico:</b> o RF é útil para triagem e estratificação de risco porque integra
+  múltiplas variáveis sem exigir relações lineares, mas sempre deve ser validado em
+  outra população antes do uso real. [1]
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Uma árvore de decisão é fácil de entender, mas pode errar muito se aprender detalhes
+  demais do conjunto de treino. A Floresta Aleatória cria várias árvores diferentes
+  e usa o consenso. Assim, erros individuais tendem a se cancelar. [1]
+</p>
+<p>
+  <b>Analogia (junta clínica):</b> Pense em um caso complexo de um paciente internado. Um
+  médico sozinho pode se focar demais em um exame anormal e errar. Mas quando você
+  reúne vários especialistas (cardiologia, pneumologia, clínica geral), cada um analisa
+  dados e interpretações levemente diferentes. Se a maioria concorda no diagnóstico,
+  você tem mais confiança. Essa é a ideia do Random Forest: várias "árvores especialistas"
+  votam, e a decisão do grupo é mais robusta que a de um só.
+</p>
+<p>
+  <b>Por que vários veem melhor que um?</b> Porque cada árvore é treinada em um conjunto
+  ligeiramente diferente de pacientes (bootstrap), e a cada decisão clínica (split),
+  considera apenas algumas variáveis de cada vez. Isso força a diversidade. Se uma árvore
+  aprender uma regra falha (ex.: "sempre prescrever antibiótico se febre > 38.5°C"), outras
+  árvores terão visto casos diferentes e podem discordar. O consenso cancela esse erro.
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Feature (variável)</b>: coluna dos dados (ex.: idade, pressão, glicose).</li>
+  <li><b>Classe</b>: categoria que queremos prever (ex.: tem diabetes / não tem).</li>
+  <li><b>Bootstrap</b>: amostras com reposição, como sorteios repetidos dos mesmos dados.</li>
+  <li><b>Split</b>: ponto onde a árvore divide os dados em dois grupos.</li>
+  <li><b>Overfitting</b>: quando o modelo aprende detalhes demais e erra fora do treino.</li>
+  <li><b>Bias x Variância</b>: equilíbrio entre erro por simplificação e erro por instabilidade.</li>
+  <li><b>OOB</b>: dados que ficaram fora do bootstrap e servem para validação interna.</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li>Crie várias amostras bootstrap dos dados (sorteios com reposição).</li>
+  <li>Treine uma árvore para cada amostra.</li>
+  <li>Em cada divisão da árvore, considere apenas um subconjunto aleatório de features.</li>
+  <li>Para classificar, cada árvore vota; para regressão, cada árvore fornece um valor.</li>
+  <li>Agregue os resultados: voto da maioria ou média.</li>
+</ol>
+
+<p>
+  <b>Exemplo concreto (diagnóstico de sepse em UTI):</b> Imagine 200 árvores treinadas.
+  Cada uma vê um subconjunto aleatório dos históricos de 5000 pacientes (bootstrap).
+  Uma árvore aprende: "se febre > 38.5 AND leucócitos > 12000, risco alto". Outra aprendeu:
+  "se frecuência cardíaca > 100 AND lactato > 2, risco alto". Uma terceira aprendeu:
+  "se pressão < 90 AND glicose > 200, risco alto". Quando um novo paciente chega,
+  todas as 200 árvores votam. Se 150 dizem "risco alto", o consenso é "risco alto".
+  Essa votação é mais estável que confiar em uma única árvore que pode ter aprendido
+  regras muito específicas do conjunto de treino.
+</p>
+
+<p>
+  Esse processo também facilita a estimativa interna de erro (OOB) e gera um ranking
+  inicial de variáveis importantes. Em saúde, isso pode ajudar a identificar quais
+  exames têm mais impacto na decisão, mas o resultado deve ser interpretado com cautela.
+</p>
+
+<div class="card">
+  <svg width="520" height="180" viewBox="0 0 520 180" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="18" width="155" height="44" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="45" font-size="12">Dados originais</text>
+    <rect x="10" y="80" width="155" height="32" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="102" font-size="12">Bootstrap 1</text>
+    <rect x="10" y="125" width="155" height="32" rx="6" fill="none" stroke="currentColor" />
+    <text x="20" y="147" font-size="12">Bootstrap 2</text>
+
+    <rect x="210" y="35" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <rect x="210" y="85" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <rect x="210" y="130" width="100" height="30" rx="6" fill="none" stroke="currentColor" />
+    <text x="225" y="55" font-size="12">Árvore 1</text>
+    <text x="225" y="105" font-size="12">Árvore 2</text>
+    <text x="225" y="150" font-size="12">Árvore 3</text>
+
+    <rect x="360" y="85" width="140" height="42" rx="6" fill="none" stroke="currentColor" />
+    <text x="372" y="110" font-size="12">Voto / Média</text>
+
+    <line x1="165" y1="100" x2="210" y2="50" stroke="currentColor" />
+    <line x1="165" y1="100" x2="210" y2="100" stroke="currentColor" />
+    <line x1="165" y1="100" x2="210" y2="145" stroke="currentColor" />
+    <line x1="310" y1="50" x2="360" y2="105" stroke="currentColor" />
+    <line x1="310" y1="100" x2="360" y2="105" stroke="currentColor" />
+    <line x1="310" y1="145" x2="360" y2="105" stroke="currentColor" />
+  </svg>
+  <div class="diagram-note">Esquema: dados -> bootstrap -> árvores -> agregação.</div>
+</div>
+
+<h3 id="formulas">Fórmulas básicas</h3>
+<div class="formula-box">
+  <div class="formula-title">Impureza e agregação</div>
+  <div class="formula">Gini = 1 − ∑ p<sub>k</sub><sup>2</sup></div>
+  <div class="formula">Entropia = − ∑ p<sub>k</sub> · log<sub>2</sub>(p<sub>k</sub>)</div>
+  <div class="formula">Voto (class) = mode( árvore<sub>i</sub>(x) )</div>
+  <div class="formula">Média (reg) = (1 / T) · ∑ árvore<sub>i</sub>(x)</div>
+  <div class="formula">MSE (reg) = (1 / n) · ∑ (y<sub>i</sub> − ŷ<sub>i</sub>)<sup>2</sup></div>
+</div>
+
+<p>
+  Em classificação, o modelo escolhe a classe mais votada. Em regressão, calcula a média.
+  Gini e Entropia são medidas de impureza usadas para decidir como dividir os dados. [1]
+</p>
+
+<h3 id="matematica">Matemática por trás (intuitiva e objetiva)</h3>
+<p>
+  Cada árvore aprende regras que minimizam a impureza após cada split. A ideia é encontrar
+  o ponto de divisão que mais “organiza” as classes em cada nó. [1]
+</p>
+<p>
+  <b>Analogia clínica:</b> Pense na história da medicina. Os médicos antigos óbvios
+  aprendiam regras simples: "se tem febre, é infecção". Mas depois perceberam que não era
+  sempre assim. Então refinavam: "se tem febre E leucócitos elevados, então provavelmente
+  infecção". Cada refinação (split) melhora a "pureza" do diagnóstico.
+  O Ganho de Informação mede exatamente isso: quanto cada nova informação (split) melhora
+  a confiança na decisão. [1]
+</p>
+<div class="formula-box">
+  <div class="formula-title">Ganho de informação e redução de impureza</div>
+  <div class="formula">Gain = H(pai) − [ (n<sub>esq</sub> / n<sub>total</sub>) · H(esq) + (n<sub>dir</sub> / n<sub>total</sub>) · H(dir) ]</div>
+  <div class="formula">ΔGini = Gini(pai) − [ (n<sub>esq</sub> / n<sub>total</sub>) · Gini(esq) + (n<sub>dir</sub> / n<sub>total</sub>) · Gini(dir) ]</div>
+</div>
+<p>
+  O split escolhido é o que maximiza o ganho (ou a redução de impureza). 
+  <br/><i>Exemplo numérico:</i> Antes do split: 100 pacientes, 50 com doença e 50 sem (Gini = 0.5, baixa pureza).
+  Depois do split em "febre > 38.5": lado esquerdo 70 pacientes com 60 com doença (Gini ≈ 0.34, mais puro);
+  lado direito 30 pacientes com 20 sem doença (Gini ≈ 0.44). O novo Gini médio diminuiu.
+  Isso é bom: o split organizou melhor os dados. [1]
+</p>
+
+<h3>Erro OOB (out-of-bag)</h3>
+<p>
+  Como cada árvore vê apenas parte dos dados (bootstrap), as amostras que ficaram de fora
+  podem servir de validação interna. Isso permite estimar desempenho sem separar um
+  conjunto exclusivo. [1]
+</p>
+<div class="formula-box">
+  <div class="formula-title">Estimativa OOB (classificação)</div>
+  <div class="formula">Erro<sub>OOB</sub> = (1 / N) · ∑ I( y<sub>i</sub> ≠ ŷ<sub>OOB,i</sub> )</div>
+</div>
+
+<h3>Exemplo simples (didático)</h3>
+<p>
+  Imagine um problema de triagem em pronto-socorro: prever risco alto (sim/não) usando
+  <b>idade</b>, <b>pressão sistólica</b> e <b>frequência cardíaca</b> para uma amostra de 1000 pacientes.
+  Vamos acompanhar como uma árvore individual aprende:
+</p>
+<ol>
+  <li><b>Primeiro split:</b> A árvore testa todos os pontos de corte em todas as variáveis.
+    Suponha que "frequência cardíaca > 95 bpm" foi o melhor split (maior ganho de informação).
+    <br/>Resultado: 700 pacientes vão para um lado (frequência ≤ 95), 300 para o outro (> 95).
+  </li>
+  <li><b>Segundo split (lado > 95 bpm):</b> Agora, apenas esses 300 pacientes são considerados.
+    A melhor divisão pode ser "pressão > 140 mmHg". 
+    <br/>Resultado: 150 com pressão ≤ 140, 150 com > 140.
+  </li>
+  <li><b>Terceiro split (lado > 140 mmHg):</b> Desses 150, a melhor divisão é "idade > 60 anos".
+    <br/>Resultado: 100 com ≤ 60 anos, 50 com > 60 anos.
+  </li>
+  <li><b>Parada:</b> Quando min_samples_leaf=5, a árvore para de dividir (não há vantagem em
+    dividir grupos tão pequenos).
+  </li>
+</ol>
+<p>
+  O caminho mais longo (fc > 95 AND press > 140 AND idade > 60) leva a uma folha com, digamos,
+  45 pacientes. Se 40 deles tiveram risco alto, essa folha aprende a regra:
+  "Se caminho = [fc > 95, press > 140, idade > 60], prever risco ALTO com confiança 40/45 = 89%".
+</p>
+<p>
+  Quando criássemos 200 árvores assim, outras descobririam regras diferentes:
+  <br/>- Árvore 2: "se lactato > 2.5 AND idade > 50, risco alto".
+  <br/>- Árvore 3: "se glicose > 150 AND pressão > 130, risco alto".
+  <br/>Cada árvore viu um conjunto diferente de pacientes (bootstrap) e prioridades diferentes (features).
+  Na votação final, se 145 árvores dizem "risco alto" e 55 dizem "risco baixo",
+  a previsão é "risco alto". Essa maioria é mais confiável que uma árvore só.
+</p>
+<p>
+  <b>Por que isso é melhor que uma árvore só?</b> Se uma árvore aprendeu regras muito
+  específicas do treino (ex.: "se ID_hospital = 42 AND dia_semana = 3, risco alto"),
+  ela errará em novos dados. Mas como cada árvore de RF vê um subconjunto aleatório
+  de variáveis, é improvável que todas aprendam regras específicas. O consenso
+  captura padrões mais genuínos.
+</p>
+
+<h3 id="normalizacao">Normalização e escalas</h3>
+<p>
+  Para Random Forest, a normalização <b>não é obrigatória</b>. Árvores usam limites
+  de divisão (thresholds), e a ordem dos valores importa mais que a escala absoluta.
+  Por isso, escalonar features geralmente não altera o desempenho de árvores. [2]
+</p>
+<p>
+  <b>Quando normalizar mesmo assim?</b> Se você comparar com modelos sensíveis à escala
+  (ex.: regressão logística, SVM linear) ou quiser manter um pipeline padrão para vários
+  algoritmos. A normalização não é um erro, apenas costuma ser desnecessária para RF. [2]
+</p>
+
+<div class="callout">
+  <b>Resumo prático:</b> para RF, foque em dados consistentes, tratamento de faltantes e
+  validação externa. Normalização é opcional, não obrigatória.
+</div>
+
+<h3>Preparação de dados em saúde</h3>
+<ul>
+  <li><b>Faltantes:</b> prontuários têm lacunas. Use imputação ou regras clínicas consistentes,
+    documentando o método. [2]</li>
+  <li><b>Outliers:</b> extremos podem ser reais em casos críticos. Analise se são erro ou sinal.</li>
+  <li><b>Variáveis categóricas:</b> padronize codificações (ex.: sexo, unidade de medida).</li>
+  <li><b>Desbalanceamento:</b> em eventos raros (ex.: sepse), use métricas adequadas e
+    reamostragem ou pesos de classe.</li>
+</ul>
+
+<h3 id="hiperparametros">Hiperparâmetros mais importantes (e impacto)</h3>
+<ul>
+  <li><b>n_estimators</b> (número de árvores): Mais árvores = maior estabilidade e menor variância, mas aumenta tempo e memória. [1]
+    <br/><i>Exemplo:</i> Com 50 árvores, a votação pode ser instável. Com 200, reduz variância significativamente.
+    Acima de 500, ganhos marginais. Em saúde, 200-300 é típico. [1]
+  </li>
+  <li><b>max_depth</b> (profundidade máxima): Árvores muito profundas podem overfitar; limitar torna o modelo mais geral. [1]
+    <br/><i>Exemplo:</i> max_depth=30 (padrão, sem limite) pode gerar árvores muito específicas ao treino.
+    max_depth=10 torna o modelo mais conservador e generaliza melhor. Em dados clínicos, 10-15 é comum.
+  </li>
+  <li><b>min_samples_split</b> (mínimo para dividir um nó): Valores maiores tornam o modelo mais conservador.
+    <br/><i>Exemplo:</i> Se min_samples_split=2, uma árvore divide um nó com apenas 2 pacientes (risco de overfitting).
+    Se min_samples_split=20, só divide se há pelo menos 20 pacientes naquele nó (mais robusto).
+  </li>
+  <li><b>min_samples_leaf</b> (mínimo em uma folha): Aumentar reduz variância e pode melhorar generalização.
+    <br/><i>Exemplo:</i> min_samples_leaf=1 permite folhas com um paciente (regras ultra-específicas).
+    min_samples_leaf=5 garante que cada decisão final se baseia em pelo menos 5 pacientes.
+  </li>
+  <li><b>max_features</b> (variáveis por split): Menor valor aumenta diversidade entre árvores, podendo melhorar o ensemble. [1]
+    <br/><i>Analogia:</i> Como em uma junta clínica, se cada especialista só vê algumas variáveis diferentes,
+    as perspectivas são mais diversas. max_features='sqrt' (raiz quadrada) é um bom padrão.
+  </li>
+  <li><b>bootstrap</b> (reposição): Se verdadeiro, usa amostras com reposição. Ajuda na estimativa OOB. [1]
+    <br/><i>Nota:</i> Deixe sempre como True. Isso permite que o modelo estime seu próprio erro sem validação externa.
+  </li>
+  <li><b>class_weight</b> (pesos de classe): Balanceia a importância das classes. Importante em problemas desbalanceados. [1]
+    <br/><i>Exemplo:</i> Se 95% dos pacientes não têm sepse e 5% têm, aumentar o peso da classe minoritária
+    (sepse) força o modelo a aprender melhor essas instâncias raras.
+  </li>
+</ul>
+
+<div class="callout">
+  <b>Dica prática (ajustes em saúde):</b> Comece com n_estimators=200, max_depth=15, min_samples_split=20,
+  min_samples_leaf=5, max_features='sqrt'. Altere um parâmetro por vez e observe impacto nas métricas.
+  Em saúde, valores de recall (sensibilidade) costumam ser prioridade quando o custo de perder um caso
+  positivo (falso negativo) é alto. Por exemplo, na triagem de sepse, um falso negativo pode ser fatal.
+</div>
+
+<h3 id="avaliacao">Como avaliar um modelo (sem jargão)</h3>
+<ul>
+  <li><b>Acurácia</b>: porcentagem de acertos totais.</li>
+  <li><b>Precisão</b>: entre os positivos previstos, quantos eram positivos de verdade.</li>
+  <li><b>Recall (sensibilidade)</b>: entre os positivos reais, quantos foram detectados.</li>
+  <li><b>Especificidade</b>: entre os negativos reais, quantos foram corretamente descartados.</li>
+  <li><b>AUC</b>: medida geral de separação entre classes (0.5 ruim, 1.0 excelente).</li>
+</ul>
+
+<div class="card">
+  <svg width="520" height="170" viewBox="0 0 520 170" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="10" width="200" height="150" rx="6" fill="none" stroke="currentColor" />
+    <line x1="10" y1="85" x2="210" y2="85" stroke="currentColor" />
+    <line x1="110" y1="10" x2="110" y2="160" stroke="currentColor" />
+    <text x="40" y="45" font-size="12">VP</text>
+    <text x="140" y="45" font-size="12">FP</text>
+    <text x="40" y="125" font-size="12">FN</text>
+    <text x="140" y="125" font-size="12">VN</text>
+    <text x="15" y="170" font-size="11">Matriz de confusão</text>
+
+    <rect x="250" y="10" width="250" height="150" rx="6" fill="none" stroke="currentColor" />
+    <polyline points="260,150 290,120 330,90 380,60 430,35 490,20" fill="none" stroke="currentColor" />
+    <line x1="260" y1="150" x2="490" y2="20" stroke="currentColor" stroke-dasharray="4 4" />
+    <text x="260" y="170" font-size="11">Curva ROC (exemplo)</text>
+  </svg>
+  <div class="diagram-note">Visual simples: matriz de confusão e curva ROC.</div>
+</div>
+
+<p>
+  Em cenários clínicos, escolha a métrica conforme o risco:
+  alta sensibilidade para triagem (não perder casos), alta precisão para confirmação.
+</p>
+
+<p>
+  Além disso, avalie <b>calibração</b>: se o modelo diz “risco de 30%”, isso precisa
+  se aproximar do risco real observado. Modelos bem calibrados ajudam a comunicar
+  risco para equipes clínicas e pacientes. [4]
+</p>
+
+<h3>Escolha de limiar (threshold)</h3>
+<p>
+  Em classificação, o RF gera probabilidades. O limiar padrão (0,5) nem sempre é o ideal.
+  Para triagem, você pode reduzir o limiar para aumentar a sensibilidade; para confirmar
+  diagnóstico, aumentar o limiar pode elevar a precisão. Essa escolha deve ser definida
+  com base no impacto clínico de falsos positivos e falsos negativos.
+</p>
+
+<h3 id="interpretabilidade">Interpretabilidade: como explicar para profissionais de saúde</h3>
+<p>
+  A grande desvantagem do RF é que não é simples explicar "por que" ele fez uma previsão,
+  ao contrário de uma regressão logística. Mas há maneiras de tornar isso transparente.
+</p>
+<ul>
+  <li><b>Feature Importance (globalmente):</b> Mostre quais variáveis mais influenciam.
+    <br/><i>Exemplo:</i> "O modelo considerou: lactato (18%), frequência cardíaca (15%), temperatura (14%)...".
+    Isso ajuda o médico a saber quais dados o modelo priorizou. [1]
+  </li>
+  <li><b>Permutation Importance (melhor que impureza):</b> Ao invés de usar a importância baseada em
+    ganho de informação, meça quanto o desempenho piora se embaralhamos essa variável.
+    <br/><i>Por quê:</i> Importâncias baseadas em ganho podem ser enviesadas para variáveis com muitos
+    níveis (ex.: ID do hospital). Permutation mostra o impacto real. [3]
+  </li>
+  <li><b>Explicações locais (SHAP):</b> Para um caso específico, mostre quanto cada variável "contribuiu"
+    para aquela previsão.
+    <br/><i>Exemplo:</i> "Para o paciente João, o risco previsto foi 78%. Desses, o lactato elevado
+    contribuiu +30%, a febre +20%, a frequência cardíaca alta +15%, e a glicose elevada +13%".
+    Isso é muito mais útil que uma "caixa preta" [3]
+  </li>
+  <li><b>Confie em explicações clínicas plausíveis:</b> Se o modelo diz que "glicose elevada
+    aumenta risco de sepse", isso faz sentido clínico? Se não fizer, investigue vieses.
+    <br/><i>Exemplo negativo:</i> "ID do prontuário aumenta risco". Isso é um viés de coleta, não
+    uma relação causal. Remova e retreine.
+  </li>
+  <li><b>Explique que o modelo não substitui julgamento:</b> A previsão é uma recomendação,
+    não uma ordem. O médico de plantão tem mais contexto e deve ser questionador.
+  </li>
+</ul>
+
+<div class="card">
+  <b>Exemplo de explicação para mudar de cultura:</b> Em vez de dizer "O modelo previu risco alto",
+  diga "O modelo identificou que, em casos similares a este, 78% tiveram resultado desfavorável.
+  Recomenda-se reavaliar em 2 horas ou considerar internação em unidade de maior complexidade".
+  Isso coloca o modelo como ferramenta de apoio, não como autoridade. [3]
+</div>
+
+<h3 id="saude">Aplicações em saúde: contexto e cuidados</h3>
+<ul>
+  <li>Modelos preditivos podem apoiar triagem, estratificação de risco e apoio à decisão.</li>
+  <li>Dados clínicos possuem vieses: faltas, mudanças de protocolo e populações diferentes.</li>
+  <li>Resultados devem ser contextualizados com epidemiologia local.</li>
+</ul>
+
+<p>
+  Um modelo treinado em UTI pode falhar em ambulatórios, pois o perfil clínico muda.
+  Isso é chamado de <b>drift</b> (mudança de distribuição). Reavaliar o modelo
+  periodicamente é parte essencial do uso seguro.
+</p>
+
+<h3 id="boas-praticas">Boas práticas para uso clínico (passo a passo)</h3>
+<ol>
+  <li><b>Valide em dados externos:</b> Não confie apenas no desempenho interno do hospital.
+    <br/><i>Por quê:</i> Um modelo treinado na UTI A pode falhar na UTI B (diferentes equipamentos, protocolos).
+    <i>Passo:</i> Depois de treinar, teste em dados coletados em outro hospital ou período futuro antes de implementação. [1]
+  </li>
+  <li><b>Monitore desempenho contínuo:</b> Estabeleça um dashboard que rastreie métricas ao longo do tempo.
+    <br/><i>Por quê:</i> Mudanças de protocolo, novas máquinas ou mudança de população (ex.: mais idosos)
+    alteram os dados. Isso é chamado de drift. [1]
+    <i>Passo:</i> Se a AUC cair de 0.92 para 0.85 em 3 meses, retreine com dados novos.
+  </li>
+  <li><b>Documente limites claramente:</b> Escreva para o usuário clínico:
+    Qual era a população de treino? Qual faixa etária? Que tipo de coleta de dados?
+    <br/><i>Exemplo:</i> "Este modelo foi treinado com 5000 pacientes da UTI Geral de 2021-2023,
+    faixa etária 18-85 anos. Não foi testado em pediatria ou pacientes com câncer avançado.
+    Resultados podem diferir nessas populações". [1]
+  </li>
+  <li><b>Inclua governança formal:</b>
+    <ul>
+      <li>Designar responsável: Quem monitora o modelo? Quem faz atualizações?</li>
+      <li>Cronograma: Revisar a cada 3 meses ou após mudança de protocolo.</li>
+      <li>Critérios de atualização: Se AUC cair abaixo de 0.85, requisitar retreino.</li>
+      <li>Escalação: Se o modelo errar sistematicamente (ex.: 5+ falsos negativos seguidos), desativar e revisar.</li>
+    </ul>
+  </li>
+  <li><b>Revisão humana obrigatória:</b> Não deixe o modelo tomar decisões sozinho.
+    <br/><i>Exemplo:</i> Se prevê "sepse", uma enfermeira valida? Um médico confirma antes de iniciar antibiótico?
+    <i>Por quê:</i> Modelos erram. Decisões clínicas graves precisam de dupla verificação.
+  </li>
+  <li><b>Comunique risco aos usuários:</b> Treine a equipe em como interpretar saídas do modelo.
+    <br/><i>Exemplo:</i> "Quando a probabilidade é entre 50-70%, considere contexto clínico.
+    Quando é < 30%, baixo risco. Quando é > 85%, risco substancial; recomenda-se ação".
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Segurança clínica:</b> Decisões de alto impacto (ex.: iniciar sepse bundle,
+  internação em UTI) devem passar por revisão humana. O modelo é uma recomendação,
+  não uma ordem. Protocolos claros para lidar com discordância (médico concorda ou discorda
+  da previsão) são essenciais. [1]
+</div>
+
+<h3 id="exemplos">Exemplos em saúde (publicados)</h3>
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr>
+    <th align="left">Estudo</th>
+    <th align="left">Tarefa</th>
+    <th align="left">Resultados</th>
+    <th align="left">Contexto</th>
+  </tr>
+  <tr>
+    <td>Wang et al., 2021</td>
+    <td>Predição de sepse em UTI usando RF</td>
+    <td>AUC 0.91, sensibilidade 87%, especificidade 89%</td>
+    <td>Dados: sinais vitais, exames de laboratório (lactato, PCR, contagem de leucócitos) e idade.
+        Implicação: Em 100 pacientes com sepse, o modelo identificava 87. Em 100 sem sepse,
+        descartava 89. Útil para triagem em UTI. [5]
+    </td>
+  </tr>
+  <tr>
+    <td>Wang et al., 2021</td>
+    <td>Classificação de alto risco para diabetes tipo 2 (RF + ensemble)</td>
+    <td>Acurácia 0.890, Recall 0.919, AUC 0.948</td>
+    <td>Dados: IMC, circunferência abdominal, pressão, glicose em jejum e história familial.
+        Implicação: Recall 0.919 significa que dos 100 indivíduos que de fato desenvolvem diabetes,
+        o modelo identifica 92. Importante para programas de prevenção primária. [6]
+    </td>
+  </tr>
+  <tr>
+    <td style="background: rgba(200, 200, 200, 0.2);">Hipotético (seu caso)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Triagem de risco em pronto-socorro</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Esperado: alta sensibilidade (> 95%)</td>
+    <td style="background: rgba(200, 200, 200, 0.2);">Em triagem, falsos negativos são custosos (pacientes graves saem sem cuidado).
+        Falsos positivos são menos graves (paciente aguarda mais na fila).
+        Portanto, maximize recall, mesmo que precision diminua.
+    </td>
+  </tr>
+</table>
+
+<p>
+  <b>Como ler essas métricas em contexto clínico?</b> O Estudo 1 teve sensibilidade 87%,
+  ou seja, de cada 100 pacientes com sepse, 13 foram perdidos (falsos negativos). Em termos
+  de vidas, isso pode ser crítico. O Estudo 2 teve recall 91.9%, capturando quase todos
+  os futuros diabéticos para intervenção preventiva. Ambos os casos mostram que a métrica
+  escolhida deve refletir o custo real de cada tipo de erro no cenário clínico.
+</p>
+
+<h3 id="diagnostico">Diagnóstico: quando o modelo falha ou não melhora</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sintoma</b></th>
+    <th align="left"><b>Causas prováveis</b></th>
+    <th align="left"><b>Ações</b></th>
+  </tr>
+  <tr>
+    <td><b>Accuracy alta no treino, baixa na validação</b></td>
+    <td>Overfitting. Modelo memorizou detalhes ruidosos.</td>
+    <td>Diminua max_depth, aumente min_samples_leaf, aumente n_estimators (mais votação). Ou: colete mais dados.</td>
+  </tr>
+  <tr>
+    <td><b>Accuracy tanto no treino quanto na validação é baixa (ex: 60%)</b></td>
+    <td>Model é muito simplista OU dados têm ruído/faltantes demais OU features não predizem bem o alvo.</td>
+    <td>Investigue features (correlação com target). Limpe faltantes. Crie features novo (ex: idade²). Veja se dados fazem sentido clinicamente.</td>
+  </tr>
+  <tr>
+    <td><b>Recall é baixo (muitos falsos negativos)</b></td>
+    <td>Limiar muito alto OU classe minoritária é ignorada OU desbalanceamento severo.</td>
+    <td>Abaixe o limiar de decisão (ex: 0.5 → 0.3). Use class_weight='balanced'. Considere reamostragem (SMOTE).</td>
+  </tr>
+  <tr>
+    <td><b>Precision é baixa (muitos falsos positivos)</b></td>
+    <td>Limiar muito baixo OU features coincidem acidentalmente com positivos no treino.</td>
+    <td>Aumente o limiar (ex: 0.5 → 0.7). Revise features para remover correlações acidentais. Valide em dados externos.</td>
+  </tr>
+  <tr>
+    <td><b>AUC é 0.5 (aleatório)</b></td>
+    <td>Nenhuma separação entre classes possível com essas features OU todas as features são ruidosas OU alvo é aleatório.</td>
+    <td>Volte ao desenho do experimento. As features predizem realmente o alvo? Está medindo a variável certa?</td>
+  </tr>
+  <tr>
+    <td><b>Feature importance mostra ID_prontuário como top-1</b></td>
+    <td>Viés de coleta. ID correlaciona com resultado por acaso (ex: pacientes internados mais cedo tinham IDs menores e outcomes diferentes).</td>
+    <td>Remova ID_prontuário e retrey. Investigue se há viés de coleta.</td>
+  </tr>
+  <tr>
+    <td><b>Desempenho piora após 3 meses em produção (Drift clínico)</b></td>
+    <td>População mudou (novo equipamento, novo protocolo, novo hospital). Dados evoluem.</td>
+    <td>Retrain com dados novos. Estabeleça monitoramento contínuo. Declare quando retreat é necessário (ex: AUC < 0.85).</td>
+  </tr>
+</table>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+<ul>
+  <li>
+    <b>Q: Preciso normalizar os dados?</b>
+    <br/>R: <u>Para Random Forest, não é obrigatório.</u> Árvores de decisão usam divisões por limiar e não dependem da escala absoluta. [2]
+    Se idade está em anos (0-120) e glicose em mg/dL (0-500), a árvore apenas encontra um ponto de corte em cada escala.
+    De forma diferente, modelos que usam distância (KNN, SVM, regressão com regularização L2) são sensíveis à escala.
+    <br/><i>Dica:</i> Se você está testando múltiplos algoritmos, normalizar é seguro (não prejudica) e deixa
+    o pipeline padronizado. Mas para RF isolado, omitir normalização não é erro.
+  </li>
+  <li>
+    <b>Q: Normalizar é má prática?</b>
+    <br/>R: Não. É uma prática aceitável e até recomendada em pipelines científicos.
+    Não prejudica RF (no máximo, ineficível computacionalmente), então se você já normaliza,
+    mantenha. [2]
+  </li>
+  <li>
+    <b>Q: Quantas árvores devo usar?</b>
+    <br/>R: Comece com 200. Se dados tem <5000 amostras, 100-200 basta. Se >50000, 300-500.
+    Execute validation_curve para encontrar o ponto ótimo.
+    <br/><i>Regra de ouro:</i> Ganhos substanciais até 300 árvores; depois, marginais.
+    Em saúde, 200-300 é típico. Acima disso, margem de melhoria diminui.
+  </li>
+  <li>
+    <b>Q: Por que o modelo errou neste paciente?</b>
+    <br/>R: Possíveis motivos: (1) Dados ruidosos/faltantes naquele caso; (2) variáveis importantes faltaram;
+    (3) mudança de perfil (drift clínico); (4) modelo tem limitações intrínsecas.
+    <br/><i>Diagnóstico:</i> Use SHAP para mostrar por quais variáveis o modelo previu risco alto.
+    Compare com contexto clínico. Se não fizer sentido, investigue vieses.
+  </li>
+  <li>
+    <b>Q: Isso substitui o médico?</b>
+    <br/>R: <u>Absolutamente não.</u> É uma ferramenta de apoio, como um exame complementar.
+    O médico integra a previsão do modelo com achados focados, história clínica, e julgamento além-dados.
+    Modelos falham; medicina requer contexto. O uso seguro requer revis humana obrigatória
+    e protocolos claros para discordância. [1]
+  </li>
+  <li>
+    <b>Q: E se meu dataset for muito pequeno (<100 pacientes)?</b>
+    <br/>R: Modelos tendem a overfitar severamente. Considere: (1) Regressão logística simples (menos parâmetros);
+    (2) Coletar mais dados se possível; (3) Validação cruzada agressiva (leave-one-out ou k=10) para estimativa honesta.
+    <br/><i>Nota:</i> Em estudos clínicos piloto, validação externa em outra coorte posterior é obrigatória.
+  </li>
+  <li>
+    <b>Q: Como escolho entre Random Forest, Gradient Boosting e outros?</b>
+    <br/>R: <i>Início:</i> Teste vários (RF, Gradient Boosting, SVM, logística). Use validação cruzada honesta.
+    <i>Escolha final:</i> Geralmente, o mais simples que funciona bem é preferido.
+    Se RF e XGBoost têm AUC próximo, RF é mais estável e menos propenso a overfitting.
+    <br/><i>Em saúde:</i> Interpretabilidade costuma ser critério desempatador. RF + SHAP > XGBoost puro.
+  </li>
+</ul>
+
+<h3 id="quando-usar">Quando usar Random Forest (e quando não) - Guia prático</h3>
+
+<div class="card">
+  <b>Use Random Forest quando:</b>
+  <ul>
+    <li><b>Há muitas variáveis:</b> Diagnóstico com 50+ variáveis clínicas. O RF naturalmente seleciona as importantes via importância de features.</li>
+    <li><b>Há relações não-lineares:</b> Idade e risco não são proporcionais (risco aumenta mais depois dos 60). O RF captura isso automaticamente.</li>
+    <li><b>Há interações entre variáveis:</b> Ex.: "pressão alta + diabetes" aumenta risco mais que cada um isoladamente. RF encontra essas combinações.</li>
+    <li><b>Dados têm estrutura irregular:</b> Faltantes aleatórios, variáveis categóricas misturadas. O RF lida bem.</li>
+    <li><b>Você pode aceitar menos interpretabilidade:</b> Em troca de melhor desempenho. Mas ainda pode usar SHAP para explicações locais.</li>
+    <li><b>Desempenho é crítico:</b> Previsão de sepse, detecção de câncer. Ganhos de 2-5% (ex.: AUC 0.92 vs 0.88) podem salvar vidas.</li>
+  </ul>
+</div>
+
+<div class="card" style="background: rgba(255, 100, 100, 0.08); border-left-color: #d32f2f;">
+  <b>Cuidado: Quando Random Forest pode não ser ideal:</b>
+  <ul>
+    <li><b>Dataset muito pequeno:</b> < 100 amostras. Árvores tendem a overfitar mesmo com random forest.</li>
+    <li><b>Precisa máxima interpretabilidade:</b> Médico não-técnico quer entender "por quê". Use regressão logística simples em vez disso.</li>
+    <li><b>Dados com classe desbalanceada severa:</b> Se 1 em 10000 tem a doença, RF pode ignorar a classe rara. Use class_weight='balanced' e métricas apropriadas.</li>
+    <li><b>Dados com muitos faltantes estruturados:</b> Se faltante indica algo (ex.: "variável não medida = provável paciente crítico"), um modelo que trata faltantes como ruído pode não ser ideal.</li>
+    <li><b>Dados em tempo real com latência crítica:</b> Uma árvore é 200x mais rápida que 200 árvores. Se o modelo deve responder em <10ms, RF pode não ser viável (embora exista paralelização).</li>
+  </ul>
+</div>
+
+<h3>Mitos e mal-entendidos comuns</h3>
+
+<div class="card">
+  <ul>
+    <li><b>Mito 1: "Random Forest sempre funciona melhor que qualquer modelo".</b>
+      <br/><b>Realidade:</b> Não. Em dados muito simples e lineares (ex.: risco = 0.3 × idade + 0.2 × colesterol), regressão logística pode ser igualmente bom ou melhor, com muito menos custo computacional.
+    </li>
+    <li><b>Mito 2: "Mais árvores sempre melhora desempenho".</b>
+      <br/><b>Realidade:</b> Os ganhos crescem logaritmicamente. 100 vs 200 árvores: grande diferença. 500 vs 1000: quase nenhuma. O ponto ótimo é empiricamente encontrado (plot validation_curve).
+    </li>
+    <li><b>Mito 3: "Feature importance diz qual variável é mais importante causalmente".</b>
+      <br/><b>Realidade:</b> Frequentista, não causal. Se correlacional. Ex.: "ID_prontuário" pode aparecer como importante se foi coletado diferentemente em dois períodos. Use SHAP e contexto clínico para interpretar cautelosamente.
+    </li>
+    <li><b>Mito 4: "A árvore com maior profundidade é sempre melhor".</b>
+      <br/><b>Realidade:</b> Profundidade excessiva leva a overfitting. Limitar max_depth (ex.: 15) reduz variância e melhora generalização.
+    </li>
+    <li><b>Mito 5: "Se o modelo funciona no treino, funciona na clínica".</b>
+      <br/><b>Realidade:</b> Clinical drift é real. Dados mudam (novo equipamento, novo protocolo, nova população). Validação externa e monitoramento contínuo são essenciais.
+    </li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/ensemble.html#random-forests">scikit-learn: Random Forests (guia técnico)</a></li>
+  <li><a href="https://scikit-learn.org/stable/modules/permutation_importance.html">scikit-learn: Permutation importance</a></li>
+  <li><a href="https://scikit-learn.org/stable/modules/calibration.html">scikit-learn: Calibration</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/">Interpretable Machine Learning (livro aberto)</a></li>
+  <li><a href="https://arxiv.org/abs/1407.7502">Understanding Random Forests (Louppe, 2014)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8553999/">Estudo de sepse com RF (PMC)</a></li>
+  <li><a href="https://www.cdc.gov/sepsis/index.html">CDC: Sepsis (contexto clínico)</a></li>
+  <li><a href="https://www.who.int/health-topics/diabetes">WHO: Diabetes (contexto clínico)</a></li>
+</ul>
+
+<h3 id="comparacao">Comparação com outros modelos disponíveis em trAIn</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse; margin: 10px 0;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Robustez a ruído</b></th>
+    <th align="left"><b>Recomendação em saúde</b></th>
+  </tr>
+  <tr>
+    <td><b>Random Forest</b></td>
+    <td>Média (use SHAP)</td>
+    <td>Muito bom (genérico)</td>
+    <td>Excelente</td>
+    <td>★★★★★ Primeira escolha para a maioria</td>
+  </tr>
+  <tr>
+    <td><b>Regressão Logística</b></td>
+    <td>Excelente (coefficients diretos)</td>
+    <td>Bom (se linear)</td>
+    <td>Média (sensível a outliers)</td>
+    <td>★★★★☆ Se dados são lineares; fácil regulamentação</td>
+  </tr>
+  <tr>
+    <td><b>Árvore de Decisão (única)</b></td>
+    <td>Excelente (veja a árvore inteira)</td>
+    <td>Bom (risco de overfitting)</td>
+    <td>Baixa (memoriza treino)</td>
+    <td>★★☆☆☆ Boa para educação; ruim para produção</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting / XGBoost</b></td>
+    <td>Baixa (complexo)</td>
+    <td>Excelente (muitas vezes > RF)</td>
+    <td>Excelente</td>
+    <td>★★★★☆ Se desempenho é crítico; use SHAP</td>
+  </tr>
+  <tr>
+    <td><b>KNN</b></td>
+    <td>Média (veja vizinhos)</td>
+    <td>Bom (depende de k)</td>
+    <td>Baixa (sensível a dados ruidosos)</td>
+    <td>★★★☆☆ Se dataset < 1000, útil como baseline</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa (kernel complexo)</td>
+    <td>Excelente (em alta dimensão)</td>
+    <td>Excelente (margem robusta)</td>
+    <td>★★★☆☆ Se features > amostras; combine com SHAP</td>
+  </tr>
+  <tr>
+    <td><b>Naïve Bayes</b></td>
+    <td>Excelente (probabilidades independentes)</td>
+    <td>Médio (assume independência falsa)</td>
+    <td>Média</td>
+    <td>★★☆☆☆ Rápido e didático; dados clínicos têm variáveis correlacionadas</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(46, 125, 50, 0.08); border-left-color: #2e7d32;">
+  <b>Resumo: Quando escolher Random Forest em saúde?</b>
+  <ul>
+    <li>✓ Muitas variáveis e você não sabe quais são importantes: RF + Feature Importance</li>
+    <li>✓ Não-linearidade: Idade vs Risco, Glicose vs Risco são às vezes curvilíneos</li>
+    <li>✓ Interações: "Pressão alta + diabetes" > cada um isolado. RF encontra isso</li>
+    <li>✓ Faltantes aleatórios: tratados nativamente (não precisa imputação sofisticada)</li>
+    <li>✓ Equilíbrio bom entre desempenho e estabilidade</li>
+    <li>✗ Se interpretabilidade é crítica absoluta e você só tem <20 features: regressão logística</li>
+    <li>✗ Se latência é crítica (<10ms): árvore única ou regressão logística</li>
+  </ul>
+</div>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>Breiman, L. Random Forests (2001). <a href="https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf">PDF</a></li>
+  <li>scikit-learn: Random Forests (documentação oficial). <a href="https://scikit-learn.org/stable/modules/ensemble.html#random-forests">Link</a></li>
+  <li>scikit-learn: Permutation importance (alerta de viés em importâncias). <a href="https://scikit-learn.org/stable/modules/permutation_importance.html">Link</a></li>
+  <li>scikit-learn: Calibration (calibração de probabilidades). <a href="https://scikit-learn.org/stable/modules/calibration.html">Link</a></li>
+  <li>Wang D. et al. A Machine Learning Model for Accurate Prediction of Sepsis in ICU Patients (2021). <a href="https://pubmed.ncbi.nlm.nih.gov/34722452/">PubMed</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8553999/">PMC</a></li>
+  <li>Wang X. et al. Classification of Diabetes Mellitus via Combined RF (2021). <a href="https://pubmed.ncbi.nlm.nih.gov/33743696/">PubMed</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7980612/">PMC</a></li>
+</ol>

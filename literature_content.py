@@ -5,6 +5,9 @@ MODEL_LITERATURE_FILES = {
     "RandomForestClassifier": "random_forest/index.html",
     "RandomForestRegressor": "random_forest/index.html",
     "Logistic Regression": "logistic_regression/index.html",
+    "Linear Regression": "linear_regression/index.html",
+    "Ridge Regression": "ridge_regression/index.html",
+    "SVR": "svr/index.html",
     "KNN": "knn/index.html",
     "Naive Bayes": "naive_bayes/index.html",
     "Gradient Boosting": "gradient_boosting/index.html",
@@ -12,6 +15,8 @@ MODEL_LITERATURE_FILES = {
     "Decision Tree Regressor": "decision_tree/index.html",
     "Gradient Boosting Regressor": "gradient_boosting/index.html",
     "SVM": "svm/index.html",
+    "XGBoost": "xgboost/index.html",
+    "XGBoost Regressor": "xgboost/index.html",
 }
 
 

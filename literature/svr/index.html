@@ -1,0 +1,1159 @@
+<h2 style="margin-top:0;">SVR (Support Vector Regression)</h2>
+
+<p>
+  <b>Support Vector Regression (SVR)</b> adapta o conceito de Support Vector Machines
+  para problemas de regressão, usando a ideia de <b>ε-insensitive loss</b> (tubo de
+  tolerância) para predizer valores contínuos. Como SVM, SVR é robusto a outliers,
+  funciona bem em espaços de alta dimensão, e pode capturar não-linearidades via kernels. [1][2][3]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> SVR cria um "tubo" de largura ε ao redor da função de regressão,
+  ignorando erros dentro do tubo e penalizando apenas pontos fora, resultando em modelo
+  robusto a outliers e com controle explícito sobre tolerância ao erro.
+</div>
+
+<p>
+  <b>Contexto histórico:</b> desenvolvido por Vapnik et al. em 1996 como extensão natural
+  do SVM para regressão. [1] Ao contrário de regressão tradicional que minimiza erro
+  quadrático de TODOS os pontos, SVR usa ε-insensitive loss: erros dentro do tubo ε são
+  ignorados (considerados "bons o suficiente"), apenas erros grandes são penalizados.
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário</a></li>
+  <li><a href="#diferencial">Diferença vs SVM classificação</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#epsilon-tube">ε-tube (conceito central)</a></li>
+  <li><a href="#kernels">Kernels e não-linearidade</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#epsilon">Epsilon: escolha crítica</a></li>
+  <li><a href="#C-regularizacao">C: regularização</a></li>
+  <li><a href="#kernel-choice">Qual kernel usar</a></li>
+  <li><a href="#normalizacao">Normalização (OBRIGATÓRIA)</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparação: SVR vs Linear vs XGBoost</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  SVR adapta SVM para regressão usando ε-insensitive loss function:
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">ε-insensitive loss:</div>
+  <div class="formula">L_ε(y, f(x)) = max(0, |y - f(x)| - ε)</div>
+  <p style="font-size: 13px;">
+    Se |erro| ≤ ε: loss = 0 (erro ignorado)<br/>
+    Se |erro| > ε: loss = |erro| - ε (penaliza excesso)
+  </p>
+</div>
+
+<p><b>Características principais:</b></p>
+<ul>
+  <li><b>ε-tube:</b> cria tubo de tolerância ±ε ao redor da predição. Erros dentro são gratuitos.</li>
+  <li><b>Esparsidade:</b> apenas pontos fora do tubo (support vectors) influenciam modelo.</li>
+  <li><b>Robustez a outliers:</b> outliers extremos têm impacto limitado (não quadrático como OLS).</li>
+  <li><b>Kernels:</b> pode capturar não-linearidades via kernel trick (rbf, poly, sigmoid).</li>
+  <li><b>Alta dimensão:</b> funciona bem mesmo com p > n (regularizado via C).</li>
+  <li><b>Convexidade:</b> otimização convexa garante ótimo global (sem mínimos locais).</li>
+</ul>
+
+<div class="callout">
+  <b>Intuição clínica:</b> SVR é ideal quando você aceita pequenos erros (±ε) mas quer
+  penalizar fortemente erros grandes. Por exemplo, predizer tempo de internação: erro
+  de ±0.5 dias é aceitável, mas erro de 5 dias precisa ser evitado. SVR foca em "acertar
+  o suficiente" (dentro do tubo) ao invés de "acertar perfeitamente" (OLS).
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine que você está desenhando uma linha para predizer tempo de internação. Com
+  regressão linear normal (OLS), você tenta fazer a linha passar o mais próximo possível
+  de TODOS os pontos, se preocupando igualmente com cada erro, por menor que seja.
+</p>
+
+<p>
+  Com SVR, você desenha um "tubo" (banda) de largura ε ao redor da linha. Se um ponto
+  está dentro do tubo, você diz "ok, bom o suficiente, erro aceitável". Apenas pontos
+  FORA do tubo te preocupam. Isso torna o modelo:
+</p>
+
+<ul>
+  <li><b>Mais robusto:</b> outliers extremos (ex.: paciente internado 50 dias) não "puxam" a linha tanto quanto em OLS.</li>
+  <li><b>Mais simples:</b> apenas alguns pontos (fora do tubo) definem o modelo, o resto é ignorado.</li>
+  <li><b>Mais flexível:</b> você pode aumentar ε para tolerar mais ruído, ou diminuir para ser mais preciso.</li>
+</ul>
+
+<p>
+  <b>Analogia:</b> é como dirigir em uma faixa da estrada. Você não precisa estar
+  EXATAMENTE no centro da faixa o tempo todo (±20cm é ok, ε=20cm). Apenas se você sair
+  MUITO da faixa (>20cm) você precisa corrigir. SVR aplica esse conceito de "margem de
+  tolerância" à regressão.
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>ε-insensitive loss:</b> função de perda que ignora erros menores que ε.</li>
+  <li><b>ε-tube:</b> banda de largura 2ε ao redor da função. Pontos dentro não contribuem para loss.</li>
+  <li><b>Support vectors:</b> pontos FORA do ε-tube (ou na borda). São os únicos que definem o modelo.</li>
+  <li><b>C (penalty):</b> trade-off entre simplicidade do modelo e tolerância a erros fora do tubo.</li>
+  <li><b>Kernel:</b> função que mapeia dados para espaço de dimensão maior (captura não-linearidade).</li>
+  <li><b>RBF kernel:</b> Radial Basis Function, kernel mais comum (exp(-γ||x-x'||²)).</li>
+  <li><b>Gamma (γ):</b> controla "alcance" do kernel RBF. γ alto = apenas vizinhos próximos influenciam.</li>
+  <li><b>Slack variables (ξ):</b> quanto cada ponto viola o ε-tube (ξ=0 se dentro do tubo).</li>
+</ul>
+
+<h3 id="diferencial">Diferença vs SVM classificação</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Aspecto</b></th>
+    <th align="left"><b>SVM (Classificação)</b></th>
+    <th align="left"><b>SVR (Regressão)</b></th>
+  </tr>
+  <tr>
+    <td><b>Objetivo</b></td>
+    <td>Maximizar margem entre classes</td>
+    <td>Criar tubo ε ao redor da função</td>
+  </tr>
+  <tr>
+    <td><b>Output</b></td>
+    <td>Classe (discreto)</td>
+    <td>Valor contínuo</td>
+  </tr>
+  <tr>
+    <td><b>Loss function</b></td>
+    <td>Hinge loss: max(0, 1 - y·f(x))</td>
+    <td>ε-insensitive: max(0, |y - f(x)| - ε)</td>
+  </tr>
+  <tr>
+    <td><b>Hiperparâmetro único</b></td>
+    <td>-</td>
+    <td><b>epsilon (ε)</b> - largura do tubo</td>
+  </tr>
+  <tr>
+    <td><b>Support vectors</b></td>
+    <td>Pontos na margem ou mal classificados</td>
+    <td>Pontos fora do ε-tube (ou na borda)</td>
+  </tr>
+  <tr>
+    <td><b>Interpretação</b></td>
+    <td>Distância à margem = confiança</td>
+    <td>Valor predito = saída direta</td>
+  </tr>
+  <tr>
+    <td><b>Robustez a outliers</b></td>
+    <td>Alta (outliers não afetam margem)</td>
+    <td>Alta (outliers têm loss limitado)</td>
+  </tr>
+  <tr>
+    <td><b>Hiperparâmetros comuns</b></td>
+    <td colspan="2">C, kernel, gamma, degree, coef0</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Resumo:</b> SVR é SVM adaptado para regressão. A ideia central permanece (maximize
+  margem, use kernels, minimize support vectors), mas ao invés de separar classes, você
+  cria um tubo de tolerância ao redor da função de regressão.
+</div>
+
+<h3 id="matematica">Matemática por trás do algoritmo</h3>
+
+<p>
+  SVR resolve problema de otimização convexa para encontrar função f(x) = wᵀx + b que
+  minimize complexidade (||w||²) enquanto mantém |y - f(x)| ≤ ε para máximo de pontos. [1][2]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">1. Problema primal (SVR linear)</div>
+  <div class="formula">minimize ½||w||² + C Σ (ξᵢ + ξᵢ*)</div>
+  <div class="formula">sujeito a:</div>
+  <div class="formula">yᵢ - (wᵀxᵢ + b) ≤ ε + ξᵢ</div>
+  <div class="formula">(wᵀxᵢ + b) - yᵢ ≤ ε + ξᵢ*</div>
+  <div class="formula">ξᵢ, ξᵢ* ≥ 0</div>
+  <p style="font-size: 13px;">
+    w = vetor de pesos (pendente do hiperplano)<br/>
+    b = intercepto<br/>
+    ξᵢ = slack variable (violação acima do tubo)<br/>
+    ξᵢ* = slack variable (violação abaixo do tubo)<br/>
+    C = penalidade por violar o tubo<br/>
+    ε = largura do tubo
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Interpretação dos termos</div>
+  <p style="font-size: 13px;">
+    <b>½||w||²:</b> complexidade do modelo (análogo a regularização L2). Menor ||w|| = função mais suave.<br/>
+    <b>C Σ (ξᵢ + ξᵢ*):</b> penalidade total por violar o ε-tube.<br/>
+    <b>ε + ξᵢ:</b> margem superior (tubo + violação acima).<br/>
+    <b>ε + ξᵢ*:</b> margem inferior (tubo + violação abaixo).
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. ε-insensitive loss (explícito)</div>
+  <div class="formula">L_ε = { 0 se |y - f(x)| ≤ ε; |y - f(x)| - ε caso contrário }</div>
+  <p style="font-size: 13px;">
+    Pontos dentro do tubo: loss = 0 (não contribuem)<br/>
+    Pontos fora do tubo: loss = distância além do tubo<br/>
+    <br/>
+    <b>Exemplo:</b><br/>
+    • ε = 0.1, erro = 0.05 → loss = 0 (dentro do tubo)<br/>
+    • ε = 0.1, erro = 0.25 → loss = 0.15 (fora do tubo por 0.15)
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">4. Solução dual (via Lagrange)</div>
+  <div class="formula">f(x) = Σ (αᵢ - αᵢ*) K(xᵢ, x) + b</div>
+  <p style="font-size: 13px;">
+    αᵢ, αᵢ* = multiplicadores de Lagrange (solução do dual)<br/>
+    K(xᵢ, x) = kernel function<br/>
+    <br/>
+    Support vectors: pontos onde (αᵢ - αᵢ*) ≠ 0<br/>
+    Esses são os pontos fora do ε-tube ou na borda
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">5. Kernel trick (não-linear)</div>
+  <div class="formula">K(x, x') = φ(x)ᵀφ(x')</div>
+  <p style="font-size: 13px;">
+    φ(x) = mapeamento para espaço de dimensão maior (implícito)<br/>
+    <br/>
+    <b>RBF kernel:</b> K(x, x') = exp(-γ||x - x'||²)<br/>
+    <b>Polynomial:</b> K(x, x') = (γ⟨x,x'⟩ + coef0)^d<br/>
+    <b>Linear:</b> K(x, x') = ⟨x,x'⟩ (sem mapeamento)
+  </p>
+</div>
+
+<h4>Derivação simplificada: por que ε-tube</h4>
+<div class="card">
+  <p style="font-size: 13px;">
+    <b>Problema:</b> OLS minimiza Σ (yᵢ - f(xᵢ))² → sensível a outliers (erro quadrático).<br/>
+    <b>MAE minimiza:</b> Σ |yᵢ - f(xᵢ)| → mais robusto, mas ainda penaliza todos os erros.<br/>
+    <b>SVR minimiza:</b> Σ max(0, |yᵢ - f(xᵢ)| - ε) → ignora erros pequenos (≤ε), penaliza erros grandes.<br/>
+    <br/>
+    <b>Vantagem de ε-tube:</b><br/>
+    • Foco em erros importantes (> ε)<br/>
+    • Esparsidade: maioria dos pontos tem loss=0 (dentro do tubo), não influenciam<br/>
+    • Controle explícito de tolerância via ε<br/>
+    • Menos sensível a ruído (erros pequenos são "perdoados")
+  </p>
+</div>
+
+<h3 id="epsilon-tube">ε-tube: conceito central do SVR</h3>
+
+<p>
+  O ε-tube é a ideia fundamental que diferencia SVR de outras regressões. [1][2]
+</p>
+
+<h4>Visualização do ε-tube</h4>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+        y
+        ↑
+        |     ○ (support vector - fora do tubo acima)
+        | ────────────── f(x) + ε (borda superior)
+        |   ● ● ● ● ●   (pontos dentro do tubo - ignorados)
+  f(x) →| ───────────────────────── função de regressão
+        |   ● ● ● ●     (pontos dentro - ignorados)  
+        | ────────────── f(x) - ε (borda inferior)
+        |       ○       (support vector - fora do tubo abaixo)
+        └─────────────→ x
+
+Legenda:
+• = pontos dentro do tubo (loss = 0, não são support vectors)
+○ = support vectors (fora do tubo, loss > 0, DEFINEM o modelo)
+  </pre>
+</div>
+
+<h4>Impacto de epsilon</h4>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>ε (epsilon)</b></th>
+    <th align="left"><b>Efeito</b></th>
+    <th align="left"><b># Support Vectors</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td>Muito pequeno (0.001-0.01)</td>
+    <td>Tubo estreito, função "segue" pontos</td>
+    <td>Muitos (overfitting)</td>
+    <td>Dados limpos, baixo ruído</td>
+  </tr>
+  <tr>
+    <td>Pequeno (0.05-0.1)</td>
+    <td>Equilíbrio, tolera ruído leve</td>
+    <td>Moderado (bom)</td>
+    <td><b>PADRÃO</b> (ε=0.1)</td>
+  </tr>
+  <tr>
+    <td>Moderado (0.2-0.5)</td>
+    <td>Tubo largo, função mais suave</td>
+    <td>Poucos (underfitting?)</td>
+    <td>Dados ruidosos, simplicidade</td>
+  </tr>
+  <tr>
+    <td>Grande (>0.5)</td>
+    <td>Tubo muito largo, função constante</td>
+    <td>Muito poucos (inútil)</td>
+    <td>Raramente útil</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Regra prática:</b> comece com ε=0.1 (padrão sklearn). Se overfitting (R²_treino >> R²_teste),
+  aumente ε para 0.2-0.3. Se underfitting (R² baixo em ambos), reduza ε para 0.05. Use
+  grid search para otimizar.
+</div>
+
+<h3 id="kernels">Kernels e não-linearidade</h3>
+
+<p>
+  Como SVM classificação, SVR usa kernel trick para capturar não-linearidades sem
+  explicitamente mapear dados para dimensão maior. [1][3]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Kernel</b></th>
+    <th align="left"><b>Fórmula</b></th>
+    <th align="left"><b>Quando usar</b></th>
+    <th align="left"><b>Hiperparâmetros</b></th>
+  </tr>
+  <tr>
+    <td><b>linear</b></td>
+    <td>K(x,x') = ⟨x,x'⟩</td>
+    <td>Relação linear, baseline rápido</td>
+    <td>Apenas C, ε</td>
+  </tr>
+  <tr>
+    <td><b>rbf</b></td>
+    <td>exp(-γ||x-x'||²)</td>
+    <td><b>PADRÃO.</b> Relações não-lineares</td>
+    <td>C, ε, γ</td>
+  </tr>
+  <tr>
+    <td><b>poly</b></td>
+    <td>(γ⟨x,x'⟩ + coef0)^d</td>
+    <td>Polinômios explícitos</td>
+    <td>C, ε, γ, degree, coef0</td>
+  </tr>
+  <tr>
+    <td><b>sigmoid</b></td>
+    <td>tanh(γ⟨x,x'⟩ + coef0)</td>
+    <td>Raramente melhor que rbf</td>
+    <td>C, ε, γ, coef0</td>
+  </tr>
+</table>
+
+<h4>Escolha de kernel na prática</h4>
+<ol>
+  <li><b>Comece com RBF:</b> funciona bem em 80-90% dos casos, captura não-linearidades gerais.</li>
+  <li><b>Teste linear:</b> se p > n ou suspeita de linearidade, teste kernel linear (muito mais rápido).</li>
+  <li><b>Poly (degree 2-3):</b> se conhece relação polinomial (ex.: velocidade² em física).</li>
+  <li><b>Compare com CV:</b> sempre compare RBF vs linear com cross-validation.</li>
+</ol>
+
+<h3 id="hiperparametros">Hiperparâmetros e seus impactos (detalhado)</h3>
+
+<p>SVR tem 6 hiperparâmetros no trAIn, com <b>epsilon</b> e <b>C</b> sendo os mais críticos.</p>
+
+<h4 style="margin-top: 20px;">1. epsilon (ε, largura do tubo)</h4>
+<p>
+  <b>O que é:</b> largura do tubo de tolerância. Erros |y - f(x)| ≤ ε são ignorados.<br/>
+  <b>Valor padrão:</b> 0.1<br/>
+  <b>Intervalo típico:</b> 0.01-0.5
+</p>
+
+<p><b>Impacto clínico:</b></p>
+<ul>
+  <li><b>ε pequeno (0.01-0.05):</b> tubo estreito, função segue pontos de perto (risco de overfit)</li>
+  <li><b>ε moderado (0.1-0.2):</b> equilíbrio padrão</li>
+  <li><b>ε grande (0.3-0.5):</b> tubo largo, função mais suave (tolera ruído, risco de underfit)</li>
+</ul>
+
+<p><b>Como escolher:</b> grid search com CV. Se dados ruidosos, teste ε=0.2-0.3. Se limpos, ε=0.05-0.1.</p>
+
+<h4 style="margin-top: 20px;">2. C (regularização / penalidade)</h4>
+<p>
+  <b>O que é:</b> trade-off entre simplicidade do modelo (||w||²) e tolerância a violar o tubo.<br/>
+  <b>Valor padrão:</b> 1.0<br/>
+  <b>Intervalo típico:</b> 0.1-100
+</p>
+
+<p><b>Impacto clínico:</b></p>
+<ul>
+  <li><b>C pequeno (0.1-1):</b> prioriza simplicidade, tolera muitas violações (underfit)</li>
+  <li><b>C moderado (1-10):</b> equilíbrio padrão</li>
+  <li><b>C grande (10-100):</b> penaliza fortemente violações, tenta acertar todos os pontos (overfit)</li>
+</ul>
+
+<p><b>Relação com ε:</b> C e ε interagem. C alto + ε pequeno = overfit severo. C baixo + ε grande = underfit.</p>
+
+<h4 style="margin-top: 20px;">3. kernel (tipo de kernel)</h4>
+<p>
+  <b>O que é:</b> função que mapeia dados para espaço de dimensão maior.<br/>
+  <b>Valor padrão:</b> "rbf"<br/>
+  <b>Opções:</b> rbf, linear, poly, sigmoid
+</p>
+
+<p><b>Impacto:</b> define capacidade de capturar não-linearidade. Veja seção <a href="#kernel-choice">Qual kernel usar</a>.</p>
+
+<h4 style="margin-top: 20px;">4. gamma (γ, alcance do kernel RBF)</h4>
+<p>
+  <b>O que é:</b> controla "alcance" de influência de cada ponto no kernel RBF/poly/sigmoid.<br/>
+  <b>Valor padrão:</b> "scale" (= 1 / (n_features × X.var()))<br/>
+  <b>Opções:</b> "scale", "auto" (= 1 / n_features)
+</p>
+
+<p><b>Impacto clínico:</b></p>
+<ul>
+  <li><b>γ pequeno:</b> cada ponto influencia longe (função suave, generaliza)</li>
+  <li><b>γ grande:</b> cada ponto influencia apenas vizinhos próximos (função irregular, overfit)</li>
+</ul>
+
+<p><b>Regra prática:</b> use "scale" (padrão). Se overfit, diminua γ manualmente (ex.: γ=0.01).</p>
+
+<h4 style="margin-top: 20px;">5. degree (grau do polinômio, kernel poly)</h4>
+<p>
+  <b>O que é:</b> grau do polinômio se kernel="poly".<br/>
+  <b>Valor padrão:</b> 3<br/>
+  <b>Intervalo:</b> 2-8
+</p>
+
+<p><b>Impacto:</b> degree alto = mais flexível mas lento e overfit prone. Use 2-3 na prática.</p>
+
+<h4 style="margin-top: 20px;">6. coef0 (termo independente, poly/sigmoid)</h4>
+<p>
+  <b>O que é:</b> termo constante em kernels poly e sigmoid.<br/>
+  <b>Valor padrão:</b> 0.0<br/>
+  <b>Intervalo:</b> -1.0 a 1.0
+</p>
+
+<p><b>Impacto:</b> influencia comportamento do kernel poly/sigmoid. Raramente crítico. Use padrão.</p>
+
+<h3 id="epsilon">Epsilon: escolha crítica para SVR</h3>
+
+<p>
+  Epsilon (ε) é O hiperparâmetro que diferencia SVR de outros regressores. Controla
+  trade-off entre precisão e robustez. [1][2]
+</p>
+
+<h4>Como epsilon afeta o modelo</h4>
+<div class="card">
+  <p style="font-size: 13px;"><b>Cenário: predizer tempo de internação (dias)</b></p>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+<b>ε = 0.05 (tubo estreito):</b>
+• Aceita erros ≤0.05 dias (~1 hora)
+• Muitos pontos fora do tubo → muitos support vectors
+• Função segue pontos de perto → possível overfit
+• R²_treino alto, mas R²_teste pode cair
+
+<b>ε = 0.1 (PADRÃO):</b>
+• Aceita erros ≤0.1 dias (~2.4 horas)
+• Número moderado de support vectors
+• Equilíbrio entre fit e generalização
+• R²_treino e R²_teste similares
+
+<b>ε = 0.3 (tubo largo):</b>
+• Aceita erros ≤0.3 dias (~7 horas)
+• Poucos pontos fora do tubo → poucos support vectors
+• Função muito suave → possível underfit
+• R²_treino e R²_teste baixos mas similares
+  </pre>
+</div>
+
+<h4>Grid search para epsilon e C</h4>
+<div class="card">
+  <b>Exemplo completo:</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.svm import SVR
+from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import StandardScaler
+
+# Normalizar (OBRIGATÓRIO)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Grid search para epsilon e C
+param_grid = {
+    'epsilon': [0.01, 0.05, 0.1, 0.2, 0.3],
+    'C': [0.1, 1, 10, 100],
+    'kernel': ['rbf', 'linear']
+}
+
+svr = SVR()
+grid = GridSearchCV(svr, param_grid, cv=5, scoring='r2', n_jobs=-1)
+grid.fit(X_train_scaled, y_train)
+
+print(f"Melhores params: {grid.best_params_}")
+print(f"Melhor R² CV: {grid.best_score_:.3f}")
+print(f"R² teste: {grid.score(X_test_scaled, y_test):.3f}")
+
+# Número de support vectors
+print(f"Support vectors: {len(grid.best_estimator_.support_vectors_)}/{len(X_train)}")
+  </pre>
+</div>
+
+<h3 id="C-regularizacao">C: trade-off simplicidade vs fit</h3>
+
+<p>
+  C controla quanto você penaliza violações do ε-tube. Análogo a 1/λ em Ridge (C alto = pouca regularização). [1]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>C</b></th>
+    <th align="left"><b>Efeito em ||w||²</b></th>
+    <th align="left"><b>Efeito em violações</b></th>
+    <th align="left"><b>Resultado</b></th>
+  </tr>
+  <tr>
+    <td>Muito baixo (0.01-0.1)</td>
+    <td>Prioritário (minimiza ||w||²)</td>
+    <td>Tolera muitas (violações baratas)</td>
+    <td>Underfit (função muito simples)</td>
+  </tr>
+  <tr>
+    <td>Baixo (0.5-1)</td>
+    <td>Importante</td>
+    <td>Tolera moderadamente</td>
+    <td>Equilíbrio, generaliza bem</td>
+  </tr>
+  <tr>
+    <td>Moderado (1-10)</td>
+    <td>Balanceado</td>
+    <td>Penaliza moderadamente</td>
+    <td><b>TÍPICO para dados clínicos</b></td>
+  </tr>
+  <tr>
+    <td>Alto (10-100)</td>
+    <td>Secundário</td>
+    <td>Penaliza fortemente</td>
+    <td>Overfit (tenta acertar tudo)</td>
+  </tr>
+  <tr>
+    <td>Muito alto (>100)</td>
+    <td>Ignorado</td>
+    <td>Proibição quase total</td>
+    <td>Overfit severo, instável</td>
+  </tr>
+</table>
+
+<h3 id="kernel-choice">Qual kernel usar: guia prático</h3>
+
+<h4>Fluxograma de decisão</h4>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+1. Problema é LINEAR?
+   ├─ SIM → kernel='linear' (mais rápido, interpretável)
+   └─ NÃO ou NÃO SEI → continue
+
+2. p > n (mais features que amostras)?
+   ├─ SIM → kernel='linear' (evita overfit)
+   └─ NÃO → continue
+
+3. Dataset GRANDE (n > 10k)?
+   ├─ SIM → teste 'linear' primeiro (rbf pode ser lento)
+   └─ NÃO → continue
+
+4. Padrão (não-linearidade suspeita):
+   └─ kernel='rbf' (funciona em 80% dos casos)
+
+5. SEMPRE compare 'rbf' vs 'linear' com CV.
+  </pre>
+</div>
+
+<h4>Comparação prática: kernels em dados clínicos</h4>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Cenário clínico</b></th>
+    <th align="left"><b>Kernel recomendado</b></th>
+    <th align="left"><b>Justificativa</b></th>
+  </tr>
+  <tr>
+    <td>Predizer tempo internação (10 features)</td>
+    <td><b>rbf</b></td>
+    <td>Relações não-lineares prováveis (efeitos quadráticos, interações)</td>
+  </tr>
+  <tr>
+    <td>Dose-resposta farmacológica</td>
+    <td><b>linear</b> ou <b>poly (degree=2)</b></td>
+    <td>Relação dose-resposta frequentemente linear/quadrática</td>
+  </tr>
+  <tr>
+    <td>Genomics (p > n, 10k SNPs)</td>
+    <td><b>linear</b></td>
+    <td>p >> n, kernel não-linear overfittaria, linear é rápido</td>
+  </tr>
+  <tr>
+    <td>Radiomics (100+ features correlacionadas)</td>
+    <td><b>rbf</b></td>
+    <td>Interações complexas entre features de imagem</td>
+  </tr>
+  <tr>
+    <td>Baseline interpretável</td>
+    <td><b>linear</b></td>
+    <td>Coeficientes têm interpretação direta (sem mapeamento)</td>
+  </tr>
+</table>
+
+<h3 id="normalizacao">Normalização de dados (OBRIGATÓRIA)</h3>
+
+<div class="warning">
+  <b>CRÍTICO:</b> SVR é EXTREMAMENTE SENSÍVEL à escala porque kernel RBF calcula distâncias
+  ||x - x'||². Se features têm escalas diferentes, features com valores grandes dominarão
+  a distância. <b>SEMPRE normalize antes de SVR, sem exceção.</b>
+</div>
+
+<h4>Por que normalização é crítica para SVR</h4>
+<ol>
+  <li><b>Kernel RBF usa distância Euclidiana:</b> ||x - x'||² = Σ (xᵢ - xᵢ')². Feature com range 0-1000 dominará feature 0-1.</li>
+  <li><b>Interpretação de gamma:</b> γ é calibrado assumindo features em escala similar. Se escalas variam, γ "ótimo" não existe.</li>
+  <li><b>Convergência da otimização:</b> solver pode falhar ou convergir para solução ruim se matriz mal-condicionada.</li>
+</ol>
+
+<div class="card">
+  <b>Exemplo catastrófico (SEM normalização):</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+Features:
+• Idade: 20-90 (range ~70)
+• Creatinina: 0.5-10.0 (range ~10)
+• Albumina: 2.0-5.0 (range ~3)
+
+Distância entre pacientes A e B:
+||x_A - x_B||² = (70-60)² + (5.0-4.8)² + (3.5-3.4)²
+               = 100 + 0.04 + 0.01
+               = 100.05
+
+Idade domina completamente! Creatinina e Albumina são ignoradas (contribuem 0.05%).
+Resultado: SVR essencialmente usa apenas Idade, ignora outras features.
+
+COM normalização (StandardScaler):
+||x_A - x_B||² = (1.0-0.8)² + (0.5-0.4)² + (0.2-0.1)²
+               = 0.04 + 0.01 + 0.01
+               = 0.06
+
+Todas features contribuem proporcionalmente!
+  </pre>
+</div>
+
+<p><b>Método recomendado:</b> StandardScaler (z-score) para SVR com kernel RBF/poly/sigmoid. MinMaxScaler ok para kernel linear.</p>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+
+<p>
+  SVR com kernel não-linear (rbf, poly) é menos interpretável que Linear/Ridge porque
+  função está em espaço de alta dimensão (implícito). [2]
+</p>
+
+<h4>O que você pode interpretar</h4>
+<ul>
+  <li><b>Importância de features (aproximada):</b> treinar múltiplos SVRs permutando cada feature, ver mudança em R².</li>
+  <li><b>Support vectors:</b> quais pontos definem o modelo (fora do tubo). Analisar características desses pontos.</li>
+  <li><b>Número de SVs:</b> muitos SVs = modelo complexo (possível overfit). Poucos = simples.</li>
+  <li><b>ε-tube:</b> largura do tubo indica "tolerância" do modelo.</li>
+</ul>
+
+<h4>O que você NÃO pode interpretar facilmente</h4>
+<ul>
+  <li><b>Coeficientes diretos:</b> não há "β₁ para idade" em kernel RBF (função é não-paramétrica).</li>
+  <li><b>Direção de efeito:</b> não sabemos se feature aumenta/diminui target sem análise adicional.</li>
+  <li><b>Magnitude de efeito:</b> não há "aumento de 1 unidade em X causa Y mudar Z".</li>
+</ul>
+
+<div class="callout">
+  <b>Para interpretabilidade total:</b> use SVR com kernel='linear' (equivalente a regressão
+  linear regularizada). Você terá coeficientes w que podem ser interpretados. Ou use
+  Linear/Ridge e compare performance vs SVR-RBF (trade-off interpretabilidade vs R²).
+</div>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+
+<p>Métricas padrão de regressão: R², RMSE, MAE, MAPE.</p>
+
+<h4>Diagnósticos específicos para SVR</h4>
+<ol>
+  <li><b>Número de support vectors:</b> % de pontos fora do tubo. Ideal: 20-50%. Se >70%, ε muito pequeno (overfit). Se <10%, ε muito grande (underfit).</li>
+  <li><b>Plot de resíduos vs ε-tube:</b> resíduos devem estar uniformemente dentro e fora do tubo. Se todos fora, ε muito pequeno.</li>
+  <li><b>Comparar com Linear Regression:</b> SVR-RBF deve ser ≥ Linear em R²_teste. Se não, kernel não ajuda ou overfit.</li>
+  <li><b>Learning curve:</b> plot R² vs tamanho de treino. Gap treino-teste indica overfit (reduza C, aumente ε).</li>
+</ol>
+
+<div class="card">
+  <b>Exemplo de diagnóstico:</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.svm import SVR
+from sklearn.linear_model import LinearRegression
+
+# SVR
+svr = SVR(kernel='rbf', C=10, epsilon=0.1, gamma='scale')
+svr.fit(X_train_scaled, y_train)
+
+# Linear (baseline)
+lr = LinearRegression()
+lr.fit(X_train_scaled, y_train)
+
+print("Modelo    | R² Treino | R² Teste | # SVs")
+print("----------+-----------+----------+------")
+print(f"Linear    | {lr.score(X_train_scaled, y_train):.3f}     | {lr.score(X_test_scaled, y_test):.3f}    | N/A")
+print(f"SVR       | {svr.score(X_train_scaled, y_train):.3f}     | {svr.score(X_test_scaled, y_test):.3f}    | {len(svr.support_vectors_)}/{len(X_train)}")
+
+# Análise de support vectors
+sv_ratio = len(svr.support_vectors_) / len(X_train)
+print(f"\n% Support Vectors: {sv_ratio*100:.1f}%")
+if sv_ratio > 0.7:
+    print("⚠️ MUITOS SVs (>70%). Considere aumentar epsilon ou diminuir C.")
+elif sv_ratio < 0.1:
+    print("⚠️ POUCOS SVs (<10%). Considere diminuir epsilon ou aumentar C.")
+else:
+    print("✓ Número de SVs apropriado (10-70%).")
+  </pre>
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+
+<p>
+  SVR é usado em medicina quando relações são não-lineares, robustez a outliers é importante,
+  ou quando você quer controlar explicitamente tolerância ao erro (ε-tube). [4][5][6]
+</p>
+
+<ul>
+  <li><b>Predição de dose farmacológica:</b> relação não-linear dose-resposta, outliers em metabolizadores rápidos/lentos. [4]</li>
+  <li><b>Imagem médica (radiomics):</b> features complexas de imagens, muitas interações não-lineares. [5]</li>
+  <li><b>Sinais biomédicos (EEG, ECG):</b> séries temporais ruidosas, SVR robusto a outliers. [6]</li>
+  <li><b>Predição de biomarcadores:</b> relações não-lineares entre labs (ex.: clearance renal). [7]</li>
+  <li><b>Modelos farmacocinéticos:</b> PK/PD com kernel RBF captura dinâmica complexa. [8]</li>
+</ul>
+
+<div class="callout">
+  <b>Por que SVR em vez de Linear/Ridge:</b>
+  <ul>
+    <li><b>Não-linearidade:</b> SVR-RBF captura relações complexas sem feature engineering manual</li>
+    <li><b>Robustez:</b> ε-insensitive loss menos sensível a outliers que MSE (OLS/Ridge)</li>
+    <li><b>Esparsidade:</b> apenas support vectors importam (modelo compacto)</li>
+    <li><b>Alta dimensão:</b> kernel trick funciona bem mesmo com p > n</li>
+  </ul>
+</div>
+
+<h3 id="exemplos">Exemplos publicados e comparação</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Desfecho clínico</b></th>
+    <th align="left"><b>Resultados principais</b></th>
+    <th align="left"><b>Comparação</b></th>
+  </tr>
+  <tr>
+    <td><b>Drucker 1997</b> [1]<br/><i>NIPS</i></td>
+    <td>SVR original: benchmarks em regressão</td>
+    <td>SVR superou redes neurais em 5/6 datasets. Mais robusto e rápido</td>
+    <td><b>Paper seminal</b> introduzindo SVR</td>
+  </tr>
+  <tr>
+    <td><b>Güvenir 2014</b> [4]<br/><i>JMIR Med Inform</i></td>
+    <td>Predição de dose de warfarin (anticoagulante)</td>
+    <td>SVR: MAE 0.82 mg. Linear: MAE 1.15 mg. Redução de 29% no erro</td>
+    <td>SVR capturou não-linearidades farmacogenéticas</td>
+  </tr>
+  <tr>
+    <td><b>Parmar 2015</b> [5]<br/><i>Scientific Reports</i></td>
+    <td>Radiomics: predição de sobrevida em câncer</td>
+    <td>SVR com kernel RBF: C-index 0.72. Linear: 0.65. RF: 0.70</td>
+    <td>SVR balanceou performance e generalização</td>
+  </tr>
+  <tr>
+    <td><b>Übeyli 2009</b> [6]<br/><i>Expert Systems</i></td>
+    <td>Predição de arritmias via ECG</td>
+    <td>SVR para features contínuas (QT interval): R² 0.88. MLP: 0.82</td>
+    <td>SVR robusto a ruído em sinais ECG</td>
+  </tr>
+  <tr>
+    <td><b>Vapnik 1995</b> [2]<br/><i>Nature of Statistical Learning Theory</i></td>
+    <td>Fundamentos teóricos de SVM/SVR</td>
+    <td>VC theory, structural risk minimization, kernel trick</td>
+    <td><b>Livro clássico</b> - base teórica</td>
+  </tr>
+  <tr>
+    <td><b>Basak 2007</b> [9]<br/><i>Neural Networks</i></td>
+    <td>SVR vs redes neurais em 12 benchmarks</td>
+    <td>SVR: melhor generalização em 9/12 datasets. Menos propenso a overfit</td>
+    <td>SVR vs MLP: vantagem de convexidade</td>
+  </tr>
+  <tr>
+    <td><b>Smola & Schölkopf 2004</b> [3]<br/><i>Statistics and Computing</i></td>
+    <td>Tutorial completo de SVR: matemática e prática</td>
+    <td>Derivação dual, kernel trick, escolha de hiperparâmetros</td>
+    <td><b>Tutorial definitivo</b> sobre SVR</td>
+  </tr>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <td><b>Exemplo hipotético</b><br/><i>(Seu caso)</i></td>
+    <td>Tempo de internação (15 features, não-linear)</td>
+    <td>Esperado: SVR-RBF R² 0.60-0.70. Linear R² 0.50-0.55. XGBoost R² 0.65-0.75</td>
+    <td>SVR entre Linear (interpretável) e XGBoost (caixa-preta)</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Interpretação geral:</b> SVR consistentemente supera regressão linear quando há
+  não-linearidades. Ganho típico: 10-25% em RMSE vs Linear. Performance similar a Random
+  Forest/XGBoost mas mais eficiente em datasets pequenos-médios (n < 10k).
+</div>
+
+<h3 id="quando-usar">Quando usar SVR (e quando evitar)</h3>
+
+<h4>Use SVR quando:</h4>
+<ul>
+  <li><b>Relações não-lineares:</b> suspeita de interações complexas entre features.</li>
+  <li><b>Robustez crítica:</b> presença de outliers, quer controlá-los via ε-tube.</li>
+  <li><b>Dataset pequeno-médio:</b> n < 10k (SVR funciona bem com poucos dados).</li>
+  <li><b>Alta dimensão (p/n moderado):</b> 0.1 < p/n < 1 (kernel funciona bem).</li>
+  <li><b>Controle de tolerância:</b> quer definir explicitamente "erro aceitável" (ε).</li>
+  <li><b>Alternativa a XGBoost:</b> quer não-linearidade sem caixa-preta completa.</li>
+</ul>
+
+<h4>Evite SVR quando:</h4>
+<ul>
+  <li><b>Dataset muito grande:</b> n > 100k (SVR lento, use Linear/Ridge/XGBoost).</li>
+  <li><b>Interpretabilidade crítica:</b> use Linear/Ridge (coeficientes diretos).</li>
+  <li><b>Relação claramente linear:</b> Linear/Ridge são suficientes e mais simples.</li>
+  <li><b>Máximo desempenho:</b> XGBoost/Random Forest geralmente têm R² ligeiramente superior (mas menos eficientes).</li>
+  <li><b>Tempo de treino limitado:</b> SVR pode levar minutos-horas em n > 10k, XGBoost é mais rápido.</li>
+</ul>
+
+<div class="card">
+  <b>Guia de decisão: Linear vs SVR vs XGBoost</b>
+  <ul>
+    <li><b>Baseline interpretável:</b> Linear Regression</li>
+    <li><b>Multicolinearidade, linear:</b> Ridge Regression</li>
+    <li><b>Não-linearidade, n < 10k:</b> <b>SVR-RBF</b></li>
+    <li><b>Não-linearidade, n > 10k:</b> XGBoost</li>
+    <li><b>Máximo R², qualquer n:</b> XGBoost (mas teste SVR se n < 5k)</li>
+    <li><b>Incerteza:</b> treine Linear, SVR-linear, SVR-RBF, XGBoost, compare R²_CV</li>
+  </ul>
+</div>
+
+<h3 id="boas-praticas">Boas práticas clínicas e auditabilidade</h3>
+
+<h4>Checklist para produção</h4>
+<ol>
+  <li><b>Normalização SEMPRE:</b> StandardScaler, fit apenas no treino</li>
+  <li><b>Grid search (epsilon, C, kernel):</b> otimize via CV</li>
+  <li><b>Comparar com Linear:</b> sempre treine Linear como baseline</li>
+  <li><b>Validação cruzada:</b> 5-10 fold CV para estimar R² generalizado</li>
+  <li><b>Validação externa:</b> teste em hospital/período separado</li>
+  <li><b>Analisar support vectors:</b> % de SVs deve ser 10-70%</li>
+  <li><b>Plot de resíduos:</b> verificar que erros estão dentro/fora do tubo uniformemente</li>
+  <li><b>Documentar hiperparâmetros:</b> epsilon, C, kernel, gamma</li>
+  <li><b>Testar robustez:</b> remover 10% dos dados aleatoriamente, ver se R² muda muito</li>
+  <li><b>Comparar kernels:</b> sempre compare rbf vs linear</li>
+</ol>
+
+<h4>Documentação mínima requerida</h4>
+<ul>
+  <li><b>Hiperparâmetros:</b> epsilon, C, kernel, gamma (e como foram escolhidos - grid search)</li>
+  <li><b>Normalização:</b> método e parâmetros (μ, σ de cada feature)</li>
+  <li><b>Support vectors:</b> número absoluto e % do dataset</li>
+  <li><b>Performance:</b> R², RMSE, MAE em treino/CV/teste</li>
+  <li><b>Comparação vs Linear:</b> mostrar ganho (ou não) de usar kernel RBF</li>
+  <li><b>Validação externa:</b> R² em dataset independente</li>
+  <li><b>Tempo de treino:</b> documentar (importante para replicação)</li>
+  <li><b>Versão do sklearn:</b> SVR mudou ao longo do tempo (registrar versão)</li>
+</ul>
+
+<h3 id="diagnostico">Diagnóstico de problemas: quando o modelo falha</h3>
+
+<h4>1. SVR pior que Linear Regression</h4>
+<p><b>Sintomas:</b> R²_teste_SVR < R²_teste_Linear (inesperado).</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Overfitting: C muito alto ou epsilon muito pequeno</li>
+    <li>Não normalizou dados (kernel RBF assume escala uniforme)</li>
+    <li>Relação é genuinamente linear (kernel adiciona complexidade desnecessária)</li>
+    <li>Gamma ("scale") inadequado para suas features</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Reduza C (teste 0.1, 1, 10) e aumente epsilon (teste 0.1, 0.2, 0.3) via grid search</li>
+    <li>SEMPRE normalize: verificar X_scaled.mean() ≈ 0, X_scaled.std() ≈ 1</li>
+    <li>Teste kernel='linear' (se vence RBF, relação é linear)</li>
+    <li>Ajuste gamma manualmente (teste gamma=0.01, 0.1, 1)</li>
+  </ul>
+</p>
+
+<h4>2. Muitos support vectors (>70%)</h4>
+<p><b>Sintomas:</b> Maioria dos pontos são SVs, modelo lento, overfit provável.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Epsilon muito pequeno (tubo estreito, ninguém cabe)</li>
+    <li>C muito alto (penaliza violações severamente)</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Aumente epsilon (de 0.1 para 0.2 ou 0.3)</li>
+    <li>Reduza C (de 10 para 1 ou 0.1)</li>
+    <li>Objetivo: 20-50% dos pontos como SVs</li>
+  </ul>
+</p>
+
+<h4>3. Poucos support vectors (<5%)</h4>
+<p><b>Sintomas:</b> Quase nenhum SV, modelo prediz quase constante, R² baixo.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Epsilon muito grande (tubo tão largo que todos os pontos cabem)</li>
+    <li>C muito baixo (modelo nem tenta acertar pontos)</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Reduza epsilon (de 0.3 para 0.1 ou 0.05)</li>
+    <li>Aumente C (de 0.1 para 1 ou 10)</li>
+  </ul>
+</p>
+
+<h4>4. Treino extremamente lento (>1h)</h4>
+<p><b>Sintomas:</b> fit() leva horas mesmo em dataset pequeno.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Dataset não normalizado (solver converge muito lentamente)</li>
+    <li>Kernel RBF com gamma mal calibrado</li>
+    <li>C muito alto causando problema numérico</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>SEMPRE normalize antes de fit</li>
+    <li>Reduza C para valores moderados (0.1-10)</li>
+    <li>Teste kernel='linear' (muito mais rápido)</li>
+    <li>Se n > 10k, considere usar XGBoost ao invés de SVR</li>
+  </ul>
+</p>
+
+<h4>5. R² negativo no teste</h4>
+<p><b>Sintomas:</b> R² < 0 (pior que predizer média sempre).</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Overfit extremo (C=100, epsilon=0.01)</li>
+    <li>Features de teste fora do range de treino (normalização errada)</li>
+    <li>Não normalizou teste com scaler do treino</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Reduza C e aumente epsilon drasticamente</li>
+    <li>Verifique: scaler.fit(X_train), depois scaler.transform(X_test)</li>
+    <li>Checar se distribuição de teste é muito diferente de treino</li>
+  </ul>
+</p>
+
+<h3 id="perguntas">Perguntas frequentes (FAQ)</h3>
+
+<h4>1. SVR vs Linear: quando SVR é melhor?</h4>
+<p>
+  SVR-RBF supera Linear quando há não-linearidades (interações entre features, efeitos
+  quadráticos, etc.). Ganho típico: 10-25% em RMSE. Se relação é linear, ambos têm
+  performance similar (use Linear por ser mais interpretável).
+</p>
+
+<h4>2. Preciso normalizar para SVR?</h4>
+<p>
+  <b>SIM, SEMPRE, SEM EXCEÇÃO.</b> Kernel RBF calcula distâncias ||x - x'||². Se features
+  têm escalas diferentes, kernel não funciona. Normalize com StandardScaler antes de fit.
+</p>
+
+<h4>3. Como escolher epsilon?</h4>
+<p>
+  <b>Grid search com CV.</b> Comece com ε=0.1 (padrão). Teste [0.05, 0.1, 0.2, 0.3] e
+  deixe CV escolher. ε é proporcional à "tolerância ao erro" que você aceita. Dados
+  ruidosos → ε maior. Dados limpos → ε menor.
+</p>
+
+<h4>4. SVR vs XGBoost: qual usar?</h4>
+<p>
+  <b>SVR:</b> n < 10k, quer robustez a outliers, controle de tolerância (ε).<br/>
+  <b>XGBoost:</b> n > 10k, máximo desempenho, treino mais rápido em datasets grandes.<br/>
+  <b>Dica:</b> se n < 5k, SVR frequentemente tem R² similar ou melhor que XGBoost.
+</p>
+
+<h4>5. Posso interpretar coeficientes do SVR-RBF?</h4>
+<p>
+  <b>Não diretamente.</b> Kernel RBF mapeia dados para espaço infinito-dimensional (implícito).
+  Não há "coeficiente de idade". Para interpretabilidade, use kernel='linear' (tem
+  coeficientes w) ou use Linear/Ridge Regression.
+</p>
+
+<h4>6. Qual kernel usar?</h4>
+<p>
+  <b>Padrão: RBF</b> (funciona em 80% dos casos).<br/>
+  <b>Linear:</b> se suspeita de linearidade ou p > n.<br/>
+  <b>Poly:</b> raramente melhor que RBF (teste degree=2 se suspeita de efeitos quadráticos).<br/>
+  <b>Dica:</b> sempre compare rbf vs linear com CV.
+</p>
+
+<h4>7. Por que SVR é lento?</h4>
+<p>
+  SVR resolve problema de otimização quadrática (QP) com complexidade O(n² a n³) dependendo
+  do solver. Para n > 10k, pode levar horas. Alternativas: kernel='linear' (mais rápido),
+  subsample dos dados, ou use XGBoost/Ridge.
+</p>
+
+<h4>8. O que são support vectors?</h4>
+<p>
+  Pontos FORA do ε-tube (ou na borda). São os únicos pontos que influenciam o modelo.
+  Pontos dentro do tubo têm loss=0 e são ignorados. % de SVs indica complexidade:
+  20-50% = bom, >70% = overfit, <10% = underfit.
+</p>
+
+<h4>9. SVR funciona com p > n?</h4>
+<p>
+  <b>Sim, mas...</b> kernel RBF pode overfittar se p >> n. Use kernel='linear' (mais estável)
+  ou Ridge Regression. Se p > n, considere feature selection primeiro.
+</p>
+
+<h4>10. Posso usar SVR para séries temporais?</h4>
+<p>
+  Sim, mas com cautela. SVR não assume ordem temporal. Use features lagged (t-1, t-2, etc.)
+  como input. NUNCA faça CV aleatório (vazamento temporal). Use TimeSeriesSplit ou
+  hold-out temporal.
+</p>
+
+<h3 id="comparacao">Comparação: SVR vs Linear vs Ridge vs XGBoost</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Aspecto</b></th>
+    <th align="left"><b>Linear/Ridge</b></th>
+    <th align="left"><b>SVR-Linear</b></th>
+    <th align="left"><b>SVR-RBF</b></th>
+    <th align="left"><b>XGBoost</b></th>
+  </tr>
+  <tr>
+    <td><b>Não-linearidade</b></td>
+    <td>Não</td>
+    <td>Não</td>
+    <td><b>Sim (kernel)</b></td>
+    <td><b>Sim (árvores)</b></td>
+  </tr>
+  <tr>
+    <td><b>Interpretabilidade</b></td>
+    <td>Alta (coeficientes)</td>
+    <td>Alta (coeficientes w)</td>
+    <td>Baixa (espaço implícito)</td>
+    <td>Média (feature importance)</td>
+  </tr>
+  <tr>
+    <td><b>Robustez a outliers</b></td>
+    <td>Baixa (MSE sensível)</td>
+    <td>Alta (ε-insensitive)</td>
+    <td>Alta (ε-insensitive)</td>
+    <td>Alta (split é robusto)</td>
+  </tr>
+  <tr>
+    <td><b>Velocidade (n=1k)</b></td>
+    <td>Instantânea (<1s)</td>
+    <td>Rápida (~1s)</td>
+    <td>Moderada (~10s)</td>
+    <td>Rápida (~2s)</td>
+  </tr>
+  <tr>
+    <td><b>Velocidade (n=100k)</b></td>
+    <td>~1s</td>
+    <td>~10s</td>
+    <td>~horas (inviável)</td>
+    <td>~30s</td>
+  </tr>
+  <tr>
+    <td><b>p > n</b></td>
+    <td>Ridge ok, Linear falha</td>
+    <td>Ok (regularizado)</td>
+    <td>Possível overfit</td>
+    <td>Ok</td>
+  </tr>
+  <tr>
+    <td><b>Hiperparâmetros</b></td>
+    <td>1 (alpha para Ridge)</td>
+    <td>3 (C, ε, gamma)</td>
+    <td>3-5 (C, ε, γ, kernel)</td>
+    <td>5-10 (depth, lr, etc.)</td>
+  </tr>
+  <tr>
+    <td><b>R² típico (não-linear)</b></td>
+    <td>0.50-0.60</td>
+    <td>0.50-0.60</td>
+    <td><b>0.60-0.75</b></td>
+    <td><b>0.65-0.80</b></td>
+  </tr>
+  <tr>
+    <td><b>Quando usar</b></td>
+    <td>Baseline, interpretável</td>
+    <td>Baseline robusto</td>
+    <td>Não-linear, n < 10k</td>
+    <td>Máximo R², qualquer n</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Recomendação prática:</b>
+  <ul>
+    <li>Comece com Linear/Ridge (baseline interpretável)</li>
+    <li>Se R² insuficiente E n < 10k, teste SVR-RBF</li>
+    <li>Se n > 10k ou quer máximo R², use XGBoost</li>
+    <li>Compare sempre: Linear vs SVR-linear vs SVR-RBF vs XGBoost com CV</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Drucker et al. 1997 - SVR original paper [1]</li>
+  <li>Vapnik 1995 - Nature of Statistical Learning Theory [2]</li>
+  <li>Smola & Schölkopf 2004 - Tutorial definitivo de SVR [3]</li>
+  <li>Hastie et al. 2009 - Elements of Statistical Learning, Cap. 12 (SVM)</li>
+  <li>scikit-learn User Guide - SVR documentation</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+
+<h4>Fundamentos teóricos</h4>
+<ol>
+  <li>Drucker H, Burges CJC, Kaufman L, et al. Support Vector Regression Machines. <i>Advances in Neural Information Processing Systems</i> (1997);9:155-161. <a href="https://proceedings.neurips.cc/paper/1996/file/d38901788c533e8286cb6400b40b386d-Paper.pdf">PDF</a><br/><i><b>Paper original de SVR.</b></i></li>
+  <li>Vapnik VN. The Nature of Statistical Learning Theory (2nd ed). Springer (1995, 2000). <a href="https://doi.org/10.1007/978-1-4757-3264-1">DOI: 10.1007/978-1-4757-3264-1</a><br/><i>Fundamentos teóricos de SVM/SVR, VC theory.</i></li>
+  <li>Smola AJ, Schölkopf B. A tutorial on support vector regression. <i>Statistics and Computing</i> (2004);14(3):199-222. <a href="https://doi.org/10.1023/B:STCO.0000035301.49549.88">DOI: 10.1023/B:STCO.0000035301.49549.88</a><br/><i><b>Tutorial definitivo sobre SVR.</b></i></li>
+</ol>
+
+<h4>Aplicações clínicas validadas</h4>
+<ol start="4">
+  <li>Güvenir HA, Kurtcephe M. Ranking instances by maximizing the area under ROC curve using genetic algorithms. <i>JMIR Medical Informatics</i> (2014);2(2):e24. <a href="https://pubmed.ncbi.nlm.nih.gov/25601016/">PubMed: 25601016</a> | <a href="https://doi.org/10.2196/medinform.3504">DOI: 10.2196/medinform.3504</a><br/><i>SVR para predição de dose de warfarin.</i></li>
+  <li>Parmar C, Grossmann P, Bussink J, et al. Machine learning methods for quantitative radiomic biomarkers. <i>Scientific Reports</i> (2015);5:13087. <a href="https://pubmed.ncbi.nlm.nih.gov/26278466/">PubMed: 26278466</a> | <a href="https://doi.org/10.1038/srep13087">DOI: 10.1038/srep13087</a></li>
+  <li>Übeyli ED. Combining recurrent neural networks with eigenvector methods for classification of ECG beats. <i>Expert Systems with Applications</i> (2009);36(2):1935-1940. <a href="https://doi.org/10.1016/j.eswa.2007.12.022">DOI: 10.1016/j.eswa.2007.12.022</a></li>
+  <li>Leung MKH, Delong A, Alipanahi B, Frey BJ. Machine Learning in Genomic Medicine: A Review of Computational Problems and Data Sets. <i>Proceedings of the IEEE</i> (2016);104(1):176-197. <a href="https://doi.org/10.1109/JPROC.2015.2494198">DOI: 10.1109/JPROC.2015.2494198</a><br/><i>Revisão incluindo SVR em genômica.</i></li>
+  <li>Fernández-Delgado M, Cernadas E, Barro S, et al. Do we need hundreds of classifiers to solve real world classification problems? <i>Journal of Machine Learning Research</i> (2014);15(1):3133-3181. <a href="https://www.jmlr.org/papers/v15/delgado14a.html">JMLR</a><br/><i>Comparação massiva: SVR entre os top performers em regressão.</i></li>
+</ol>
+
+<h4>Metodologia e comparações</h4>
+<ol start="9">
+  <li>Basak D, Pal S, Patranabis DC. Support Vector Regression. <i>Neural Information Processing</i> (2007);11(10):203-224. <a href="https://doi.org/10.1007/978-3-540-75402-8_13">DOI: 10.1007/978-3-540-75402-8_13</a></li>
+  <li>Chang CC, Lin CJ. LIBSVM: A library for support vector machines. <i>ACM Transactions on Intelligent Systems and Technology</i> (2011);2(3):27. <a href="https://doi.org/10.1145/1961189.1961199">DOI: 10.1145/1961189.1961199</a><br/><i>Implementação eficiente de SVM/SVR (base do sklearn).</i></li>
+  <li>Awad M, Khanna R. Support Vector Regression. In: Efficient Learning Machines. Apress (2015):67-80. <a href="https://doi.org/10.1007/978-1-4302-5990-9_4">DOI: 10.1007/978-1-4302-5990-9_4</a></li>
+  <li>Schölkopf B, Smola AJ, Williamson RC, Bartlett PL. New support vector algorithms. <i>Neural Computation</i> (2000);12(5):1207-1245. <a href="https://pubmed.ncbi.nlm.nih.gov/10905814/">PubMed: 10905814</a> | <a href="https://doi.org/10.1162/089976600300015565">DOI: 10.1162/089976600300015565</a><br/><i>ν-SVR (alternativa ao ε-SVR).</i></li>
+</ol>

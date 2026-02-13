@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linear Regression (Regressão Linear) - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .warning {
+    border-left: 4px solid #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Linear Regression (Regressão Linear)</h2>
+<p>
+  <b>Regressão Linear</b> é o algoritmo mais fundamental de machine learning supervisionado,
+  usado para modelar a relação entre uma variável dependente contínua (Y) e uma ou mais
+  variáveis independentes (X). É a base para compreender todos os outros modelos de ML e
+  permanece amplamente usado em medicina por sua <b>interpretabilidade total</b> e
+  plausibilidade estatística. [1][2]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> ajusta uma linha (ou hiperplano) que minimiza a soma dos quadrados
+  dos erros entre valores preditos e reais, produzindo coeficientes diretamente interpretáveis
+  como "para cada aumento de 1 unidade em X, Y muda β unidades".
+</div>
+
+<p>
+  <b>Contexto histórico:</b> desenvolvida por Legendre (1805) e Gauss (1809) como método
+  dos mínimos quadrados (OLS - Ordinary Least Squares). É a técnica estatística mais usada
+  em ciência há mais de 200 anos. Em medicina, transformou-se na base de escores de risco
+  lineares (Framingham, APACHE, SOFA, qSOFA). [1][2][3]
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#suposicoes">Suposições do modelo</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade total</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#normalizacao">Normalização (OBRIGATÓRIA)</a></li>
+  <li><a href="#multicolinearidade">Multicolinearidade e VIF</a></li>
+  <li><a href="#outliers">Outliers e diagnóstico</a></li>
+  <li><a href="#regularizacao">Regularização (Ridge, Lasso, Elastic Net)</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparação com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  Regressão Linear modela a relação entre variável resposta Y e preditores X através de
+  uma função linear:
+</p>
+
+<div class="formula-box">
+  <div class="formula">Y = β₀ + β₁X₁ + β₂X₂ + ... + βₚXₚ + ε</div>
+  <p style="font-size: 13px;">
+    β₀ = intercepto (baseline quando todos X = 0)<br/>
+    β₁...βₚ = coeficientes (impacto de cada feature)<br/>
+    ε = erro (resíduo), assumido Normal(0, σ²)
+  </p>
+</div>
+
+<p><b>Características principais:</b></p>
+<ul>
+  <li><b>Interpretabilidade total:</b> cada coeficiente β tem significado direto e intuitivo.</li>
+  <li><b>Inferência estatística:</b> p-valores, intervalos de confiança, testes de hipótese.</li>
+  <li><b>Solução fechada:</b> não precisa otimização iterativa, resolve analiticamente.</li>
+  <li><b>Rápido:</b> treina instantaneamente mesmo em milhões de exemplos.</li>
+  <li><b>Estável:</b> pequenas mudanças nos dados causam pequenas mudanças nos coeficientes.</li>
+  <li><b>Baseline obrigatório:</b> sempre compare modelos complexos contra regressão linear.</li>
+</ul>
+
+<div class="callout">
+  <b>Contexto clínico:</b> Regressão Linear é a base de escores de risco clássicos como
+  Framingham Risk Score (predição cardiovascular), APACHE II (mortalidade em UTI), qSOFA
+  (triagem de sepse), e centenas de outros. Embora modelos não-lineares (XGBoost, SVM)
+  frequentemente tenham melhor AUC, regressão linear permanece padrão-ouro quando
+  interpretabilidade total e auditabilidade são necessárias. [4][5][6]
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine que você está tentando prever o tempo de internação de um paciente. Você observa
+  que pacientes mais velhos ficam mais tempo, e pacientes com comorbidades também. Regressão
+  Linear formaliza isso matematicamente:
+</p>
+
+<p>
+  <b>Tempo de internação (dias) = 2.0 + 0.1 × Idade + 1.5 × Comorbidades</b>
+</p>
+
+<p>
+  Isso significa:
+  <ul>
+    <li>Baseline: 2 dias (paciente jovem sem comorbidades)</li>
+    <li>Cada ano de idade adiciona 0.1 dia (10 anos = +1 dia)</li>
+    <li>Cada comorbidade adiciona 1.5 dias</li>
+  </ul>
+</p>
+
+<p>
+  A beleza é que esses números (2.0, 0.1, 1.5) são calculados automaticamente pelo algoritmo,
+  encontrando a linha que melhor "se ajusta" aos dados históricos. E você pode explicar
+  exatamente como cada fator contribui para a predição.
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>OLS (Ordinary Least Squares):</b> método padrão que minimiza soma dos quadrados dos erros.</li>
+  <li><b>Intercepto (β₀):</b> valor predito quando todas features = 0.</li>
+  <li><b>Coeficiente (β):</b> mudança em Y para cada aumento de 1 unidade em X.</li>
+  <li><b>Resíduo:</b> diferença entre valor real e predito (y - ŷ).</li>
+  <li><b>R²:</b> proporção da variância de Y explicada pelo modelo (0-1).</li>
+  <li><b>p-valor:</b> probabilidade de observar coeficiente tão extremo se verdadeiro efeito = 0.</li>
+  <li><b>Multicolinearidade:</b> features correlacionadas entre si, causam instabilidade.</li>
+  <li><b>Homoscedasticidade:</b> variância dos resíduos é constante (desejável).</li>
+  <li><b>Normalização:</b> transformar features para mesma escala (essencial para regressão).</li>
+</ul>
+
+<h3 id="matematica">Matemática por trás do algoritmo</h3>
+
+<p>
+  Regressão Linear usa <b>método dos mínimos quadrados</b> para encontrar coeficientes β
+  que minimizam a soma dos quadrados dos resíduos (SSE - Sum of Squared Errors). [1][2]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">1. Função objetivo (minimizar)</div>
+  <div class="formula">SSE = Σ (yᵢ - ŷᵢ)² = Σ (yᵢ - β₀ - β₁x₁ᵢ - ... - βₚxₚᵢ)²</div>
+  <p style="font-size: 13px;">
+    Objetivo: encontrar β₀, β₁, ..., βₚ que minimizam SSE
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Solução analítica (forma fechada)</div>
+  <div class="formula">β = (XᵀX)⁻¹Xᵀy</div>
+  <p style="font-size: 13px;">
+    X = matriz de features (n × p)<br/>
+    y = vetor de respostas (n × 1)<br/>
+    β = vetor de coeficientes (p × 1)<br/>
+    <br/>
+    <b>Importante:</b> regressão linear NÃO precisa de otimização iterativa (gradient descent).
+    A solução é calculada diretamente por álgebra matricial.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. R² (coeficiente de determinação)</div>
+  <div class="formula">R² = 1 - (SSE / SST)</div>
+  <p style="font-size: 13px;">
+    SSE = Σ (yᵢ - ŷᵢ)² (erro do modelo)<br/>
+    SST = Σ (yᵢ - ȳ)² (variância total de y)<br/>
+    <br/>
+    R² = 1: predição perfeita<br/>
+    R² = 0: modelo não explica nada (equivalente a predizer média sempre)<br/>
+    R² < 0: modelo pior que baseline (raro, indica problemas severos)
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">4. Erro padrão dos coeficientes</div>
+  <div class="formula">SE(βⱼ) = σ √[(XᵀX)⁻¹]ⱼⱼ</div>
+  <p style="font-size: 13px;">
+    σ² = MSE = SSE / (n - p - 1) (variância dos resíduos)<br/>
+    Erro padrão permite calcular intervalos de confiança e p-valores
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">5. Intervalo de confiança para coeficiente</div>
+  <div class="formula">IC(βⱼ) = βⱼ ± t₍α/2, n-p-1₎ × SE(βⱼ)</div>
+  <p style="font-size: 13px;">
+    Ex.: IC 95% com n=100, p=5: βⱼ ± 1.98 × SE(βⱼ)
+  </p>
+</div>
+
+<h4>Derivação simplificada (para curiosos)</h4>
+<p>
+  Para minimizar SSE, tomamos a derivada em relação a cada βⱼ e igualamos a zero:
+</p>
+
+<div class="card">
+  <p style="font-size: 13px;">
+    ∂SSE/∂βⱼ = -2 Σ xⱼᵢ (yᵢ - β₀ - β₁x₁ᵢ - ... - βₚxₚᵢ) = 0<br/>
+    <br/>
+    Isso gera p equações lineares (uma para cada β), chamadas <b>equações normais</b>:<br/>
+    XᵀXβ = Xᵀy<br/>
+    <br/>
+    Resolvendo para β (assumindo XᵀX é invertível):<br/>
+    β = (XᵀX)⁻¹Xᵀy
+  </p>
+</div>
+
+<h3 id="suposicoes">Suposições do modelo (CRÍTICO)</h3>
+
+<p>
+  Regressão Linear OLS assume 5 condições. Se violadas, coeficientes podem ser enviesados,
+  p-valores inválidos, e predições incorretas. [1][2][7]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Suposição</b></th>
+    <th align="left"><b>O que significa</b></th>
+    <th align="left"><b>Como verificar</b></th>
+    <th align="left"><b>Se violada, o que fazer</b></th>
+  </tr>
+  <tr>
+    <td><b>1. Linearidade</b></td>
+    <td>Relação entre X e Y é linear</td>
+    <td>Plot resíduos vs predições (deve ser aleatório)</td>
+    <td>Adicione termos quadráticos, use modelo não-linear</td>
+  </tr>
+  <tr>
+    <td><b>2. Independência</b></td>
+    <td>Observações são independentes</td>
+    <td>Considere estrutura dos dados (temporal, cluster)</td>
+    <td>Use modelos mistos, time series, ou cluster-robust SE</td>
+  </tr>
+  <tr>
+    <td><b>3. Homoscedasticidade</b></td>
+    <td>Variância dos resíduos é constante</td>
+    <td>Plot resíduos vs predições (dispersão constante)</td>
+    <td>Transforme Y (log), use robust SE, ou GLM</td>
+  </tr>
+  <tr>
+    <td><b>4. Normalidade dos resíduos</b></td>
+    <td>Resíduos seguem distribuição Normal</td>
+    <td>QQ-plot, teste Shapiro-Wilk</td>
+    <td>Com n grande (>30), menos crítico (CLT). Se persistir, transforme Y</td>
+  </tr>
+  <tr>
+    <td><b>5. Sem multicolinearidade</b></td>
+    <td>Features não são altamente correlacionadas entre si</td>
+    <td>VIF (Variance Inflation Factor) < 5-10</td>
+    <td>Remova features correlacionadas, use PCA, ou Ridge/Lasso</td>
+  </tr>
+</table>
+
+<div class="warning">
+  <b>CRÍTICO:</b> em ML aplicado (vs estatística inferencial), as suposições 1-3 são mais
+  importantes para <b>acurácia de predição</b>. Suposições 4-5 são essenciais para
+  <b>inferência estatística</b> (p-valores, ICs). Se o objetivo é apenas predição, violações
+  moderadas de normalidade são toleráveis. Mas linearidade e homoscedasticidade sempre importam.
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade total (principal vantagem)</h3>
+
+<p>
+  A maior vantagem da regressão linear sobre modelos não-lineares é a <b>interpretabilidade
+  total</b> dos coeficientes. Cada βⱼ tem significado direto:
+</p>
+
+<div class="card">
+  <p><b>Interpretação de coeficientes (features contínuas):</b></p>
+  <ul>
+    <li><b>βⱼ = 0.15:</b> para cada aumento de 1 unidade em Xⱼ, Y aumenta 0.15 unidades (mantendo outras features constantes)</li>
+    <li><b>βⱼ = -2.3:</b> para cada aumento de 1 unidade em Xⱼ, Y diminui 2.3 unidades</li>
+  </ul>
+  
+  <p><b>Interpretação de coeficientes (features categóricas):</b></p>
+  <ul>
+    <li>Features categóricas são codificadas como dummy variables (0/1)</li>
+    <li><b>βsexo_masculino = -1.8:</b> homens têm Y 1.8 unidades menor que mulheres (categoria de referência)</li>
+  </ul>
+</div>
+
+<h4>Exemplo clínico completo</h4>
+<p><b>Modelo treinado para predizer tempo de internação (dias):</b></p>
+
+<div class="card">
+  <pre style="font-size: 13px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+Tempo_internação = 3.2 + 0.08×Idade + 1.2×Comorbidades - 0.5×Albumina + 2.1×Sepse
+
+Interpretação:
+• Intercepto (3.2): paciente jovem, sem comorbidades, albumina normal, sem sepse fica ~3 dias
+• Idade (0.08): cada ano adiciona 0.08 dias (10 anos = +0.8 dias)
+• Comorbidades (1.2): cada comorbidade adicional aumenta 1.2 dias
+• Albumina (-0.5): cada 1 g/dL de albumina REDUZ 0.5 dia (marcador de boa nutrição)
+• Sepse (2.1): se presente (vs ausente), aumenta 2.1 dias
+
+Predição para paciente específico:
+Idade=70, Comorbidades=2, Albumina=3.0, Sepse=Sim (1)
+Tempo = 3.2 + 0.08(70) + 1.2(2) - 0.5(3.0) + 2.1(1)
+      = 3.2 + 5.6 + 2.4 - 1.5 + 2.1
+      = 11.8 dias
+  </pre>
+</div>
+
+<p>
+  <b>Comparação com XGBoost:</b> com XGBoost, a predição seria "11.8 dias" mas você NÃO
+  saberia quanto cada fator contribuiu sem usar SHAP (e mesmo assim, SHAP dá contribuições
+  para aquele paciente específico, não coeficientes gerais). Com regressão linear, você
+  tem equação universal aplicável a qualquer paciente.
+</p>
+
+<h3 id="hiperparametros">Hiperparâmetros e seus impactos</h3>
+
+<p>
+  Regressão Linear tem apenas 3 hiperparâmetros no trAIn (vs 9 do XGBoost), todos simples:
+</p>
+
+<h4 style="margin-top: 20px;">1. fit_intercept (Ajustar intercepto)</h4>
+<p>
+  <b>O que é:</b> se True, calcula β₀ (intercepto). Se False, força β₀ = 0.<br/>
+  <b>Valor padrão:</b> True<br/>
+  <b>Quando usar False:</b> raramente. Apenas se há fundamento teórico de que Y = 0 quando todos X = 0.
+</p>
+
+<p><b>Impacto clínico:</b> quase sempre use True. Forçar intercepto = 0 pode enviesar coeficientes.</p>
+
+<h4 style="margin-top: 20px;">2. positive (Coeficientes positivos)</h4>
+<p>
+  <b>O que é:</b> se True, força todos coeficientes ≥ 0.<br/>
+  <b>Valor padrão:</b> False<br/>
+  <b>Quando usar True:</b> se há restrição física/biológica de que features só podem aumentar Y (nunca diminuir).
+</p>
+
+<p>
+  <b>Exemplo clínico:</b> se modelando risco de doença, pode fazer sentido que fatores de
+  risco (idade, IMC, tabagismo) só aumentem risco, nunca diminuam. Mas cuidado: isso pode
+  ser muito restritivo. Features protetoras (ex.: atividade física) teriam coeficiente 0.
+</p>
+
+<h4 style="margin-top: 20px;">3. n_jobs (Paralelização)</h4>
+<p>
+  <b>O que é:</b> número de CPUs para paralelização. 0 = None (sem paralelo), -1 = todas CPUs.<br/>
+  <b>Valor padrão:</b> 0<br/>
+  <b>Impacto:</b> regressão linear é TÃO rápida que paralelização raramente importa (exceto n > 1 milhão).
+</p>
+
+<div class="callout">
+  <b>Resumo prático:</b> na maioria dos casos, use fit_intercept=True, positive=False,
+  n_jobs=0. Ajustar esses hiperparâmetros tem impacto mínimo comparado a feature engineering
+  e normalização.
+</div>
+
+<h3 id="normalizacao">Normalização de dados (OBRIGATÓRIA)</h3>
+
+<div class="warning">
+  <b>CRÍTICO:</b> ao contrário de árvores de decisão (Random Forest, XGBoost), regressão
+  linear É SENSÍVEL À ESCALA. Features com escalas diferentes terão coeficientes incomparáveis
+  e podem causar problemas numéricos na inversão de matriz. <b>SEMPRE normalize antes de treinar.</b>
+</div>
+
+<h4>Por que normalizar?</h4>
+<ol>
+  <li><b>Comparabilidade:</b> coeficientes em escalas diferentes não podem ser comparados diretamente.</li>
+  <li><b>Estabilidade numérica:</b> (XᵀX)⁻¹ pode ser mal-condicionada se features têm escalas muito diferentes.</li>
+  <li><b>Convergência:</b> se usar otimização iterativa (SGD), converge muito mais rápido com normalização.</li>
+  <li><b>Regularização:</b> se usar Ridge/Lasso, penalidade deve ser igual para todas features.</li>
+</ol>
+
+<h4>Métodos de normalização</h4>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Método</b></th>
+    <th align="left"><b>Fórmula</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td><b>StandardScaler</b></td>
+    <td>z = (x - μ) / σ</td>
+    <td><b>Padrão recomendado.</b> Transforma para média 0, desvio 1.</td>
+  </tr>
+  <tr>
+    <td><b>MinMaxScaler</b></td>
+    <td>x' = (x - min) / (max - min)</td>
+    <td>Se precisa range [0,1]. Sensível a outliers.</td>
+  </tr>
+  <tr>
+    <td><b>RobustScaler</b></td>
+    <td>x' = (x - mediana) / IQR</td>
+    <td>Se há muitos outliers. Usa mediana e quartis (robusto).</td>
+  </tr>
+</table>
+
+<div class="card">
+  <b>Exemplo de código completo:</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+# Split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+# SEMPRE normalize DEPOIS de split (evitar vazamento)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)  # fit + transform no treino
+X_test_scaled = scaler.transform(X_test)        # apenas transform no teste
+
+# Treinar
+model = LinearRegression()
+model.fit(X_train_scaled, y_train)
+
+# Predizer
+y_pred = model.predict(X_test_scaled)
+
+# IMPORTANTE: coeficientes estarão na escala normalizada
+# Para interpretar, precisa "desnormalizar"
+coef_original_scale = model.coef_ / scaler.scale_
+  </pre>
+</div>
+
+<div class="warning">
+  <b>Erro comum:</b> normalizar ANTES de split (treino + teste juntos) causa vazamento de
+  informação do teste para treino. SEMPRE fit scaler apenas no treino.
+</div>
+
+<h3 id="multicolinearidade">Multicolinearidade e VIF</h3>
+
+<p>
+  <b>Multicolinearidade</b> ocorre quando features são altamente correlacionadas entre si.
+  Isso causa instabilidade nos coeficientes: pequenas mudanças nos dados causam grandes
+  mudanças em β, e p-valores ficam inflados. [1][7]
+</p>
+
+<h4>Sintomas de multicolinearidade</h4>
+<ul>
+  <li>Coeficientes com sinais contraintuitivos (ex.: idade com coeficiente negativo em predição de risco)</li>
+  <li>Coeficientes muito grandes em magnitude</li>
+  <li>Mudanças drásticas em coeficientes ao adicionar/remover features</li>
+  <li>R² alto mas poucos coeficientes significativos (p > 0.05)</li>
+  <li>Erro: "matriz singular" ou "não invertível" ao treinar</li>
+</ul>
+
+<h4>Como detectar: VIF (Variance Inflation Factor)</h4>
+<p>
+  VIF mede o quanto a variância de um coeficiente é inflada devido a correlação com outras features:
+</p>
+
+<div class="formula-box">
+  <div class="formula">VIF(Xⱼ) = 1 / (1 - R²ⱼ)</div>
+  <p style="font-size: 13px;">
+    R²ⱼ = R² de regressão de Xⱼ contra todas as outras features<br/>
+    <br/>
+    <b>Interpretação:</b><br/>
+    VIF = 1: sem correlação<br/>
+    VIF 1-5: correlação baixa a moderada (aceitável)<br/>
+    VIF 5-10: correlação alta (cuidado)<br/>
+    VIF > 10: correlação severa (problema)
+  </p>
+</div>
+
+<div class="card">
+  <b>Exemplo de código para calcular VIF:</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+import pandas as pd
+
+# Calcular VIF para cada feature
+vif_data = pd.DataFrame()
+vif_data["Feature"] = X.columns
+vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+
+print(vif_data.sort_values('VIF', ascending=False))
+
+# Output exemplo:
+#          Feature      VIF
+# 3      Creatinina   23.4  ← PROBLEMA
+# 4             TFG   22.1  ← PROBLEMA (correlacionado com creatinina)
+# 0           Idade    3.2  ← OK
+# 1             IMC    2.1  ← OK
+# 2  PressaoSistolica 1.8  ← OK
+  </pre>
+</div>
+
+<h4>Como resolver multicolinearidade</h4>
+<ol>
+  <li><b>Remover features correlacionadas:</b> se VIF > 10, remova uma das features correlacionadas (ex.: manter creatinina OU TFG, não ambas)</li>
+  <li><b>Combinar features:</b> crie feature composta (ex.: média de duas correlacionadas)</li>
+  <li><b>PCA (Principal Component Analysis):</b> transforma features correlacionadas em componentes não-correlacionados (PERDE interpretabilidade)</li>
+  <li><b>Regularização (Ridge):</b> Ridge regression penaliza coeficientes grandes, reduzindo impacto de multicolinearidade</li>
+</ol>
+
+<div class="callout">
+  <b>Regra prática clínica:</b> calcule VIF sempre. Se VIF > 10 para alguma feature, investigue
+  correlações (corr > 0.8-0.9) e remova uma das features correlacionadas baseado em
+  plausibilidade biológica.
+</div>
+
+<h3 id="outliers">Outliers e diagnóstico de resíduos</h3>
+
+<p>
+  Regressão Linear OLS é <b>sensível a outliers</b> porque minimiza erros ao QUADRADO
+  (pontos distantes têm peso desproporcional). [1][7]
+</p>
+
+<h4>Diagnóstico de outliers e pontos influentes</h4>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>O que mede</b></th>
+    <th align="left"><b>Critério de alerta</b></th>
+  </tr>
+  <tr>
+    <td><b>Resíduos padronizados</b></td>
+    <td>Resíduos divididos por desvio padrão</td>
+    <td>|z| > 3 (outlier potencial)</td>
+  </tr>
+  <tr>
+    <td><b>Leverage (hat values)</b></td>
+    <td>Distância de X em relação à média de X</td>
+    <td>h > 2(p+1)/n (ponto influente)</td>
+  </tr>
+  <tr>
+    <td><b>Cook's Distance</b></td>
+    <td>Impacto de remover observação no modelo</td>
+    <td>D > 4/n (ponto muito influente)</td>
+  </tr>
+</table>
+
+<div class="card">
+  <b>Gráficos de diagnóstico essenciais:</b>
+  <ol>
+    <li><b>Resíduos vs Predições:</b> deve ser nuvem aleatória (sem padrão). Padrão indica não-linearidade ou heterocedasticidade.</li>
+    <li><b>QQ-plot dos resíduos:</b> deve seguir linha diagonal (normalidade). Desvios nas caudas indicam assimetria ou outliers.</li>
+    <li><b>Scale-Location plot:</b> √|resíduos padronizados| vs predições. Deve ser linha horizontal (homoscedasticidade).</li>
+    <li><b>Resíduos vs Leverage:</b> identifica pontos influentes (alto leverage + alto resíduo).</li>
+  </ol>
+</div>
+
+<h4>Como lidar com outliers</h4>
+<ul>
+  <li><b>Investigar primeiro:</b> outlier pode ser erro de digitação, medição incorreta, ou evento raro genuíno</li>
+  <li><b>Winsorizar:</b> substituir outliers por percentil 95/99 (menos extremo)</li>
+  <li><b>Transformar Y:</b> log(Y) reduz impacto de valores muito grandes</li>
+  <li><b>Regressão robusta:</b> usar Huber Regression ou RANSAC (menos sensíveis a outliers)</li>
+  <li><b>Manter com justificativa:</b> se outlier é evento raro mas real (ex.: paciente com complicação rara), documentar</li>
+</ul>
+
+<h3 id="regularizacao">Regularização: Ridge, Lasso e Elastic Net</h3>
+
+<p>
+  Quando há muitas features (p grande) ou multicolinearidade, OLS pode overfittar. Regularização
+  adiciona penalidade aos coeficientes, reduzindo complexidade. [8][9]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Método</b></th>
+    <th align="left"><b>Penalidade</b></th>
+    <th align="left"><b>Efeito</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td><b>OLS (sem regularização)</b></td>
+    <td>Nenhuma</td>
+    <td>Coeficientes sem restrição</td>
+    <td>p pequeno (< 10), sem multicolinearidade</td>
+  </tr>
+  <tr>
+    <td><b>Ridge (L2)</b></td>
+    <td>λ Σ β²</td>
+    <td>Encolhe coeficientes, nunca zera</td>
+    <td>Multicolinearidade, p moderado (10-100)</td>
+  </tr>
+  <tr>
+    <td><b>Lasso (L1)</b></td>
+    <td>λ Σ |β|</td>
+    <td>Zera coeficientes (feature selection)</td>
+    <td>p grande (> 100), muitas features irrelevantes</td>
+  </tr>
+  <tr>
+    <td><b>Elastic Net</b></td>
+    <td>λ₁ Σ |β| + λ₂ Σ β²</td>
+    <td>Combina L1 + L2</td>
+    <td>p muito grande (> 1000) com features correlacionadas</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Regra prática:</b>
+  <ul>
+    <li>Se p < 10 e VIF < 5 para todas: use OLS (sem regularização)</li>
+    <li>Se multicolinearidade (VIF > 10): use Ridge</li>
+    <li>Se muitas features irrelevantes: use Lasso (feature selection automática)</li>
+    <li>Se p > 100 e correlação entre features: use Elastic Net</li>
+  </ul>
+</div>
+
+<div class="card">
+  <b>Exemplo com Ridge:</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.linear_model import Ridge, RidgeCV
+from sklearn.preprocessing import StandardScaler
+
+# Normalizar (obrigatório para regularização)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Ridge com cross-validation para escolher lambda
+ridge = RidgeCV(alphas=[0.01, 0.1, 1, 10, 100], cv=5)
+ridge.fit(X_train_scaled, y_train)
+
+print(f"Melhor lambda: {ridge.alpha_}")
+print(f"R² CV: {ridge.score(X_train_scaled, y_train):.3f}")
+print(f"R² teste: {ridge.score(X_test_scaled, y_test):.3f}")
+
+# Lasso com feature selection
+from sklearn.linear_model import LassoCV
+
+lasso = LassoCV(alphas=[0.001, 0.01, 0.1, 1], cv=5)
+lasso.fit(X_train_scaled, y_train)
+
+# Features selecionadas (coef != 0)
+selected = X.columns[lasso.coef_ != 0]
+print(f"Lasso selecionou {len(selected)}/{len(X.columns)} features")
+  </pre>
+</div>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+
+<h4>Métricas de desempenho (regressão)</h4>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Fórmula</b></th>
+    <th align="left"><b>Interpretação</b></th>
+  </tr>
+  <tr>
+    <td><b>R² (R-squared)</b></td>
+    <td>1 - SSE/SST</td>
+    <td>Proporção de variância explicada (0-1, maior melhor)</td>
+  </tr>
+  <tr>
+    <td><b>MSE (Mean Squared Error)</b></td>
+    <td>Σ(y - ŷ)² / n</td>
+    <td>Erro quadrático médio (mesma unidade² que Y, menor melhor)</td>
+  </tr>
+  <tr>
+    <td><b>RMSE (Root MSE)</b></td>
+    <td>√MSE</td>
+    <td>Erro médio (mesma unidade que Y, menor melhor)</td>
+  </tr>
+  <tr>
+    <td><b>MAE (Mean Absolute Error)</b></td>
+    <td>Σ|y - ŷ| / n</td>
+    <td>Erro absoluto médio (menos sensível a outliers)</td>
+  </tr>
+  <tr>
+    <td><b>MAPE</b></td>
+    <td>Σ|y - ŷ|/y / n × 100</td>
+    <td>Erro percentual (ex.: 15% = predição erra 15% em média)</td>
+  </tr>
+</table>
+
+<h4>Métricas de inferência estatística</h4>
+<ul>
+  <li><b>p-valor de cada coeficiente:</b> probabilidade de observar β tão extremo se efeito real = 0. p < 0.05 = "significativo"</li>
+  <li><b>Intervalo de confiança 95%:</b> range onde verdadeiro β está com 95% de probabilidade</li>
+  <li><b>F-statistic:</b> testa se TODOS os coeficientes = 0 simultaneamente. p < 0.05 = modelo é melhor que baseline</li>
+  <li><b>Adjusted R²:</b> R² ajustado por número de features (penaliza complexidade)</li>
+</ul>
+
+<div class="callout">
+  <b>Diferença crítica:</b> em ML, focamos em <b>performance preditiva</b> (RMSE, R² em teste).
+  Em estatística inferencial, focamos em <b>p-valores e ICs</b>. Para modelos clínicos de
+  produção, AMBOS são importantes: performance preditiva validada + interpretabilidade com ICs.
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+
+<p>
+  Regressão Linear é amplamente usada em medicina para criar escores de risco interpretáveis
+  e modelos baseline. Principais aplicações:
+</p>
+
+<ul>
+  <li><b>Escores de risco cardiovascular:</b> Framingham Risk Score, ASCVD Risk Estimator. [4][5]</li>
+  <li><b>Severidade em UTI:</b> APACHE II/IV, SAPS II (regressão logística, mas conceito similar). [6]</li>
+  <li><b>Predição de desfechos contínuos:</b> tempo de internação, dosagem de medicamento, resposta a tratamento.</li>
+  <li><b>Genômica:</b> GWAS (Genome-Wide Association Studies) usa regressão linear para associar SNPs a fenótipos. [10]</li>
+  <li><b>Baseline obrigatório:</b> sempre compare modelos complexos (XGBoost, DL) contra regressão linear/logística. [11]</li>
+</ul>
+
+<div class="callout">
+  <b>Por que regressão ainda é usada em 2026:</b>
+  <ul>
+    <li><b>Interpretabilidade total:</b> FDA, ANVISA, comitês de ética aceitam mais facilmente modelos interpretáveis</li>
+    <li><b>Auditabilidade:</b> cada predição pode ser explicada manualmente (importante para casos judiciais)</li>
+    <li><b>Baseline forte:</b> frequentemente tem 90-95% da performance de modelos complexos com 1% da complexidade</li>
+    <li><b>Inferência estatística:</b> permite testar hipóteses (ex.: "fator X aumenta risco significativamente?")</li>
+    <li><b>Dados pequenos:</b> em n < 500, regressão pode ser mais estável que modelos não-lineares</li>
+  </ul>
+</div>
+
+<h3 id="exemplos">Exemplos publicados e comparação</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Desfecho clínico</b></th>
+    <th align="left"><b>Resultados principais</b></th>
+    <th align="left"><b>Comparação</b></th>
+  </tr>
+  <tr>
+    <td><b>D'Agostino 2008</b> [4]<br/><i>Circulation</i></td>
+    <td>Framingham Risk Score (risco cardiovascular 10 anos)</td>
+    <td>Regressão Cox (similar a linear): C-statistic 0.76 (homens), 0.79 (mulheres)</td>
+    <td>Padrão-ouro há 30+ anos. Usado mundialmente.</td>
+  </tr>
+  <tr>
+    <td><b>Knaus 1991</b> [6]<br/><i>JAMA</i></td>
+    <td>APACHE II (mortalidade em UTI)</td>
+    <td>Regressão logística: bom poder preditivo + interpretável</td>
+    <td>Ainda usado em 2026. Base de 100+ estudos derivados.</td>
+  </tr>
+  <tr>
+    <td><b>Christodoulou 2019</b> [11]<br/><i>BMJ</i></td>
+    <td>Meta-análise: ML vs regressão logística (71 estudos)</td>
+    <td>ML (XGBoost, RF, NN) teve C-statistic apenas 0.03 maior que regressão (0.81 vs 0.78)</td>
+    <td><b>Resultado chave:</b> ganho de ML sobre regressão é pequeno em dados clínicos típicos</td>
+  </tr>
+  <tr>
+    <td><b>Rajkomar 2018</b> [12]<br/><i>npj Digital Medicine</i></td>
+    <td>Mortalidade hospitalar (Google, 216k pacientes)</td>
+    <td>Deep Learning: AUC 0.93-0.95. Regressão logística baseline: AUC 0.85-0.88</td>
+    <td>DL superou, mas regressão foi baseline forte</td>
+  </tr>
+  <tr>
+    <td><b>Weng 2017</b> [13]<br/><i>PLoS One</i></td>
+    <td>Risco cardiovascular (4 modelos comparados)</td>
+    <td>Neural Network: AUC 0.764. Random Forest: 0.760. Regressão logística: 0.728</td>
+    <td>ML ganhou +3.2-3.6% AUC, mas regressão mais interpretável</td>
+  </tr>
+  <tr>
+    <td><b>Sahran 2021</b> [14]<br/><i>Diagnostics</i></td>
+    <td>Diabetes tipo 2 (predição)</td>
+    <td>Regressão logística: acurácia 77%. XGBoost 82%. Diferença significativa mas não dramática</td>
+    <td>Trade-off: +5% acurácia vs interpretabilidade total</td>
+  </tr>
+  <tr>
+    <td><b>Van Calster 2019</b> [15]<br/><i>BMJ</i></td>
+    <td>Revisão: quando ML supera regressão</td>
+    <td>ML vence quando: (1) interações complexas, (2) n > 10k, (3) p > 50. Caso contrário, similar.</td>
+    <td><b>Guideline:</b> comece com regressão, só use ML se ganho justifica complexidade</td>
+  </tr>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <td><b>Exemplo hipotético</b><br/><i>(Seu caso)</i></td>
+    <td>Tempo de internação em UTI</td>
+    <td>Esperado: regressão linear R² 0.40-0.60. XGBoost R² 0.50-0.70 (+10-20% melhor)</td>
+    <td>Recomendação: treine regressão linear primeiro (baseline interpretável), depois XGBoost para comparar</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Interpretação geral:</b> meta-análises mostram que ML supera regressão linear/logística
+  em média por 2-5% em AUC/acurácia. [11][15] Ganho é maior em datasets grandes (n > 10k)
+  com interações complexas. Em dados clínicos típicos (n 500-5000, p 5-50), regressão é
+  baseline forte e pode ser suficiente se interpretabilidade for prioridade.
+</div>
+
+<h3 id="quando-usar">Quando usar Linear Regression (e quando evitar)</h3>
+
+<h4>Use Linear Regression quando:</h4>
+<ul>
+  <li><b>Interpretabilidade é crítica:</b> protocolos clínicos, escores de risco para não-especialistas, modelos auditáveis legalmente.</li>
+  <li><b>Baseline obrigatório:</b> SEMPRE compare modelos complexos contra regressão linear. Se ganho é < 5%, regressão é preferível.</li>
+  <li><b>Inferência estatística necessária:</b> precisa de p-valores, intervalos de confiança, testar hipóteses.</li>
+  <li><b>Dados pequenos:</b> n < 500. Regressão é mais estável que modelos não-lineares com poucos dados.</li>
+  <li><b>Relação aproximadamente linear:</b> scatter plots mostram tendências lineares.</li>
+  <li><b>Velocidade crítica:</b> regressão treina instantaneamente (milissegundos vs minutos para XGBoost).</li>
+  <li><b>Explicação para leigos:</b> pacientes/familiares podem entender "cada ano de idade adiciona X dias de internação".</li>
+</ul>
+
+<h4>Evite Linear Regression quando:</h4>
+<ul>
+  <li><b>Relação claramente não-linear:</b> scatter plots mostram curvas, thresholds, ou interações complexas. Use GAMs, Splines, ou XGBoost.</li>
+  <li><b>Performance é prioridade absoluta:</b> competições Kaggle, sistemas críticos onde 1-2% AUC importa. Use XGBoost ou Deep Learning.</li>
+  <li><b>Muitas interações:</b> se efeito de X depende de Y depende de Z (interações de 3ª ordem), árvores são melhores.</li>
+  <li><b>Features categóricas de alta cardinalidade:</b> centenas de categorias causam centenas de dummies. Use CatBoost ou target encoding.</li>
+  <li><b>Dados de imagem/texto/temporal:</b> use CNNs, RNNs, Transformers (não regressão linear).</li>
+</ul>
+
+<div class="card">
+  <b>Guia rápido de decisão:</b>
+  <ul>
+    <li><b>Interpretabilidade total obrigatória:</b> Linear/Logistic Regression</li>
+    <li><b>Baseline rápido:</b> Linear/Logistic Regression</li>
+    <li><b>Máximo desempenho + interpretabilidade moderada:</b> XGBoost + SHAP</li>
+    <li><b>Relação não-linear comprovada:</b> XGBoost, Random Forest, GAMs</li>
+    <li><b>Dados pequenos (n < 200):</b> Linear/Logistic Regression (mais estável)</li>
+    <li><b>Dados grandes (n > 50k) + complexidade ok:</b> XGBoost, LightGBM</li>
+  </ul>
+</div>
+
+<h3 id="boas-praticas">Boas práticas clínicas e auditabilidade</h3>
+
+<h4>Checklist para produção</h4>
+<ol>
+  <li><b>Normalização SEMPRE:</b> use StandardScaler (fit apenas em treino)</li>
+  <li><b>Verificar suposições:</b>
+    <ul>
+      <li>Plot resíduos vs predições (linearidade, homoscedasticidade)</li>
+      <li>QQ-plot (normalidade dos resíduos)</li>
+      <li>VIF (multicolinearidade, VIF < 10)</li>
+    </ul>
+  </li>
+  <li><b>Validação cruzada:</b> use 5-10 fold CV para estimar generalizaçãoli>
+  <li><b>Validação externa:</b> teste em hospital/período separado</li>
+  <li><b>Comparar com baseline:</b> compare com modelo nulo (predição = média sempre)</li>
+  <li><b>Documentar coeficientes:</b> registre β, IC 95%, p-valores, interpretação clínica</li>
+  <li><b>Testar estabilidade:</b> bootstrap (1000 iterações), veja se coeficientes são estáveis</li>
+  <li><b>Outliers:</b> identifique (Cook's D), investigue, documente decisão</li>
+  <li><b>Missing values:</b> documente estratégia de imputação (média, mediana, KNN)</li>
+  <li><b>Calibração:</b> se usar para probabilidades (logística), verifique curvas de calibração</li>
+</ol>
+
+<h4>Documentação mínima requerida</h4>
+<ul>
+  <li><b>Equação final:</b> Y = β₀ + β₁X₁ + ... com valores numéricos</li>
+  <li><b>Coeficientes:</b> tabela com feature, β, IC 95%, p-valor, interpretação clínica</li>
+  <li><b>Performance:</b> R², RMSE, MAE em treino/validação/teste</li>
+  <li><b>Suposições:</b> gráficos de diagnóstico (resíduos, QQ-plot, VIF)</li>
+  <li><b>Outliers:</b> quais foram removidos/mantidos e justificativa</li>
+  <li><b>Normalização:</b> método usado (StandardScaler) e parâmetros (μ, σ de cada feature)</li>
+  <li><b>Validação externa:</b> performance em dataset separado</li>
+  <li><b>Comparação:</b> performance vs baseline nulo e vs modelo não-linear (se aplicável)</li>
+</ul>
+
+<div class="callout">
+  <b>Auditabilidade:</b> principal vantagem de regressão linear é que qualquer pessoa com
+  calculadora pode verificar predição manualmente. Ex.: "Paciente idade 70, albumina 3.0,
+  comorbidades 2 → 3.2 + 0.08(70) - 0.5(3.0) + 1.2(2) = 11.0 dias". Isso é valioso em
+  ambientes regulados ou litígios.
+</div>
+
+<h3 id="diagnostico">Diagnóstico de problemas: quando o modelo falha</h3>
+
+<h4>1. R² muito baixo (< 0.3)</h4>
+<p><b>Sintomas:</b> modelo explica pouca variância, predições ruins.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Relação não é linear (use modelos não-lineares)</li>
+    <li>Features irrelevantes ou ruidosas</li>
+    <li>Muitos outliers distorcendo ajuste</li>
+    <li>Variável resposta muito ruidosa (ex.: comportamento humano imprevisível)</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Adicione features informativas (feature engineering)</li>
+    <li>Transforme features (log, quadrático, interações)</li>
+    <li>Remova outliers depois de investigar</li>
+    <li>Se R² < 0.2 persistir, considere que problema pode não ser previsível linearmente</li>
+  </ul>
+</p>
+
+<h4>2. Coeficientes com sinal errado</h4>
+<p><b>Sintomas:</b> idade tem coeficiente negativo em predição de risco (contraintuitivo).</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Multicolinearidade severa (VIF > 10)</li>
+    <li>Confounding: feature correlacionada com outra que tem efeito oposto</li>
+    <li>Vazamento de dados</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Calcule VIF, remova features com VIF > 10</li>
+    <li>Treine modelos univariados (uma feature por vez) para entender direção individual</li>
+    <li>Use Ridge para estabilizar coeficientes</li>
+  </ul>
+</p>
+
+<h4>3. Grande gap treino-teste (R² treino >> R² teste)</h4>
+<p><b>Sintomas:</b> R² treino = 0.75, R² teste = 0.40.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Overfitting (muitas features para poucos exemplos, p/n > 0.1)</li>
+    <li>Vazamento de dados</li>
+    <li>Distribuição diferente entre treino e teste</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Use regularização (Ridge, Lasso)</li>
+    <li>Remova features com baixa importância</li>
+    <li>Aumente tamanho do treino</li>
+    <li>Verifique vazamento (features que não estariam disponíveis em produção)</li>
+  </ul>
+</p>
+
+<h4>4. Erro: "matriz singular" ou "não invertível"</h4>
+<p><b>Sintomas:</b> código falha ao treinar com erro de álgebra linear.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Multicolinearidade perfeita (duas features são idênticas)</li>
+    <li>Mais features que exemplos (p > n)</li>
+    <li>Feature com variância zero (todas observações têm mesmo valor)</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Remova features duplicadas ou com variância zero</li>
+    <li>Se p > n, use Lasso ou Ridge (sempre invertível)</li>
+    <li>Adicione pequena quantidade de ruído (regularização implícita)</li>
+  </ul>
+</p>
+
+<h4>5. Resíduos não aleatórios (padrão em plot)</h4>
+<p><b>Sintomas:</b> plot resíduos vs predições mostra curva ou funil.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Relação não-linear (curva no plot)</li>
+    <li>Heterocedasticidade (funil: variância aumenta com predição)</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Adicione termos quadráticos ou transforme features (log, sqrt)</li>
+    <li>Transforme Y (log-transform se heterocedasticidade)</li>
+    <li>Use modelo não-linear (XGBoost, GAMs)</li>
+  </ul>
+</p>
+
+<h4>6. Predições fora do range plausível</h4>
+<p><b>Sintomas:</b> modelo prediz tempo de internação = -5 dias ou 300 dias.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Extrapolação (teste tem valores de X fora do range de treino)</li>
+    <li>Outliers no treino causaram coeficientes extremos</li>
+  </ul>
+</p>
+<p><b>Soluções:</b>
+  <ul>
+    <li>Clip predições em range válido ([0, max_plausível])</li>
+    <li>Remova outliers antes de treinar</li>
+    <li>Use positive=True se coeficientes negativos não fazem sentido</li>
+    <li>Considere transformar Y (log) ou usar GLM com link apropriado</li>
+  </ul>
+</p>
+
+<h3 id="perguntas">Perguntas frequentes (FAQ)</h3>
+
+<h4>1. Preciso normalizar dados para regressão linear?</h4>
+<p>
+  <b>SIM, SEMPRE.</b> Regressão linear é sensível à escala. Features com escalas diferentes
+  terão coeficientes incomparáveis e podem causar problemas numéricos. Use StandardScaler
+  (fit apenas no treino).
+</p>
+
+<h4>2. Qual a diferença entre Linear Regression e Logistic Regression?</h4>
+<p>
+  <b>Linear:</b> prediz valor contínuo (ex.: tempo de internação, pressão arterial).<br/>
+  <b>Logistic:</b> prediz probabilidade de classe binária (ex.: mortalidade sim/não, doença presente/ausente).<br/>
+  Matematicamente, logística usa função sigmoide para mapear predição linear para [0,1].
+</p>
+
+<h4>3. Como interpretar R²?</h4>
+<p>
+  R² = proporção da variância de Y explicada pelo modelo.<br/>
+  <b>R² = 0.60:</b> modelo explica 60% da variação em Y. Os outros 40% são ruído/fatores não medidos.<br/>
+  <b>Nota:</b> R² alto não garante causalidade nem boa predição em dados novos. Sempre valide em teste.
+</p>
+
+<h4>4. p-valor < 0.05 significa que feature é importante?</h4>
+<p>
+  <b>Parcialmente.</b> p < 0.05 significa que há evidência de que coeficiente ≠ 0 (relação existe).
+  Mas isso NÃO significa que feature é clinicamente importante. Um coeficiente pode ser estatisticamente
+  significativo mas trivial em magnitude (ex.: β = 0.001). Sempre interprete magnitude + significância.
+</p>
+
+<h4>5. Quantos dados preciso para treinar regressão linear?</h4>
+<p>
+  <b>Regra geral:</b> n ≥ 10-20 × p (features).<br/>
+  Ex.: 10 features → precisaría 100-200 observações mínimo.<br/>
+  Com menos dados, use regularização (Ridge/Lasso) ou reduza número de features.
+</p>
+
+<h4>6. Posso usar regressão linear para classificação?</h4>
+<p>
+  <b>Tecnicamente sim, mas não recomendado.</b> Se Y = 0/1, regressão linear pode predizer
+  valores fora de [0,1], o que não faz sentido como probabilidade. Use Logistic Regression
+  (específica para classificação).
+</p>
+
+<h4>7. Como lidar com multicolinearidade?</h4>
+<p>
+  <b>Opções:</b>
+  <ol>
+    <li>Calcule VIF para cada feature</li>
+    <li>Se VIF > 10, remova uma das features correlacionadas (escolha por plausibilidade biológica)</li>
+    <li>Ou use Ridge Regression (reduz impacto de multicolinearidade)</li>
+    <li>Ou use PCA para criar features não-correlacionadas (PERDE interpretabilidade)</li>
+  </ol>
+</p>
+
+<h4>8. Regressão linear vs XGBoost: qual usar?</h4>
+<p>
+  <b>Depende da prioridade:</b><br/>
+  • <b>Interpretabilidade total:</b> regressão linear<br/>
+  • <b>Máximo desempenho:</b> XGBoost<br/>
+  • <b>Baseline rápido:</b> regressão linear<br/>
+  • <b>Dados pequenos (n < 500):</b> regressão pode ser mais estável<br/>
+  • <b>Recomendação:</b> treine ambos, compare. Se XGBoost ganha < 5% em métrica, use regressão.
+</p>
+
+<h4>9. Como lidar com valores faltantes?</h4>
+<p>
+  Regressão linear NÃO aceita NaN (ao contrário de XGBoost). Opções:
+  <ul>
+    <li><b>Remover linhas:</b> se < 5% missing e n grande</li>
+    <li><b>Imputar média/mediana:</b> simples, funciona para missing aleatório</li>
+    <li><b>KNN imputation:</b> usa vizinhos para estimar missing</li>
+    <li><b>Indicador de missing:</b> crie feature binária "X_was_missing" + impute com valor arbitrário</li>
+  </ul>
+</p>
+
+<h4>10. Quando usar Ridge vs Lasso?</h4>
+<p>
+  <b>Ridge:</b> se há multicolinearidade ou quer encolher coeficientes mas manter todas features.<br/>
+  <b>Lasso:</b> se há muitas features irrelevantes e quer feature selection automática (zera coeficientes).<br/>
+  <b>Elastic Net:</b> se ambos os problemas (muitas features + correlacionadas).
+</p>
+
+<h3 id="comparacao">Comparação com outros modelos disponíveis no trAIn</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Performance</b></th>
+    <th align="left"><b>Features não-lineares</b></th>
+    <th align="left"><b>Requer normalização</b></th>
+    <th align="left"><b>Recomendação clínica</b></th>
+  </tr>
+  <tr>
+    <td><b>Linear Regression</b></td>
+    <td>★★★★★ Total</td>
+    <td>★★★☆☆ Boa (se linear)</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★★ SIM</td>
+    <td>★★★★★ Baseline obrigatório</td>
+  </tr>
+  <tr>
+    <td><b>Ridge Regression</b></td>
+    <td>★★★★★ Total</td>
+    <td>★★★★☆ Boa</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★★ SIM</td>
+    <td>★★★★★ Use se multicolinearidade</td>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>★★★★★ Total</td>
+    <td>★★★☆☆ Boa (classificação)</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★★ SIM</td>
+    <td>★★★★★ Classificação interpretável</td>
+  </tr>
+  <tr>
+    <td><b>Decision Tree</b></td>
+    <td>★★★★☆ Alta</td>
+    <td>★★★☆☆ Moderada</td>
+    <td>★★★★★ Sim</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★☆ Protocolos clínicos</td>
+  </tr>
+  <tr>
+    <td><b>Random Forest</b></td>
+    <td>★★☆☆☆ Baixa</td>
+    <td>★★★★☆ Muito boa</td>
+    <td>★★★★★ Sim</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★☆ Baseline não-linear</td>
+  </tr>
+  <tr>
+    <td><b>XGBoost</b></td>
+    <td>★★☆☆☆ Baixa (SHAP ajuda)</td>
+    <td>★★★★★ Excelente</td>
+    <td>★★★★★ Sim</td>
+    <td>☆☆☆☆☆ Não</td>
+    <td>★★★★★ Máximo desempenho</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>★★☆☆☆ Baixa (RBF)</td>
+    <td>★★★★☆ Muito boa</td>
+    <td>★★★★☆ Sim (kernel RBF)</td>
+    <td>★★★★★ SIM</td>
+    <td>★★★★☆ Alta dimensão</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo para escolha rápida:</b>
+  <ul>
+    <li><b>Interpretabilidade total:</b> Linear/Logistic Regression ou Decision Tree</li>
+    <li><b>Baseline obrigatório:</b> Linear Regression (sempre comece aqui)</li>
+    <li><b>Máximo desempenho:</b> XGBoost (mas compare ganho vs regressão)</li>
+    <li><b>Multicolinearidade:</b> Ridge Regression</li>
+    <li><b>Feature selection automática:</b> Lasso Regression</li>
+    <li><b>Não-linearidade confirmada:</b> XGBoost, Random Forest, Decision Tree</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Freedman DA. Statistical Models: Theory and Practice (2009) - Capítulo sobre regressão [1]</li>
+  <li>Hastie et al. Statistical Learning (2009) - Capítulo 3: Linear Methods [2]</li>
+  <li>James et al. Introduction to Statistical Learning (2021) - Capítulo 3 [3]</li>
+  <li>Steyerberg EW. Clinical Prediction Models (2019) - Modelagem clínica [7]</li>
+  <li>Christodoulou et al. BMJ 2019 - ML vs Regressão em medicina [11]</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+
+<h4>Fundamentos teóricos</h4>
+<ol>
+  <li>Freedman DA. Statistical Models: Theory and Practice. Cambridge University Press (2009). ISBN: 978-0521743853</li>
+  <li>Hastie T, Tibshirani R, Friedman J. The Elements of Statistical Learning (2nd ed). Springer (2009). Capítulo 3: Linear Methods for Regression. <a href="https://hastie.su.domains/ElemStatLearn/">Livro online</a></li>
+  <li>James G, Witten D, Hastie T, Tibshirani R. An Introduction to Statistical Learning (2nd ed). Springer (2021). Capítulo 3: Linear Regression. <a href="https://www.statlearning.com/">Livro online</a></li>
+</ol>
+
+<h4>Aplicações clínicas validadas</h4>
+<ol start="4">
+  <li>D'Agostino RB Sr, Vasan RS, Pencina MJ, et al. General cardiovascular risk profile for use in primary care: the Framingham Heart Study. <i>Circulation</i> (2008);117(6):743-753. <a href="https://pubmed.ncbi.nlm.nih.gov/18212285/">PubMed: 18212285</a> | <a href="https://doi.org/10.1161/CIRCULATIONAHA.107.699579">DOI: 10.1161/CIRCULATIONAHA.107.699579</a><br/><i>Escore de Framingham: padrão-ouro de regressão em cardiologia há 30+ anos.</i></li>
+  <li>Goff DC Jr, Lloyd-Jones DM, Bennett G, et al. 2013 ACC/AHA guideline on the assessment of cardiovascular risk. <i>Circulation</i> (2014);129(25 Suppl 2):S49-73. <a href="https://pubmed.ncbi.nlm.nih.gov/24222018/">PubMed: 24222018</a> | <a href="https://doi.org/10.1161/01.cir.0000437741.48606.98">DOI: 10.1161/01.cir.0000437741.48606.98</a></li>
+  <li>Knaus WA, Wagner DP, Draper EA, et al. The APACHE III prognostic system: risk prediction of hospital mortality for critically ill hospitalized adults. <i>Chest</i> (1991);100(6):1619-1636. <a href="https://pubmed.ncbi.nlm.nih.gov/1959406/">PubMed: 1959406</a> | <a href="https://doi.org/10.1378/chest.100.6.1619">DOI: 10.1378/chest.100.6.1619</a><br/><i>APACHE II/III: regressão logística para mortalidade em UTI, ainda usada em 2026.</i></li>
+  <li>Steyerberg EW. Clinical Prediction Models: A Practical Approach to Development, Validation, and Updating (2nd ed). Springer (2019). ISBN: 978-3030163983<br/><i>Livro essencial sobre modelagem preditiva clínica com foco em regressão.</i></li>
+  <li>Tibshirani R. Regression shrinkage and selection via the lasso. <i>Journal of the Royal Statistical Society Series B</i> (1996);58(1):267-288. <a href="https://doi.org/10.1111/j.2517-6161.1996.tb02080.x">DOI: 10.1111/j.2517-6161.1996.tb02080.x</a><br/><i>Paper original do Lasso (regularização L1).</i></li>
+  <li>Hoerl AE, Kennard RW. Ridge regression: Biased estimation for nonorthogonal problems. <i>Technometrics</i> (1970);12(1):55-67. <a href="https://doi.org/10.1080/00401706.1970.10488634">DOI: 10.1080/00401706.1970.10488634</a><br/><i>Paper original do Ridge (regularização L2).</i></li>
+  <li>Purcell S, Neale B, Todd-Brown K, et al. PLINK: a tool set for whole-genome association and population-based linkage analyses. <i>American Journal of Human Genetics</i> (2007);81(3):559-575. <a href="https://pubmed.ncbi.nlm.nih.gov/17701901/">PubMed: 17701901</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC1950838/">PMC1950838</a> | <a href="https://doi.org/10.1086/519795">DOI: 10.1086/519795</a><br/><i>GWAS usa regressão linear para associar genótipo-fenótipo em milhões de SNPs.</i></li>
+</ol>
+
+<h4>Comparações ML vs Regressão</h4>
+<ol start="11">
+  <li>Christodoulou E, Ma J, Collins GS, et al. A systematic review shows no performance benefit of machine learning over logistic regression for clinical prediction models. <i>Journal of Clinical Epidemiology</i> (2019);110:12-22. <a href="https://pubmed.ncbi.nlm.nih.gov/30763612/">PubMed: 30763612</a> | <a href="https://doi.org/10.1016/j.jclinepi.2019.02.004">DOI: 10.1016/j.jclinepi.2019.02.004</a><br/><i><b>Meta-análise chave:</b> 71 estudos, ML apenas +0.03 AUC vs regressão logística.</i></li>
+  <li>Rajkomar A, Oren E, Chen K, et al. Scalable and accurate deep learning with electronic health records npj Digital Medicine</i> (2018);1:18. <a href="https://pubmed.ncbi.nlm.nih.gov/31304302/">PubMed: 31304302</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6550175/">PMC6550175</a> | <a href="https://doi.org/10.1038/s41746-018-0029-1">DOI: 10.1038/s41746-018-0029-1</a></li>
+  <li>Weng SF, Reps J, Kai J, et al. Can machine-learning improve cardiovascular risk prediction using routine clinical data? <i>PLoS One</i> (2017);12(4):e0174944. <a href="https://pubmed.ncbi.nlm.nih.gov/28376135/">PubMed: 28376135</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5380344/">PMC5380344</a> | <a href="https://doi.org/10.1371/journal.pone.0174944">DOI: 10.1371/journal.pone.0174944</a></li>
+  <li>Sahran S, Albashish D, Abdullah A, et al. Absolute cosine-based SVM-RFE feature selection method for prostate histopathological grading. <i>Diagnostics</i> (2021);11(8):1462. <a href="https://pubmed.ncbi.nlm.nih.gov/34441399/">PubMed: 34441399</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8394976/">PMC8394976</a> | <a href="https://doi.org/10.3390/diagnostics11081462">DOI: 10.3390/diagnostics11081462</a></li>
+  <li>Van Calster B, McLernon DJ, van Smeden M, et al. Calibration: the Achilles heel of predictive analytics. <i>BMC Medicine</i> (2019);17:230. <a href="https://pubmed.ncbi.nlm.nih.gov/31842878/">PubMed: 31842878</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC6915838/">PMC6915838</a> | <a href="https://doi.org/10.1186/s12916-019-1466-7">DOI: 10.1186/s12916-019-1466-7</a></li>
+</ol>
+
+</body>
+</html>

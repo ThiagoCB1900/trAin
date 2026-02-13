@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KNN (k-Nearest Neighbors) - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">KNN (k-Nearest Neighbors)</h2>
+<p>
+  O <b>k-Nearest Neighbors (KNN)</b> e um modelo baseado em <b>semelhanca</b>:
+  para prever um novo paciente, ele busca os <b>k pacientes mais parecidos</b> no historico
+  e usa esses vizinhos para decidir a classe (classificacao) ou estimar um valor (regressao).
+  Em medicina, isso reflete o raciocinio clinico cotidiano: "este paciente se parece com quais casos
+  que ja vimos?". O KNN e um dos algoritmos mais antigos e bem estudados, com garantias teoricas
+  de convergencia para o erro otimo em classificacao quando o tamanho da amostra cresce. [1][2]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> O KNN faz a mesma pergunta que um medico experiente faria: "quais pacientes
+  mais parecidos ja vimos e o que aconteceu com eles?".
+</div>
+
+<h3 id="sumario">Sumario</h3>
+<ul>
+  <li><a href="#visao-geral">Visao geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossario</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Formulas</a></li>
+  <li><a href="#matematica">Matematica por tras</a></li>
+  <li><a href="#normalizacao">Normalizacao e escalas</a></li>
+  <li><a href="#complexidade">Complexidade e escalabilidade</a></li>
+  <li><a href="#hiperparametros">Hiperparametros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicacoes em saude</a></li>
+  <li><a href="#boas-praticas">Boas praticas clinicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#comparacao-estudos">Comparacao de estudos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando nao)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#diagnostico">Diagnostico: quando falha</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparacao com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referencias</a></li>
+</ul>
+
+<h3 id="visao-geral">Visao geral</h3>
+<p>
+  KNN e um algoritmo <b>nao-parametrico</b>: nao aprende pesos ou coeficientes fixos.
+  Em vez disso, ele <b>armazena os dados</b> e usa uma regra de voto entre os vizinhos mais proximos.
+  Isso o torna simples, intuitivo e poderoso para padroes nao-lineares, mas sensivel a escala e ruido. [1][3]
+</p>
+
+<div class="card">
+  <b>Caracteristicas principais</b>
+  <ul>
+    <li><b>Baseado em instancias:</b> aprende "memorizar" os dados; nao ha treinamento complexo.</li>
+    <li><b>Versatil:</b> funciona para classificacao e regressao.</li>
+    <li><b>Captura nao-linearidades:</b> decisoes seguem a geometria dos dados.</li>
+    <li><b>Alta sensibilidade a escala:</b> variaveis em escalas diferentes distorcem distancias.</li>
+    <li><b>Explicavel por casos:</b> previsao justificada por exemplos reais similares.</li>
+    <li><b>Custo de predicao alto:</b> precisa buscar vizinhos em todo o historico.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Contexto clinico:</b> KNN se assemelha a um <b>sistema de prontuario baseado em casos</b> (case-based reasoning).
+  Em vez de "regra fixa", o sistema busca pacientes similares e observa seus desfechos, algo comum em triagem
+  e apoio ao diagnostico. [4]
+</div>
+
+<h3 id="porque-funciona">Para quem nao conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine um pronto-socorro com 10.000 casos historicos. Chega um paciente com
+  dor toracica, 58 anos, hipertenso, troponina levemente elevada.
+  Um medico experiente mentalmente busca "casos parecidos" e decide risco.
+  O KNN faz exatamente isso: calcula quem e parecido e usa o resultado real
+  desses pacientes (infarto ou nao) para decidir a classe.
+</p>
+
+<p>
+  <b>Intuicao estatistica:</b> se dois pacientes sao muito parecidos em variaveis clinicas relevantes,
+  a probabilidade de terem o mesmo desfecho e alta. Quando o numero de dados cresce,
+  a regiao de vizinhos fica cada vez mais local, aproximando o comportamento ideal. [1]
+</p>
+
+<p>
+  <b>Analogia (consultorio clinico):</b> KNN e como uma "memoria coletiva" do hospital.
+  Voce nao aprende uma formula, mas sim um <b>acervo de casos</b> que ajuda em novas decisoes.
+</p>
+
+<h3 id="glossario">Glossario rapido</h3>
+<ul>
+  <li><b>Vizinho (neighbor):</b> amostra do historico mais proxima do novo paciente.</li>
+  <li><b>k:</b> numero de vizinhos considerados na decisao (ex.: k=5).</li>
+  <li><b>Distancia:</b> medida de semelhanca (ex.: euclidiana, manhattan, cosine).</li>
+  <li><b>Voto majoritario:</b> classe mais frequente entre os k vizinhos.</li>
+  <li><b>Voto ponderado:</b> vizinhos mais proximos tem maior peso.</li>
+  <li><b>Curse of dimensionality:</b> em alta dimensao, distancias ficam menos informativas.</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li><b>Padronize os dados:</b> normalize variaveis para mesma escala (essencial em saude).</li>
+  <li><b>Defina k e a distancia:</b> escolha k e a metrica (euclidiana, manhattan ou minkowski).</li>
+  <li><b>Para um novo paciente:</b> calcule a distancia para todos os pacientes do treino.</li>
+  <li><b>Selecione os k mais proximos.</b></li>
+  <li><b>Classificacao:</b> retorno = voto majoritario (ou ponderado).</li>
+  <li><b>Regressao:</b> retorno = media (ou media ponderada) dos k vizinhos.</li>
+</ol>
+
+<p>
+  <b>Exemplo concreto (triagem cardiaca):</b> Se k=5, e entre os 5 vizinhos mais proximos,
+  4 tiveram IAM e 1 nao, o algoritmo classifica como alto risco. Se usar voto ponderado,
+  os 2 pacientes mais proximos podem valer mais que os 3 restantes, reduzindo erro.
+</p>
+
+<div class="card">
+  <svg width="540" height="270" viewBox="0 0 540 270" xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="20" font-size="12" font-weight="bold">Exemplo KNN (Clinico)</text>
+
+    <rect x="20" y="35" width="500" height="190" fill="rgba(25, 118, 210, 0.06)" stroke="currentColor" stroke-width="1" rx="6"/>
+
+    <circle cx="110" cy="90" r="6" fill="#388e3c"/>
+    <circle cx="140" cy="70" r="6" fill="#388e3c"/>
+    <circle cx="160" cy="115" r="6" fill="#388e3c"/>
+
+    <circle cx="240" cy="160" r="6" fill="#d32f2f"/>
+    <circle cx="270" cy="130" r="6" fill="#d32f2f"/>
+    <circle cx="300" cy="170" r="6" fill="#d32f2f"/>
+    <circle cx="320" cy="140" r="6" fill="#d32f2f"/>
+
+    <circle cx="380" cy="80" r="6" fill="#388e3c"/>
+    <circle cx="420" cy="110" r="6" fill="#388e3c"/>
+
+    <circle cx="260" cy="110" r="8" fill="#1976d2" stroke="#0d47a1" stroke-width="2"/>
+    <text x="250" y="100" font-size="10" font-weight="bold">Novo</text>
+
+    <circle cx="260" cy="110" r="40" fill="none" stroke="#1976d2" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <text x="310" y="120" font-size="10">k=5</text>
+  </svg>
+  <div class="diagram-note">
+    Pontos verdes = baixo risco, vermelhos = alto risco. O novo paciente (azul) pega os 5 vizinhos mais proximos.
+  </div>
+</div>
+
+<h3 id="formulas">Formulas centrais</h3>
+
+<div class="formula-box">
+  <div class="formula-title">1. Distancia Euclidiana</div>
+  <div class="formula">d(x, y) = sqrt( Σ (x<sub>i</sub> - y<sub>i</sub>)<sup>2</sup> )</div>
+  <p style="font-size: 13px;">
+    Medida mais comum. Requer dados normalizados para evitar que uma variavel domine.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Distancia Manhattan (L1)</div>
+  <div class="formula">d(x, y) = Σ |x<sub>i</sub> - y<sub>i</sub>|</div>
+  <p style="font-size: 13px;">
+    Mais robusta a outliers. Boa para variaveis com distribuicao assimetrica.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. Distancia Minkowski (generalizacao)</div>
+  <div class="formula">d(x, y) = ( Σ |x<sub>i</sub> - y<sub>i</sub>|<sup>p</sup> )<sup>1/p</sup></div>
+  <p style="font-size: 13px;">
+    p=2 → Euclidiana, p=1 → Manhattan. Permite ajustar sensibilidade a grandes diferencas.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">4. Voto ponderado por distancia</div>
+  <div class="formula">peso<sub>j</sub> = 1 / (d(x, x<sub>j</sub>) + ε)</div>
+  <p style="font-size: 13px;">
+    Vizinho mais proximo tem peso maior. Evita que pontos distantes dominem a votacao.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">5. Regressao KNN (media ponderada)</div>
+  <div class="formula">y = ( Σ peso<sub>j</sub> × y<sub>j</sub> ) / Σ peso<sub>j</sub></div>
+  <p style="font-size: 13px;">
+    Retorna a media dos valores reais dos vizinhos, ponderados por proximidade.
+  </p>
+</div>
+
+<h3 id="matematica">Matematica por tras (detalhado)</h3>
+<p>
+  <b>KNN e um estimador nao-parametrico local.</b> Em classificacao, a probabilidade de classe
+  e estimada pela frequencia local dos vizinhos. Em regressao, o valor e a media local.
+  Esse metodo converge para o erro de Bayes sob condicoes adequadas quando n → infinito. [1][2]
+</p>
+
+<p>
+  <b>Por que k importa?</b> k pequeno → baixa tendenciosidade (bias), alta variancia.
+  k grande → menor variancia, mas maior bias (mistura classes diferentes).
+  O ponto ideal depende do tamanho da base e do ruido.
+</p>
+
+<p>
+  <b>Curse of dimensionality:</b> em alta dimensao, distancias ficam semelhantes.
+  Isso degrada a nocao de "vizinho". Solucao pratica: reduzir dimensionalidade
+  (PCA, selecao de features) e usar metrica apropriada. [3]
+</p>
+
+<h3 id="normalizacao">Normalizacao e escalas (critico em saude)</h3>
+<p>
+  Em dados clinicos, variaveis tem unidades diferentes (mg/dL, mmHg, anos, mm). Se nao normalizar,
+  uma unica variavel de maior escala domina a distancia. Exemplo: glicemia (0-300) domina idade (0-90).
+  Por isso, <b>padronizacao z-score</b> ou <b>min-max</b> e quase obrigatoria.
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Padronizacao z-score</div>
+  <div class="formula">z = (x - μ) / σ</div>
+  <p style="font-size: 13px;">
+    Cada variavel passa a ter media 0 e desvio 1. Isso iguala importancia nas distancias.
+  </p>
+</div>
+
+<div class="callout">
+  <b>Regra de ouro clinica:</b> se o KNN sem normalizacao esta funcionando "bem demais",
+  desconfie. Provavelmente uma variavel esta dominando e o modelo esta enviesado.
+</div>
+
+<h3 id="complexidade">Complexidade e escalabilidade</h3>
+<p>
+  KNN nao tem custo de treino relevante, mas tem custo de predicao alto: para cada paciente novo,
+  calcula distancia para todos os n pacientes do treino → O(n × m), onde m = numero de features.
+  Para bases grandes, isso fica lento. Solucoes: KD-tree, Ball-tree, e tecnicas de aproximacao.
+</p>
+
+<div class="card">
+  <b>Complexidade</b>
+  <ul>
+    <li><b>Treino:</b> O(1) (armazenar dados)</li>
+    <li><b>Predicao:</b> O(n × m) (distancias) + O(n log n) para ordenar (pode ser O(n))</li>
+    <li><b>Memoria:</b> O(n × m)</li>
+    <li><b>Em alta dimensao:</b> estruturas de busca perdem eficiencia (curse of dimensionality)</li>
+  </ul>
+</div>
+
+<h3 id="hiperparametros">Hiperparametros e impactos (alinhado ao app)</h3>
+
+<p>
+  Abaixo estao os hiperparametros que aparecem no trAIn para KNN. Cada um altera um aspecto clinico
+  importante: sensibilidade a ruido, estabilidade e latencia. [1][3]
+</p>
+
+<h4 style="margin-top: 20px;">1. n_neighbors (k)</h4>
+<p>
+  <b>O que e:</b> numero de pacientes usados na decisao.
+  <br/><b>Padrao no app:</b> 5
+  <br/><b>Faixa tipica:</b> 3-25
+</p>
+<p>
+  <b>Impacto clinico:</b> k pequeno (1-3) torna o modelo muito sensivel a outliers ou erros de medicao.
+  k grande (15+) mistura fenotipos diferentes e perde especificidade. Em bases pequenas, k=5-9 costuma ser
+  um compromisso util. [1]
+</p>
+
+<h4 style="margin-top: 20px;">2. weights</h4>
+<p>
+  <b>O que e:</b> define se todos os vizinhos pesam igual (uniform) ou se os mais proximos pesam mais (distance).
+  <br/><b>Padrao no app:</b> uniform
+  <br/><b>Valores:</b> uniform, distance
+</p>
+<p>
+  <b>Impacto clinico:</b> "distance" costuma melhorar em triagem quando ha variacao fina entre pacientes.
+  Exemplo: dois pacientes quase identicos devem influenciar mais do que um terceiro distante, mesmo que
+  ainda esteja entre os k vizinhos. [3]
+</p>
+
+<h4 style="margin-top: 20px;">3. algorithm</h4>
+<p>
+  <b>O que e:</b> estrutura de busca para encontrar vizinhos.
+  <br/><b>Padrao no app:</b> auto
+  <br/><b>Valores:</b> auto, ball_tree, kd_tree, brute
+</p>
+<p>
+  <b>Impacto clinico:</b> afeta latencia, nao a acuracia. Em alta dimensao (muitas features),
+  "brute" pode ser mais estavel. Em baixa dimensao, "kd_tree" ou "ball_tree" reduzem tempo.
+  [3]
+</p>
+
+<h4 style="margin-top: 20px;">4. leaf_size</h4>
+<p>
+  <b>O que e:</b> parametro de desempenho para ball_tree/kd_tree.
+  <br/><b>Padrao no app:</b> 30
+  <br/><b>Faixa tipica:</b> 10-200
+</p>
+<p>
+  <b>Impacto clinico:</b> nao altera decisao final, apenas tempo de busca. Ajuste se a latencia for critica.
+</p>
+
+<h4 style="margin-top: 20px;">5. metric</h4>
+<p>
+  <b>O que e:</b> define "parecido".
+  <br/><b>Padrao no app:</b> minkowski
+  <br/><b>Valores:</b> minkowski, euclidean, manhattan, chebyshev
+</p>
+<p>
+  <b>Impacto clinico:</b> a metrica muda a geometria da vizinhanca. Manhattan e mais robusta a outliers,
+  euclidiana favorece diferencas grandes, chebyshev usa a maior diferenca entre variaveis.
+  [3]
+</p>
+
+<h4 style="margin-top: 20px;">6. p (Minkowski)</h4>
+<p>
+  <b>O que e:</b> expoente da distancia Minkowski.
+  <br/><b>Padrao no app:</b> 2
+  <br/><b>Faixa tipica:</b> 1-5
+</p>
+<p>
+  <b>Impacto clinico:</b> p=2 equivale a euclidiana; p=1 equivale a manhattan. Valores maiores
+  tornam o modelo mais sensivel a diferencas extremas em uma unica variavel.
+</p>
+
+<div class="callout">
+  <b>Nota do app:</b> se voce escolher "euclidean" ou "manhattan", o app ajusta internamente
+  para Minkowski com p=2 ou p=1. Ajustar p so tem efeito quando metric=minkowski.
+</div>
+
+<h3 id="avaliacao">Como avaliar</h3>
+<p>
+  A avaliacao deve seguir metricas clinicamente relevantes.
+</p>
+<ul>
+  <li><b>Classificacao:</b> AUC, sensibilidade, especificidade, F1.</li>
+  <li><b>Regressao:</b> MAE, RMSE.</li>
+  <li><b>Imbalance:</b> use AUC-PR e matrizes de confusao estratificadas.</li>
+  <li><b>Calibracao:</b> KNN pode produzir probabilidades nao calibradas; considere Platt ou isotonic.</li>
+</ul>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  KNN e <b>explicavel por exemplos</b>. Cada predicao pode ser justificada apontando os k casos
+  mais semelhantes e seus desfechos. Isso e intuitivo para clinicos. Contudo, nao fornece regras
+  globais claras como uma arvore de decisao.
+</p>
+
+<div class="callout">
+  <b>Explicacao clinica tipica:</b> "O paciente foi classificado como alto risco porque 4 dos 5
+  casos mais parecidos tiveram IAM em 24h, com idade e biomarcadores semelhantes".
+</div>
+
+<h3 id="saude">Aplicacoes em saude</h3>
+<ul>
+  <li><b>Triagem e risco:</b> classificacao de risco em pronto-socorro (dor toracica, sepse).</li>
+  <li><b>Diagnostico assistido:</b> uso de casos similares para apoio em diagnosticos complexos.</li>
+  <li><b>Imagem medica:</b> classificacao de lesoes por similaridade de features (radiologia, dermatologia).</li>
+  <li><b>Medicina personalizada:</b> preve desfechos com base em pacientes parecidos (case-based).</li>
+</ul>
+
+<h3 id="boas-praticas">Boas praticas clinicas</h3>
+<ul>
+  <li><b>Padronize sempre:</b> sem escalonamento, resultados sao pouco confiaveis.</li>
+  <li><b>Teste diferentes k:</b> escolha com validacao cruzada estratificada.</li>
+  <li><b>Evite alta dimensionalidade:</b> selecione variaveis clinicamente relevantes.</li>
+  <li><b>Atencao a desbalanceamento:</b> ajuste pesos por classe se necessario.</li>
+  <li><b>Use explicacoes por casos:</b> apresente vizinhos para apoiar a decisao.</li>
+</ul>
+
+<h3 id="exemplos">Exemplos publicados</h3>
+<p>
+  KNN e frequentemente citado em revisoes de ML em medicina e em estudos de apoio ao diagnostico.
+  Abaixo alguns exemplos e referencias de base teorica e aplicacoes em saude.
+</p>
+<ul>
+  <li><b>Case-based reasoning em medicina:</b> uso de casos similares para suporte diagnostico. [4]</li>
+  <li><b>ML em diagnostico medico:</b> revisao com KNN entre os metodos comparados. [5]</li>
+  <li><b>ML em prognostico de cancer:</b> revisao aplicada que inclui KNN. [6]</li>
+</ul>
+
+<h3 id="comparacao-estudos">Comparacao de estudos publicados</h3>
+<p>
+  A literatura mostra o KNN como baseline frequente em problemas clinicos tabulares e em revisoes de
+  diagnostico/prognostico. A tendencia geral: KNN e competitivo em bases pequenas e bem escalonadas,
+  mas perde para ensembles (RF/GB/XGBoost) quando a base cresce ou quando ha muitas variaveis. [5][6]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Area</b></th>
+    <th align="left"><b>Observacao relevante</b></th>
+  </tr>
+  <tr>
+    <td><b>Kononenko 2001</b> [5]</td>
+    <td>Diagnostico medico (revisao)</td>
+    <td>KNN aparece como metodo classico em sistemas de apoio; desempenho depende fortemente de escala e features.</td>
+  </tr>
+  <tr>
+    <td><b>Kourou 2015</b> [6]</td>
+    <td>Prognostico de cancer (revisao)</td>
+    <td>KNN usado como baseline; ensembles costumam superar quando ha muitos preditores.</td>
+  </tr>
+  <tr>
+    <td><b>Cover & Hart 1967</b> [1]</td>
+    <td>Fundacao teorica</td>
+    <td>Prova de consistencia do vizinho mais proximo e limite de erro de Bayes.</td>
+  </tr>
+</table>
+
+<h3 id="quando-usar">Quando usar (e quando nao)</h3>
+<p>
+  <b>Use quando:</b>
+</p>
+<ul>
+  <li>Voce precisa de explicacoes por casos reais.</li>
+  <li>O problema tem padroes nao-lineares e poucos dados.</li>
+  <li>A interpretabilidade por exemplo e mais util que regras fixas.</li>
+</ul>
+<p>
+  <b>Evite quando:</b>
+</p>
+<ul>
+  <li>Voce tem base muito grande e precisa de predicao rapida.</li>
+  <li>Numero de variaveis e muito alto sem reducao dimensional.</li>
+  <li>Os dados nao estao bem normalizados ou sao muito ruidosos.</li>
+</ul>
+
+<h3 id="mitos">Mitos e mal-entendidos</h3>
+<ul>
+  <li><b>Mito:</b> "KNN nao precisa de preparo". <b>Fato:</b> normalizacao e critica.</li>
+  <li><b>Mito:</b> "k=1 e o melhor". <b>Fato:</b> k pequeno overfita.</li>
+  <li><b>Mito:</b> "KNN nao explica". <b>Fato:</b> explica por casos, nao por regras.</li>
+</ul>
+
+<h3 id="diagnostico">Diagnostico: quando falha</h3>
+<ul>
+  <li><b>Sem normalizacao:</b> uma variavel domina e distorce vizinhos.</li>
+  <li><b>Alta dimensao:</b> distancias ficam pouco informativas.</li>
+  <li><b>Base ruidosa:</b> outliers puxam voto para classes erradas.</li>
+  <li><b>Desbalanceamento:</b> classe majoritaria vence o voto.</li>
+</ul>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+<p><b>1. KNN serve para regressao?</b> Sim. Ele faz media (ou media ponderada) dos vizinhos.</p>
+<p><b>2. Qual o melhor k?</b> Nao existe universal. Use validacao cruzada para achar o k ideal.</p>
+<p><b>3. KNN e interpretavel?</b> Sim, por casos. Ele nao gera regras, mas mostra exemplos similares.</p>
+
+<h3 id="comparacao">Comparacao com outros modelos disponiveis em trAIn</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse; margin: 10px 0;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Velocidade</b></th>
+    <th align="left"><b>Recomendacao em saude</b></th>
+  </tr>
+  <tr>
+    <td><b>KNN</b></td>
+    <td>Media (por casos)</td>
+    <td>Bom em bases pequenas</td>
+    <td>Lento para score</td>
+    <td>★★★☆☆ Baseline util; nao escala bem</td>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>Excelente (coeficientes)</td>
+    <td>Bom (se linear)</td>
+    <td>Muito rapido</td>
+    <td>★★★★★ Primeira escolha se interpretacao e critica</td>
+  </tr>
+  <tr>
+    <td><b>Decision Tree</b></td>
+    <td>Excelente (regras)</td>
+    <td>Medio</td>
+    <td>Muito rapido</td>
+    <td>★★★☆☆ Bom para protocolos simples</td>
+  </tr>
+  <tr>
+    <td><b>RandomForestClassifier</b></td>
+    <td>Media (use SHAP)</td>
+    <td>Muito bom</td>
+    <td>Medio</td>
+    <td>★★★★☆ Equilibrio desempenho/robustez</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting / XGBoost</b></td>
+    <td>Baixa</td>
+    <td>Excelente</td>
+    <td>Medio</td>
+    <td>★★★★☆ Maximo desempenho; menos transparencia</td>
+  </tr>
+  <tr>
+    <td><b>Naive Bayes</b></td>
+    <td>Boa (probabilidades)</td>
+    <td>Medio</td>
+    <td>Muito rapido</td>
+    <td>★★☆☆☆ Bom baseline; assume independencia forte</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa</td>
+    <td>Excelente (kernel)</td>
+    <td>Medio</td>
+    <td>★★★☆☆ Bom desempenho; interpretacao limitada</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo: Quando escolher KNN em saude?</b>
+  <ul>
+    <li>✓ Precisa explicar por casos reais (vizinhos parecidos)</li>
+    <li>✓ Base pequena ou media (ate alguns milhares)</li>
+    <li>✓ Variaveis bem normalizadas e poucas correlacoes espurias</li>
+    <li>✗ Latencia critica (precisa preditor muito rapido)</li>
+    <li>✗ Muitas features sem selecao (curse of dimensionality)</li>
+    <li>✗ Base muito ruidosa ou desbalanceada sem ajuste</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/neighbors.html">scikit-learn: Nearest Neighbors (guia oficial)</a></li>
+  <li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html">scikit-learn: KNeighborsClassifier (API)</a></li>
+  <li><a href="https://scikit-learn.org/stable/modules/metrics.html#distance-metrics">scikit-learn: Distance metrics</a></li>
+  <li><a href="https://web.stanford.edu/~hastie/ElemStatLearn/">ESL Book: Elements of Statistical Learning (cap. 13)</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/">Interpretable ML Book (livro aberto)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2735664/">PMC: Decision Trees in Medicine (comparacao interpretavel)</a></li>
+</ul>
+
+<h3 id="referencias">Referencias</h3>
+<ol>
+  <li>
+    Cover, T. M., & Hart, P. E. (1967). Nearest neighbor pattern classification.
+    <i>IEEE Transactions on Information Theory</i>. DOI: 10.1109/TIT.1967.1053964.
+    <a href="https://doi.org/10.1109/TIT.1967.1053964" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Fix, E., & Hodges, J. L. (1951). Discriminatory analysis. Nonparametric discrimination:
+    consistency properties. USAF School of Aviation Medicine, Technical Report.
+    <a href="https://apps.dtic.mil/sti/citations/AD0722039" target="_blank" rel="noopener">DTIC</a>
+  </li>
+  <li>
+    Hastie, T., Tibshirani, R., & Friedman, J. (2009). The Elements of Statistical Learning (2nd ed.).
+    Springer. Cap. 13.
+    <a href="https://web.stanford.edu/~hastie/ElemStatLearn/" target="_blank" rel="noopener">ESL Book</a>
+  </li>
+  <li>
+    Kononenko, I. (2001). Machine learning for medical diagnosis: history, state of the art and perspective.
+    <i>Artificial Intelligence in Medicine</i>. DOI: 10.1016/S0933-3657(01)00077-X.
+    <a href="https://doi.org/10.1016/S0933-3657(01)00077-X" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Altman, N. (1992). An introduction to kernel and nearest-neighbor nonparametric regression.
+    <i>The American Statistician</i>. DOI: 10.1080/00031305.1992.10475879.
+    <a href="https://doi.org/10.1080/00031305.1992.10475879" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Kourou, K., Exarchos, T. P., Exarchos, K. P., Karamouzis, M. V., & Fotiadis, D. I. (2015).
+    Machine learning applications in cancer prognosis and prediction.
+    <i>Computational and Structural Biotechnology Journal</i>. DOI: 10.1016/j.csbj.2014.11.005.
+    <a href="https://doi.org/10.1016/j.csbj.2014.11.005" target="_blank" rel="noopener">DOI</a>
+  </li>
+</ol>
+
+</body>
+</html>

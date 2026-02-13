@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Naive Bayes - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Naive Bayes</h2>
+<p>
+  <b>Naive Bayes</b> e um modelo probabilistico que aplica o Teorema de Bayes com uma suposicao
+  simplificadora: as variaveis sao <b>condicionalmente independentes</b> dado o diagnostico.
+  Mesmo sendo "ingenuo" (naive), ele funciona muito bem como baseline em dados clinicos
+  e e extremamente rapido. [1][2]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> dado um conjunto de sinais clinicos, o modelo calcula qual diagnostico
+  tem a maior probabilidade usando Bayes.
+</div>
+
+<h3 id="sumario">Sumario</h3>
+<ul>
+  <li><a href="#visao-geral">Visao geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossario</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Formulas</a></li>
+  <li><a href="#matematica">Matematica por tras</a></li>
+  <li><a href="#normalizacao">Normalizacao e escalas</a></li>
+  <li><a href="#hiperparametros">Hiperparametros e impactos</a></li>
+  <li><a href="#avaliacao">Como avaliar</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicacoes em saude</a></li>
+  <li><a href="#boas-praticas">Boas praticas clinicas</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#comparacao-estudos">Comparacao de estudos publicados</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando nao)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#diagnostico">Diagnostico: quando falha</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparacao com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referencias</a></li>
+</ul>
+
+<h3 id="visao-geral">Visao geral</h3>
+<p>
+  Naive Bayes estima a probabilidade de cada classe (diagnostico) dado um conjunto de sinais
+  clinicos. Ele combina probabilidades simples para chegar a uma probabilidade final.
+  A versao usada no trAIn e o <b>Gaussian Naive Bayes</b>, apropriado para variaveis continuas
+  (ex.: pressao, glicemia, creatinina). [2][3]
+</p>
+
+<div class="card">
+  <b>Caracteristicas principais</b>
+  <ul>
+    <li><b>Extremamente rapido:</b> treino e predicao quase instantaneos.</li>
+    <li><b>Probabilistico:</b> fornece probabilidade para cada classe.</li>
+    <li><b>Funciona bem como baseline:</b> util para comparar com modelos mais complexos.</li>
+    <li><b>Assuncao forte:</b> independencia condicional quase nunca e verdadeira em dados clinicos.</li>
+    <li><b>Robusto com poucos dados:</b> nao precisa de grandes amostras.</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Contexto clinico:</b> Naive Bayes e comum em sistemas de triagem rapida e classificacao
+  inicial de risco, onde velocidade e simplicidade importam. [5]
+</div>
+
+<h3 id="porque-funciona">Para quem nao conhece ML: por que isso funciona?</h3>
+<p>
+  Pense em um medico calculando risco de pneumonia: febre, tosse e raio-x infiltrado.
+  Cada sinal aumenta a probabilidade de pneumonia. Naive Bayes faz esse calculo de forma
+  matematica, combinando as evidencias. [1]
+</p>
+
+<p>
+  <b>Intuicao estatistica:</b> se um sintoma e muito comum em doentes e raro em saudaveis,
+  ele aumenta a chance de doenca. O modelo soma essas evidencias usando Bayes.
+</p>
+
+<p>
+  <b>Analogia (consultorio clinico):</b> Naive Bayes e como um residente que consulta um livro
+  de probabilidades e combina sinais de forma sistematica, em vez de seguir intuicao.
+</p>
+
+<h3 id="glossario">Glossario rapido</h3>
+<ul>
+  <li><b>Prior:</b> probabilidade inicial de uma doenca antes de ver os sintomas.</li>
+  <li><b>Likelihood:</b> probabilidade de observar um sintoma dado que o paciente tem a doenca.</li>
+  <li><b>Posterior:</b> probabilidade final da doenca apos combinar sinais.</li>
+  <li><b>Independencia condicional:</b> assume que sinais sao independentes dado o diagnostico.</li>
+  <li><b>Gaussian NB:</b> assume distribuicao normal das variaveis continuas.</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li>Calcular o prior de cada classe (ex.: prevalencia de doenca).</li>
+  <li>Para cada variavel, estimar media e variancia por classe.</li>
+  <li>Para um novo paciente, calcular a probabilidade de cada sinal em cada classe.</li>
+  <li>Multiplicar as probabilidades (ou somar log-probabilidades).</li>
+  <li>Escolher a classe com maior probabilidade posterior.</li>
+</ol>
+
+<p>
+  <b>Exemplo clinico (teste de pneumonia):</b> suponha prevalencia 20%.
+  O paciente tem febre e infiltrado. Se febre e 4x mais comum em pneumonia e infiltrado e 10x
+  mais comum em pneumonia, a probabilidade final sobe bastante. O modelo calcula isso
+  automaticamente via Bayes. [1]
+</p>
+
+<h3 id="formulas">Formulas centrais</h3>
+<div class="formula-box">
+  <div class="formula-title">1. Teorema de Bayes</div>
+  <div class="formula">P(C|x) = [P(x|C) * P(C)] / P(x)</div>
+  <p style="font-size: 13px;">
+    C = classe (diagnostico), x = conjunto de sinais clinicos.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Assuncao Naive (independencia)</div>
+  <div class="formula">P(x|C) = Π P(x_i|C)</div>
+  <p style="font-size: 13px;">
+    Os sinais x_i sao tratados como independentes dado C.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. Gaussian Naive Bayes (variaveis continuas)</div>
+  <div class="formula">P(x_i|C) = (1 / sqrt(2*pi*sigma_C^2)) * exp( - (x_i - mu_C)^2 / (2*sigma_C^2) )</div>
+  <p style="font-size: 13px;">
+    Cada variavel e modelada como normal com media e variancia por classe.
+  </p>
+</div>
+
+<h3 id="matematica">Matematica por tras (detalhado)</h3>
+<p>
+  O objetivo e maximizar a probabilidade posterior P(C|x). Como P(x) e igual para todas as classes,
+  o modelo compara apenas o numerador: P(x|C) * P(C). Isso permite predicoes muito rapidas.
+  Para estabilidade numerica, usa-se soma de log-probabilidades. [2][3]
+</p>
+
+<p>
+  <b>Importante:</b> a independencia condicional raramente e verdadeira em saude (ex.: pressao
+  sistolica e diastolica sao correlacionadas). Mesmo assim, o modelo pode funcionar bem,
+  especialmente como baseline. [5]
+</p>
+
+<h3 id="normalizacao">Normalizacao e escalas</h3>
+<p>
+  Gaussian NB modela cada variavel com media e variancia. Escalas muito diferentes podem
+  distorcer a probabilidade numerica. Padronizacao (z-score) ajuda na estabilidade e
+  comparabilidade entre variaveis. [2]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Padronizacao z-score</div>
+  <div class="formula">z = (x - mu) / sigma</div>
+  <p style="font-size: 13px;">
+    Reduz impacto de escalas heterogeneas (mg/dL vs mmHg).
+  </p>
+</div>
+
+<h3 id="hiperparametros">Hiperparametros e impactos (alinhado ao app)</h3>
+<p>
+  O trAIn usa <b>GaussianNB</b> com um unico hiperparametro exposto. Isso e proposital: o modelo
+  deve permanecer simples e rapido. [2]
+</p>
+
+<h4 style="margin-top: 20px;">1. var_smoothing</h4>
+<p>
+  <b>O que e:</b> valor pequeno adicionado a variancia para evitar divisao por zero.
+  <br/><b>Padrao no app:</b> 1e-9
+  <br/><b>Faixa tipica:</b> 1e-12 a 1e-6
+</p>
+<p>
+  <b>Impacto clinico:</b> valores maiores tornam o modelo mais "suave" e menos sensivel a
+  variaveis com variancia muito baixa (ex.: exames quase constantes). Isso pode reduzir
+  overfitting numerico, mas pode diminuir poder discriminativo. [2]
+</p>
+
+<div class="callout">
+  <b>Regra pratica:</b> se o modelo ficar instavel ou com probabilidades extremas, aumente
+  o var_smoothing em uma ordem de grandeza e reavalie.
+</div>
+
+<h3 id="avaliacao">Como avaliar</h3>
+<ul>
+  <li><b>Classificacao:</b> AUC, sensibilidade, especificidade, F1.</li>
+  <li><b>Imbalance:</b> use AUC-PR e matrizes de confusao estratificadas.</li>
+  <li><b>Calibracao:</b> probabilidade pode ser mal calibrada; considere Platt ou isotonic.</li>
+</ul>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  Naive Bayes e interpretavel porque cada sinal contribui de forma explicita na probabilidade.
+  E possivel mostrar como cada variavel altera a chance final de diagnostico. [1]
+</p>
+
+<div class="callout">
+  <b>Explicacao clinica tipica:</b> "Febre e infiltrado aumentam muito P(pneumonia) porque sao
+  muito mais comuns em pacientes com pneumonia do que em pacientes sem pneumonia".
+</div>
+
+<h3 id="saude">Aplicacoes em saude</h3>
+<ul>
+  <li><b>Triagem rapida:</b> classificacao inicial em pronto-socorro.</li>
+  <li><b>Suporte a diagnostico:</b> combinacao de sinais clinicos e laboratoriais.</li>
+  <li><b>Texto clinico:</b> classificacao de notas ou sintomas codificados.</li>
+</ul>
+
+<h3 id="boas-praticas">Boas praticas clinicas</h3>
+<ul>
+  <li><b>Use como baseline:</b> compare com modelos mais complexos.</li>
+  <li><b>Padronize variaveis continuas:</b> melhora estabilidade numerica.</li>
+  <li><b>Verifique correlacoes:</b> independencia condicional quase nunca vale.</li>
+  <li><b>Revise calibracao:</b> probabilidades podem ser otimistas.</li>
+</ul>
+
+<h3 id="exemplos">Exemplos em saude (publicados)</h3>
+<p>
+  Abaixo estao estudos oncológicos em que Naive Bayes foi aplicado a tarefas clinicas
+  reais. O objetivo aqui e mostrar o <b>contexto</b> (tipo de dado), a <b>tarefa</b> (o que
+  foi previsto) e os <b>resultados</b> quando reportados nos resumos. [8][9][10][11]
+</p>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse;">
+  <tr>
+    <th align="left">Estudo</th>
+    <th align="left">Tarefa</th>
+    <th align="left">Resultados</th>
+    <th align="left">Contexto</th>
+  </tr>
+  <tr>
+    <td>Ma et al. (2019) [9]</td>
+    <td>Subtipo molecular de cancer de mama via radiomica de mamografia</td>
+    <td>AUC 0.865 (triplo-negativo), 0.784 (HER2), 0.752 (luminal); acuracias ~0.75-0.79</td>
+    <td>331 mulheres, 39 features radiomicas, selecao por LASSO e Naive Bayes.
+        Mostra potencial de estratificacao nao invasiva, mas os autores indicam
+        necessidade de validacao externa em coortes maiores.</td>
+  </tr>
+  <tr>
+    <td>Akcay et al. (2020) [10]</td>
+    <td>Prognostico de nasofaringe (mortalidade) com variaveis clinicas e tratamento</td>
+    <td>Gaussian NB com melhor desempenho: acuracia 88%, AUC 0.91, sens 75%, esp 100%</td>
+    <td>Estudo retrospectivo (n=72) comparando varios algoritmos. Mostra que NB
+        pode performar bem em bases pequenas e estruturadas, mas o tamanho amostral
+        exige cautela na generalizacao.</td>
+  </tr>
+  <tr>
+    <td>Lakoumentas et al. (2012) [8]</td>
+    <td>Prognostico de B-CLL com citometria + dados clinicos e laboratoriais</td>
+    <td>Melhora de acuracia com discretizacao e selecao de variaveis</td>
+    <td>O estudo foca em integrar dados heterogeneos. O metodo identifica parametros
+        mais informativos, util para clinicos entenderem quais sinais pesam mais.</td>
+  </tr>
+  <tr>
+    <td>He et al. (2020) [11]</td>
+    <td>Subtipos moleculares e prognostico em HCC via metilacao do DNA</td>
+    <td>Modelo Naive Bayes validado em treino/teste</td>
+    <td>348 amostras TCGA; selecao de 119 sites de metilacao. Demonstra uso de NB
+        em omicas com alta dimensionalidade quando ha selecao rigorosa de features.</td>
+  </tr>
+</table>
+
+<p>
+  <b>Como ler essas metricas em contexto clinico?</b> Em Ma et al. (2019), a AUC em 0.86
+  para triplo-negativo indica boa separacao, mas ainda ha margem de erro para uso
+  clinico sem confirmacao. Em Akcay et al. (2020), a especificidade de 100% sugere
+  baixo risco de falso positivo, mas a sensibilidade de 75% mostra que 1 em cada 4
+  pacientes de alto risco poderia ser perdido, o que exige prudencia em triagem.
+</p>
+
+<h3 id="comparacao-estudos">Comparacao de estudos publicados</h3>
+<p>
+  As revisoes classicas em ML clinico posicionam o Naive Bayes como metodo basico e
+  rapido, util para triagem e baseline. Kononenko (2001) descreve historicamente o
+  papel de Naive Bayes em diagnostico e compara sistemas em tarefas medicas, reforcando
+  que interpretabilidade e velocidade sao pontos fortes, mas que a independencia
+  condicional e uma limitacao real. [5]
+</p>
+<p>
+  Nas revisoes focadas em oncologia, Kourou 2014/2015 e 2021 descrevem a heterogeneidade
+  dos tipos de cancer e mostram que modelos preditivos variam muito conforme o tipo de
+  dado (omics, imagem, clinico). Esses trabalhos destacam que, embora ML (incluindo NB)
+  possa melhorar estratificacao de risco, <b>validacao externa</b> e transparência sao
+  requisitos para uso clinico. [6][7]
+</p>
+<p>
+  Em resumo: NB tende a funcionar bem em bases pequenas e estruturadas, especialmente
+  quando ha selecao de variaveis e quando o objetivo e fornecer uma primeira triagem.
+  Em bases grandes e complexas, ensembles geralmente superam, mas com perda de
+  interpretabilidade. [6][7][10]
+</p>
+
+<div class="callout">
+  <b>Leitura critica:</b> muitos estudos sao retrospectivos e com amostras pequenas.
+  Em saude, e essencial validar externamente antes de levar o modelo para pratica.
+</div>
+
+<h3 id="quando-usar">Quando usar (e quando nao)</h3>
+<p>
+  <b>Use quando:</b>
+</p>
+<ul>
+  <li>Voce precisa de um baseline rapido.</li>
+  <li>Os dados sao pequenos e voce quer um modelo simples.</li>
+  <li>Ha necessidade de probabilidades explicitas.</li>
+</ul>
+<p>
+  <b>Evite quando:</b>
+</p>
+<ul>
+  <li>As variaveis sao fortemente correlacionadas.</li>
+  <li>Voce precisa de maximo desempenho em dados complexos.</li>
+  <li>Ha muitas nao-linearidades e interacoes.</li>
+</ul>
+
+<h3 id="mitos">Mitos e mal-entendidos</h3>
+<ul>
+  <li><b>Mito:</b> "Naive Bayes so funciona se tudo for independente".
+    <b>Fato:</b> mesmo com violacoes, ele pode ter bom desempenho. [3]</li>
+  <li><b>Mito:</b> "Naive Bayes nao fornece probabilidades".
+    <b>Fato:</b> o modelo e probabilistico e fornece posterior diretamente. [1]</li>
+</ul>
+
+<h3 id="diagnostico">Diagnostico: quando falha</h3>
+<ul>
+  <li><b>Correlacao forte:</b> sinais dependentes quebram a assuncao e distorcem probabilidades.</li>
+  <li><b>Distribuicoes nao-Gaussianas:</b> Gaussian NB assume normalidade.</li>
+  <li><b>Calibracao ruim:</b> probabilidades podem ser otimistas.</li>
+</ul>
+
+<h3 id="perguntas">Perguntas frequentes</h3>
+<p><b>1. Posso usar Naive Bayes para dados continuos?</b> Sim, com GaussianNB.</p>
+<p><b>2. Preciso normalizar?</b> Ajuda na estabilidade numerica e comparabilidade.</p>
+<p><b>3. Ele e interpretavel?</b> Sim, pela contribuicao de cada sinal na probabilidade.</p>
+
+<h3 id="comparacao">Comparacao com outros modelos disponiveis em trAIn</h3>
+
+<table width="100%" cellspacing="0" cellpadding="8" style="border-collapse: collapse; margin: 10px 0;">
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Velocidade</b></th>
+    <th align="left"><b>Recomendacao em saude</b></th>
+  </tr>
+  <tr>
+    <td><b>Naive Bayes</b></td>
+    <td>Boa (probabilidades)</td>
+    <td>Medio</td>
+    <td>Muito rapido</td>
+    <td>★★☆☆☆ Bom baseline; assume independencia forte</td>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>Excelente (coeficientes)</td>
+    <td>Bom (se linear)</td>
+    <td>Muito rapido</td>
+    <td>★★★★★ Primeira escolha se interpretacao e critica</td>
+  </tr>
+  <tr>
+    <td><b>Decision Tree</b></td>
+    <td>Excelente (regras)</td>
+    <td>Medio</td>
+    <td>Muito rapido</td>
+    <td>★★★☆☆ Bom para protocolos simples</td>
+  </tr>
+  <tr>
+    <td><b>RandomForestClassifier</b></td>
+    <td>Media (use SHAP)</td>
+    <td>Muito bom</td>
+    <td>Medio</td>
+    <td>★★★★☆ Equilibrio desempenho/robustez</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting / XGBoost</b></td>
+    <td>Baixa</td>
+    <td>Excelente</td>
+    <td>Medio</td>
+    <td>★★★★☆ Maximo desempenho; menos transparencia</td>
+  </tr>
+  <tr>
+    <td><b>KNN</b></td>
+    <td>Media (por casos)</td>
+    <td>Bom em bases pequenas</td>
+    <td>Lento para score</td>
+    <td>★★★☆☆ Baseline util; nao escala bem</td>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa</td>
+    <td>Excelente (kernel)</td>
+    <td>Medio</td>
+    <td>★★★☆☆ Bom desempenho; interpretacao limitada</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo: Quando escolher Naive Bayes em saude?</b>
+  <ul>
+    <li>✓ Precisa de baseline rapido e simples</li>
+    <li>✓ Dados pequenos e poucos recursos computacionais</li>
+    <li>✓ Deseja probabilidades explicitas para triagem</li>
+    <li>✗ Muitas variaveis correlacionadas</li>
+    <li>✗ Precisa de maximo desempenho</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li><a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn: Naive Bayes (guia oficial)</a></li>
+  <li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html">scikit-learn: GaussianNB (API)</a></li>
+  <li><a href="https://web.stanford.edu/~hastie/ElemStatLearn/">ESL Book: Elements of Statistical Learning (cap. 6)</a></li>
+  <li><a href="https://christophm.github.io/interpretable-ml-book/">Interpretable ML Book (livro aberto)</a></li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/25750696/">PubMed: ML em prognostico de cancer (revisao)</a></li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4348437/">PMC: Kourou 2014/2015 (texto completo)</a></li>
+  <li><a href="https://pubmed.ncbi.nlm.nih.gov/34712399/">PubMed: ML aplicado em cancer (revisao 2021)</a></li>
+</ul>
+
+<h3 id="referencias">Referencias</h3>
+<ol>
+  <li>
+    Bayes, T. (1763). An essay towards solving a problem in the doctrine of chances.
+    <i>Philosophical Transactions of the Royal Society</i>.
+    <a href="https://doi.org/10.1098/rstl.1763.0053" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    scikit-learn: Gaussian Naive Bayes (documentacao oficial).
+    <a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html" target="_blank" rel="noopener">scikit-learn</a>
+  </li>
+  <li>
+    Hastie, T., Tibshirani, R., & Friedman, J. (2009). The Elements of Statistical Learning (2nd ed.).
+    Springer. Cap. 6.
+    <a href="https://web.stanford.edu/~hastie/ElemStatLearn/" target="_blank" rel="noopener">ESL Book</a>
+  </li>
+  <li>
+    Murphy, K. P. (2012). Machine Learning: A Probabilistic Perspective.
+    MIT Press. Cap. 3.
+    <a href="https://mitpress.mit.edu/9780262018029/" target="_blank" rel="noopener">MIT Press</a>
+  </li>
+  <li>
+    Kononenko, I. (2001). Machine learning for medical diagnosis: history, state of the art and perspective.
+    <i>Artificial Intelligence in Medicine</i>. DOI: 10.1016/S0933-3657(01)00077-X.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/11470218/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://doi.org/10.1016/S0933-3657(01)00077-X" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Kourou, K., Exarchos, T. P., Exarchos, K. P., Karamouzis, M. V., & Fotiadis, D. I. (2014/2015).
+    Machine learning applications in cancer prognosis and prediction.
+    <i>Computational and Structural Biotechnology Journal</i>. DOI: 10.1016/j.csbj.2014.11.005.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/25750696/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4348437/" target="_blank" rel="noopener">PMC</a>
+    <a href="https://doi.org/10.1016/j.csbj.2014.11.005" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Kourou, K., Exarchos, K. P., Papaloukas, C., Sakaloglou, P., Exarchos, T., & Fotiadis, D. I. (2021).
+    Applied machine learning in cancer research: A systematic review for patient diagnosis, classification and prognosis.
+    <i>Computational and Structural Biotechnology Journal</i>. DOI: 10.1016/j.csbj.2021.10.006.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/34712399/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8523813/" target="_blank" rel="noopener">PMC</a>
+    <a href="https://doi.org/10.1016/j.csbj.2021.10.006" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Lakoumentas, J., Drakos, J., Karakantza, M., Sakellaropoulos, G., Megalooikonomou, V., & Nikiforidis, G. (2012).
+    Optimizations of the naive-Bayes classifier for the prognosis of B-CLL incorporating flow cytometry data.
+    <i>Comput Methods Programs Biomed</i>. DOI: 10.1016/j.cmpb.2012.02.009.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/22429720/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://doi.org/10.1016/j.cmpb.2012.02.009" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Ma, W., Zhao, Y., Ji, Y., Guo, X., Jian, X., Liu, P., & Wu, S. (2019).
+    Breast cancer molecular subtype prediction by mammographic radiomic features.
+    <i>Academic Radiology</i>. DOI: 10.1016/j.acra.2018.01.023.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/29526548/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8082943/" target="_blank" rel="noopener">PMC</a>
+    <a href="https://doi.org/10.1016/j.acra.2018.01.023" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    Akcay, M., Etiz, D., Celik, O., & Ozen, A. (2020).
+    Evaluation of prognosis in nasopharyngeal cancer using machine learning.
+    <i>Technol Cancer Res Treat</i>. DOI: 10.1177/1533033820909829.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/32138606/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7066591/" target="_blank" rel="noopener">PMC</a>
+    <a href="https://doi.org/10.1177/1533033820909829" target="_blank" rel="noopener">DOI</a>
+  </li>
+  <li>
+    He, H., Chen, D., Cui, S., Wu, G., Piao, H., Wang, X., Ye, P., & Jin, S. (2020).
+    DNA methylation data-based molecular subtype classification related to the prognosis of HCC patients.
+    <i>BMC Med Genomics</i>. DOI: 10.1186/s12920-020-00770-5.
+    <a href="https://pubmed.ncbi.nlm.nih.gov/32831081/" target="_blank" rel="noopener">PubMed</a>
+    <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7447581/" target="_blank" rel="noopener">PMC</a>
+    <a href="https://doi.org/10.1186/s12920-020-00770-5" target="_blank" rel="noopener">DOI</a>
+  </li>
+</ol>
+
+</body>
+</html>

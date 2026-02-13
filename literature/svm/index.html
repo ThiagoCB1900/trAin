@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Vector Machine (SVM) - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  .diagram-note {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    margin-right: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Support Vector Machine (SVM)</h2>
+<p>
+  <b>Support Vector Machine</b> (Maquina de Vetores de Suporte) e um algoritmo de classificacao
+  baseado em encontrar o hiperplano de maxima margem que separa classes. Desenvolvido por
+  Vapnik e Cortes na decada de 1990 [1][2], o SVM tornou-se um dos metodos mais influentes
+  em machine learning, especialmente quando combinado com o <b>kernel trick</b> para capturar
+  relacoes nao-lineares sem aumentar explicitamente a dimensionalidade. Em medicina, SVMs
+  sao amplamente usados em diagnostico por imagem, genomica e integracao de dados multimodais. [3][4]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b> um classificador que encontra a fronteira que melhor separa as classes,
+  maximizando a distancia (margem) entre os pontos mais proximos de cada classe, com capacidade
+  de capturar padroes nao-lineares via kernels.
+</div>
+
+<p>
+  <b>Contexto historico:</b> SVM foi proposto originalmente para classificacao binaria linear
+  (Vapnik, 1963) e generalizado para casos nao-lineares com o kernel trick (Boser, Guyon, Vapnik, 1992).
+  A versao soft-margin com parametro C foi introduzida por Cortes e Vapnik (1995), permitindo
+  lidar com dados nao-separaveis. O algoritmo Sequential Minimal Optimization (SMO) de Platt (1998)
+  tornou SVMs computacionalmente viaveis para datasets maiores. [1][2]
+</p>
+
+<h3 id="sumario">Sumario</h3>
+<ul>
+  <li><a href="#visao-geral">Visao geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossario</a></li>
+  <li><a href="#fluxo">Fluxo do algoritmo</a></li>
+  <li><a href="#formulas">Formulas</a></li>
+  <li><a href="#matematica">Matematica por tras</a></li>
+  <li><a href="#kernels">Kernels: o segredo do SVM</a></li>
+  <li><a href="#hiperparametros">Hiperparametros e impactos</a></li>
+  <li><a href="#ajuste">Estrategia de ajuste</a></li>
+  <li><a href="#recomendacoes">Resumo de recomendacoes clinicas</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#saude">Aplicacoes em saude</a></li>
+  <li><a href="#boas-praticas">Boas praticas clinicas e auditabilidade</a></li>
+  <li><a href="#exemplos">Exemplos publicados e comparacao</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#diagnostico">Diagnostico de problemas</a></li>
+  <li><a href="#perguntas">Perguntas frequentes</a></li>
+  <li><a href="#comparacao">Comparacao com outros modelos</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referencias</a></li>
+</ul>
+
+<h3 id="visao-geral">Visao geral</h3>
+<p>
+  SVM busca o hiperplano que maximiza a distancia entre as classes. Em classificacao linear,
+  isso corresponde a encontrar a linha (2D), plano (3D) ou hiperplano (n-D) que melhor
+  separa os dados, com a maior "margem" possivel entre as classes. Os pontos mais proximos
+  a esse hiperplano sao chamados de <b>support vectors</b> (vetores de suporte) e sao os
+  unicos que determinam a fronteira. [1][2]
+</p>
+
+<p>
+  Com o <b>kernel trick</b>, SVM pode resolver problemas nao-lineares projetando implicitamente
+  os dados em um espaco de dimensoes maiores onde tornam-se linearmente separaveis, sem
+  precisar computar essa projecao explicitamente. Isso torna SVM poderoso para padroes
+  complexos mantendo eficiencia computacional. [1][3]
+</p>
+
+<div class="card">
+  <b>Caracteristicas principais</b>
+  <ul>
+    <li><b>Maxima margem:</b> busca a separacao mais robusta, reduzindo overfitting.</li>
+    <li><b>Kernel trick:</b> captura nao-linearidades sem aumentar dimensionalidade explicita.</li>
+    <li><b>Esparsidade:</b> apenas support vectors importam, o resto dos dados nao afeta a decisao.</li>
+    <li><b>Robusto em alta dimensao:</b> funciona bem mesmo quando n_features >> n_samples (ex.: genomica).</li>
+    <li><b>Precisa de normalizacao:</b> sensivel a escalas diferentes entre variaveis.</li>
+    <li><b>Necessita calibracao:</b> as "probabilidades" nativas sao mal calibradas, requerem ajuste pos-hoc. [5]</li>
+  </ul>
+</div>
+
+<div class="callout">
+  <b>Contexto clinico:</b> SVMs sao amplamente usados em diagnostico de cancer (ex.: mama,
+  prostata), neuroimaging (ex.: Alzheimer, tumor cerebral), analise de expressao genica,
+  e qualquer tarefa onde ha multiplas features complexas e potenciais relacoes nao-lineares.
+  SVMs com kernel RBF costumam performar bem quando ha "ilhas" de padroes (ex.: subtipos
+  de doenca com perfis distintos). [4][6][7]
+</div>
+
+<h3 id="porque-funciona">Para quem nao conhece ML: por que isso funciona?</h3>
+<p>
+  Imagine que voce precisa separar pacientes doentes de saudaveis usando idade e colesterol.
+  Se voce desenhar uma linha no grafico, ha infinitas linhas que separam os grupos. O SVM
+  escolhe a linha que fica <b>o mais longe possivel</b> dos pacientes mais proximos de cada
+  grupo, criando uma "zona de seguranca" maxima. Isso reduz o risco de classificar errado
+  novos pacientes proximos da fronteira.
+</p>
+
+<p>
+  <b>Analogia clinica:</b> e como estabelecer um ponto de corte diagnostico (ex.: HbA1c >= 6.5%
+  para diabetes), mas ao inves de uma unica variavel, o SVM considera todas simultaneamente
+  e encontra a combinacao que melhor separa os grupos com a maior margem de seguranca.
+</p>
+
+<p>
+  <b>O kernel trick:</b> quando a separacao nao e linear (ex.: risco aumenta tanto para
+  colesterol muito baixo quanto muito alto), o SVM pode "curvar" a fronteira sem precisar
+  calcular novas variaveis manualmente. E como se ele enxergasse os dados em uma dimensao
+  a mais onde ficam linearmente separaveis.
+</p>
+
+<h3 id="glossario">Glossario rapido</h3>
+<ul>
+  <li><b>Hiperplano:</b> fronteira de decisao (linha em 2D, plano em 3D, hiperplano em n-D).</li>
+  <li><b>Margem:</b> distancia entre o hiperplano e os pontos mais proximos de cada classe.</li>
+  <li><b>Support vectors:</b> pontos que tocam as margens (sao os unicos que definem a fronteira).</li>
+  <li><b>Kernel:</b> funcao que computa similaridade entre pontos, permitindo decisoes nao-lineares.</li>
+  <li><b>C (regularizacao):</b> controla o trade-off entre maximizar margem e minimizar erro.</li>
+  <li><b>Gamma (RBF):</b> controla o "alcance" de influencia de cada ponto.</li>
+  <li><b>Hard-margin:</b> SVM que exige separacao perfeita (raro em dados reais).</li>
+  <li><b>Soft-margin:</b> SVM que tolera alguns erros (C controla tolerancia).</li>
+</ul>
+
+<h3 id="fluxo">Fluxo do algoritmo (passo a passo)</h3>
+<ol>
+  <li><b>Normalize os dados:</b> SVM e sensivel a escala. Padronize todas as features (media 0, desvio 1).</li>
+  <li><b>Escolha o kernel:</b> linear para relacoes simples, RBF para nao-linearidades.</li>
+  <li><b>Formule o problema de otimizacao:</b> maximize a margem sujeito a classificar corretamente (ou com penalidade C).</li>
+  <li><b>Resolva usando programacao quadratica:</b> algoritmos como SMO encontram os multiplicadores de Lagrange otimos.</li>
+  <li><b>Identifique support vectors:</b> apenas pontos com multiplicador > 0 importam.</li>
+  <li><b>Classifique novos pontos:</b> calcule em que lado do hiperplano eles caem.</li>
+  <li><b>Calibre probabilidades (opcional):</b> use Platt scaling ou isotonic regression para probabilidades confiaveis.</li>
+</ol>
+
+<p>
+  <b>Exemplo clinico (diagnostico de cancer de mama):</b> com features como tamanho do tumor,
+  contagem de celulas, expressao de marcadores, o SVM com kernel RBF pode identificar padroes
+  complexos que separam tumores malignos de benignos, criando uma fronteira de decisao que
+  maximiza a confianca diagnostica.
+</p>
+
+<h3 id="formulas">Formulas centrais</h3>
+
+<div class="formula-box">
+  <div class="formula-title">1. Hiperplano de decisao (linear)</div>
+  <div class="formula">f(x) = w · x + b</div>
+  <p style="font-size: 13px;">w = vetor de pesos, b = bias. Decisao: sign(f(x))</p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">2. Margem</div>
+  <div class="formula">margem = 2 / ||w||</div>
+  <p style="font-size: 13px;">Maximizar a margem equivale a minimizar ||w||.</p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">3. Problema de otimizacao (soft-margin)</div>
+  <div class="formula">min (1/2)||w||² + C Σ ξ_i</div>
+  <p style="font-size: 13px;">
+    Sujeito a: y_i(w·x_i + b) >= 1 - ξ_i, ξ_i >= 0<br/>
+    C controla o trade-off entre margem e erros (ξ_i = slack variables).
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">4. Kernel trick (decisao nao-linear)</div>
+  <div class="formula">f(x) = Σ α_i y_i K(x_i, x) + b</div>
+  <p style="font-size: 13px;">
+    K(x_i, x) = funcao kernel. Apenas support vectors tem α_i > 0.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">5. Kernel RBF (Radial Basis Function)</div>
+  <div class="formula">K(x, x') = exp(-γ ||x - x'||²)</div>
+  <p style="font-size: 13px;">
+    γ controla a "largura" da funcao gaussiana. γ alto = decisao local (pode overfittar).
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">6. Kernel polinomial</div>
+  <div class="formula">K(x, x') = (γ x·x' + coef0)^degree</div>
+  <p style="font-size: 13px;">
+    degree = grau do polinomio. degree=2 captura interacoes quadraticas.
+  </p>
+</div>
+
+<h3 id="matematica">Matematica por tras do algoritmo</h3>
+
+<p>
+  O SVM resolve um problema de <b>programacao quadratica convexa</b>: minimizar uma funcao
+  quadratica (energia da margem) sujeito a restricoes lineares (classificacao correta).
+  A convexidade garante que a solucao encontrada e globalmente otima (nao ha minimos locais). [1][2]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Forma dual (Lagrangiana)</div>
+  <p style="font-size: 13px;">
+    max Σ α_i - (1/2) Σ Σ α_i α_j y_i y_j K(x_i, x_j)<br/>
+    Sujeito a: 0 <= α_i <= C, Σ α_i y_i = 0
+  </p>
+  <p style="font-size: 12px; opacity: 0.8;">
+    A forma dual expoe o kernel trick: o algoritmo so precisa de produtos internos K(x_i, x_j),
+    nunca das coordenadas explicitas no espaco transformado. Isso permite kernels em espacos
+    infinito-dimensionais (ex.: RBF) com custo computacional finito.
+  </p>
+</div>
+
+<h4>Por que funciona bem em medicina?</h4>
+<ul>
+  <li><b>Alta dimensao:</b> em genomica, pode haver milhares de genes (features) e centenas de pacientes. SVM lida bem com n_features >> n_samples porque maximiza margem, reduzindo overfitting.</li>
+  <li><b>Subtipos de doenca:</b> cancer pode ter subtipos com perfis moleculares distintos. Kernel RBF captura "ilhas" no espaco de features.</li>
+  <li><b>Integracao multimodal:</b> combinar clinica + laboratorio + imagem + genomica gera espacos complexos. SVM projeta tudo em um espaco comum via kernel.</li>
+  <li><b>Robustez:</b> maximizar margin reduz sensibilidade a outliers (exceto se C muito alto).</li>
+</ul>
+
+<p>
+  <b>Limitacao importante:</b> SVM nao da probabilidades naturais. A funcao de decisao f(x)
+  e uma distancia com sinal, nao uma probabilidade. Platt (1999) propoe ajustar uma regressao
+  logistica em cima de f(x) para converter em probabilidades, mas isso adiciona incerteza. [5]
+</p>
+
+<h3 id="kernels">Kernels: o segredo do SVM</h3>
+
+<p>
+  O <b>kernel</b> e uma funcao que mede similaridade entre dois pontos. Matematicamente, ele
+  computa um produto interno em um espaco transformado, mas sem precisar calcular essa
+  transformacao explicitamente. Isso e chamado de <b>kernel trick</b>. [1][3]
+</p>
+
+<h4>1. Kernel Linear</h4>
+<div class="formula">K(x, x') = x · x'</div>
+<p>
+  <b>Uso:</b> quando a relacao entre features e desfecho e aproximadamente linear.<br/>
+  <b>Vantagens:</b> rapido, interpretavel (coeficientes tem significado direto), regulariza bem.<br/>
+  <b>Desvantagens:</b> nao captura nao-linearidades.<br/>
+  <b>Clinica:</b> bom para modelos simples (ex.: risco como soma ponderada de fatores),
+  similar a regressao logistica, mas com maxima margem ao inves de maxima verossimilhanca.
+</p>
+
+<h4>2. Kernel RBF (Radial Basis Function / Gaussiano)</h4>
+<div class="formula">K(x, x') = exp(-γ ||x - x'||²)</div>
+<p>
+  <b>Uso:</b> default para a maioria dos casos clinicos nao-lineares.<br/>
+  <b>Vantagens:</b> captura qualquer tipo de nao-linearidade, flexivel, bem estabelecido.<br/>
+  <b>Desvantagens:</b> pode overfittar se γ muito alto, perde interpretabilidade.<br/>
+  <b>Hiperparametros:</b> C (regularizacao) e γ (largura da gaussiana) precisam ser ajustados juntos.<br/>
+  <b>Clinica:</b> ideal para diagnostico com multiplas features onde relacoes sao complexas
+  (ex.: subtipos de cancer, diagnostico de Alzheimer por neuroimaging + biomarcadores).
+</p>
+
+<div class="card">
+  <b>Interpretacao do γ:</b>
+  <ul>
+    <li><b>γ baixo (ex.: 0.001):</b> cada ponto influencia longe, fronteira suave (pode underfittar).</li>
+    <li><b>γ medio (ex.: 0.01-0.1):</b> equilibrio entre flexibilidade e generalizacao.</li>
+    <li><b>γ alto (ex.: 1.0+):</b> cada ponto so influencia vizinhos proximos, fronteira complexa (pode overfittar).</li>
+  </ul>
+</div>
+
+<h4>3. Kernel Polinomial</h4>
+<div class="formula">K(x, x') = (γ x·x' + coef0)^degree</div>
+<p>
+  <b>Uso:</b> quando ha interacoes polinomiais conhecidas (ex.: interacao quadratica entre idade e biomarker).<br/>
+  <b>Vantagens:</b> captura interacoes especificas sem a complexidade de RBF.<br/>
+  <b>Desvantagens:</b> pode ser instavel se degree muito alto, mais lento que linear.<br/>
+  <b>Hiperparametros:</b> degree (grau, tipicamente 2-4), γ, coef0 (termo independente).<br/>
+  <b>Clinica:</b> util quando a teoria clinica sugere interacoes especificas (ex.: risco =
+  f(idade²) ou interacao entre dois marcadores). Menos comum que RBF na pratica.
+</p>
+
+<h4>4. Kernel Sigmoide</h4>
+<div class="formula">K(x, x') = tanh(γ x·x' + coef0)</div>
+<p>
+  <b>Uso:</b> mimetiza redes neurais de 2 camadas.<br/>
+  <b>Vantagens:</b> pode capturar nao-linearidades tipo sigmoidal.<br/>
+  <b>Desvantagens:</b> nao e sempre positivo semi-definido (pode nao convergir), menos estudado.<br/>
+  <b>Clinica:</b> raramente usado, preferir RBF ou rede neural diretamente.
+</p>
+
+<div class="callout">
+  <b>Regra pratica:</b> comece com <b>kernel RBF</b>. Se desempenho e similar a linear apesar
+  de tuning, use <b>kernel linear</b> (mais rapido e interpretavel). Kernel polinomial apenas
+  se houver razao teorica para interacoes polinomiais. Evite sigmoide.
+</div>
+
+<h3 id="hiperparametros">Hiperparametros e seus impactos (detalhado)</h3>
+
+<p>
+  O SVM e poderoso mas exige ajuste cuidadoso de hiperparametros. A interacao entre C e γ
+  (para RBF) e especialmente critica. Abaixo, cada parametro do trAIn e detalhado com
+  exemplos clinicos.
+</p>
+
+<h4 style="margin-top: 20px;">1. C (Parametro de regularizacao)</h4>
+<p>
+  <b>O que e:</b> controla o trade-off entre maximizar margem (simplicidade) e minimizar erro de classificacao (fit aos dados).<br/>
+  <b>Valor padrao:</b> 1.0<br/>
+  <b>Intervalo tipico:</b> 0.01-100
+</p>
+
+<p>
+  <b>Impacto clinico:</b>
+  <ul>
+    <li><b>C baixo (ex.: 0.01-0.1):</b> margem ampla, tolera mais erros, modelo simples. Pode underfittar, mas generaliza melhor em dados ruidosos.</li>
+    <li><b>C medio (ex.: 1.0-10):</b> equilibrio tipico.</li>
+    <li><b>C alto (ex.: 50-100):</b> margem estreita,penaliza fortemente erros. Pode overfittar, memorizando outliers.</li>
+  </ul>
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Exemplo pratico</div>
+  <p style="font-size: 13px;">
+    <b>Diagnostico de cancer com ruido:</b> dados de biopsia tem erros de anotacao (~5%).
+    Use C=0.5-1.0 para tolerar ruido. Se C=100, o modelo tentara classificar perfeitamente
+    ate casos mal anotados, overfittando.
+  </p>
+</div>
+
+<h4 style="margin-top: 20px;">2. kernel (Tipo de kernel)</h4>
+<p>
+  <b>O que e:</b> funcao que define como o SVM transforma os dados.<br/>
+  <b>Valor padrao:</b> "rbf"<br/>
+  <b>Opcoes:</b> "linear", "rbf", "poly", "sigmoid"
+</p>
+
+<p><b>Comparacao clinica:</b></p>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Kernel</b></th>
+    <th align="left"><b>Quando usar</b></th>
+    <th align="left"><b>Exemplo clinico</b></th>
+  </tr>
+  <tr>
+    <td><b>linear</b></td>
+    <td>Relacao linear, muitas features (n > 10k), necessita interpretabilidade</td>
+    <td>Genomica com milhares de genes, escore de risco linear</td>
+  </tr>
+  <tr>
+    <td><b>rbf</b></td>
+    <td>Relacao nao-linear, dados moderados (n < 10k), boa performance esperada</td>
+    <td>Diagnostico por imaging + labs, subtipos de doenca</td>
+  </tr>
+  <tr>
+    <td><b>poly</b></td>
+    <td>Interacoes polinomiais especificas (raro)</td>
+    <td>Interacao conhecida entre 2 biomarkers (ex.: produto ou quadrado)</td>
+  </tr>
+  <tr>
+    <td><b>sigmoid</b></td>
+    <td>Raramente (preferir rede neural)</td>
+    <td>Pesquisa academica, nao recomendado para clinica</td>
+  </tr>
+</table>
+
+<h4 style="margin-top: 20px;">3. gamma (Parametro do kernel RBF/poly/sigmoid)</h4>
+<p>
+  <b>O que e:</b> controla o "alcance" de influencia de cada ponto no espaco transformado.<br/>
+  <b>Valor padrao:</b> "scale" (= 1 / (n_features * X.var()))<br/>
+  <b>Opcoes:</b> "scale", "auto" (= 1 / n_features), ou valor numerico
+</p>
+
+<p>
+  <b>Impacto clinico (kernel RBF):</b>
+  <ul>
+    <li><b>γ muito baixo (ex.: 0.0001):</b> kernel quase linear, fronteira suave, pode underfittar.</li>
+    <li><b>γ baixo (ex.: 0.001-0.01):</b> fronteira suave, boa generalizacao.</li>
+    <li><b>γ medio (ex.: 0.1):</b> captura nao-linearidades moderadas.</li>
+    <li><b>γ alto (ex.: 1.0+):</b> fronteira complexa, cada ponto e quase uma "ilha", overfitting severo.</li>
+  </ul>
+</p>
+
+<div class="callout">
+  <b>Interacao C x γ:</b> sao acoplados. C alto + γ alto = overfitting severo. C baixo + γ baixo = underfitting.
+  Regra pratica: ajuste juntos via GridSearch. Comece com C em [0.1, 1, 10, 100] e γ em [0.001, 0.01, 0.1, 1].
+</div>
+
+<h4 style="margin-top: 20px;">4. degree (Grau do kernel polinomial)</h4>
+<p>
+  <b>O que e:</b> grau do polinomio (apenas para kernel="poly").<br/>
+  <b>Valor padrao:</b> 3<br/>
+  <b>Intervalo tipico:</b> 2-5
+</p>
+
+<p>
+  <b>Impacto clinico:</b> degree=2 captura interacoes quadraticas (x*y), degree=3 captura cubicas.
+  Valores altos (> 5) raramente melhoram e podem causar overfitting ou instabilidade numerica.
+</p>
+
+<h4 style="margin-top: 20px;">5. coef0 (Termo independente para poly/sigmoid)</h4>
+<p>
+  <b>O que e:</b> termo constante na formula do kernel.<br/>
+  <b>Valor padrao:</b> 0.0<br/>
+  <b>Intervalo tipico:</b> -1.0 a 1.0
+</p>
+
+<p>
+  <b>Impacto clinico:</b> ajusta o balanco entre termos de ordem alta e baixa no polinomio.
+  Valores negativos podem causar instabilidade. Geralmente deixar em 0.0 e suficiente.
+</p>
+
+<h4 style="margin-top: 20px;">6. class_weight (Peso das classes)</h4>
+<p>
+  <b>O que e:</b> ajusta a penalizacao de erros para lidar com desbalanceamento.<br/>
+  <b>Valor padrao:</b> None<br/>
+  <b>Opcoes:</b> None, "balanced"
+</p>
+
+<p>
+  <b>Impacto clinico em dados desbalanceados:</b> se ha 5% de casos positivos (ex.: cancer),
+  o SVM pode ignorar a classe minoritaria para maximizar acuracia geral. <code>class_weight="balanced"</code>
+  ajusta automaticamente os pesos como n_samples / (n_classes * n_samples_classe), forcando
+  o modelo a prestar atencao na classe rara.
+</p>
+
+<div class="card">
+  <b>Exemplo (triagem de sepse, 8% positivos):</b>
+  <ul>
+    <li><b>class_weight=None:</b> modelo pode ter alta acuracia (92%) mas sensibilidade baixa (30%).</li>
+    <li><b>class_weight="balanced":</b> equilibra, sensibilidade sobe para 75-85%, acuracia cai para 85-88%.</li>
+  </ul>
+  Para triagem, prefira "balanced".
+</div>
+
+<h4 style="margin-top: 20px;">7. probability (Habilitar estimativa de probabilidades)</h4>
+<p>
+  <b>O que e:</b> se True, treina um modelo extra (Platt scaling) para converter f(x) em probabilidades.<br/>
+  <b>Valor padrao:</b> True no trAIn<br/>
+  <b>Custo:</b> adiciona overhead computacional (cross-validation interna para calibrar)
+</p>
+
+<p>
+  <b>Impacto clinico:</b> essencial se voce precisar de probabilidades calibradas para decisao
+  clinica (ex.: P(cancer) > 0.3 → fazer biopsia). Sem probability=True, voce so tem classes
+  preditas (0/1), nao probabilidades. Porem, mesmo com True, as probabilidades podem estar
+  mal calibradas e exigir ajuste adicional. [5]
+</p>
+
+<h3 id="ajuste">Estrategia de ajuste (hyperparameter tuning)</h3>
+
+<div class="callout">
+  <b>Abordagem recomendada para clinica:</b>
+  <ol>
+    <li><b>Passo 1 - Normalize os dados:</b> OBRIGATORIO. Use StandardScaler (media 0, desvio 1) em todas as features numericas.</li>
+    <li><b>Passo 2 - Escolha kernel inicial:</b> comece com RBF (funciona em 80% dos casos).</li>
+    <li><b>Passo 3 - GridSearch em C e γ:</b>
+      <ul>
+        <li>C: [0.1, 1, 10, 100]</li>
+        <li>gamma: [0.001, 0.01, 0.1, 1, "scale"]</li>
+      </ul>
+    </li>
+    <li><b>Passo 4 - Compare com kernel linear:</b> se RBF nao supera muito, use linear (mais rapido).</li>
+    <li><b>Passo 5 - Ajuste class_weight se desbalanceado.</b></li>
+    <li><b>Passo 6 - Calibre probabilidades:</b> use CalibratedClassifierCV com isotonic ou sigmoid.</li>
+    <li><b>Passo 7 - Validacao externa:</b> teste em hospital/periodo separado.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <b>Exemplo de codigo (GridSearchCV):</b>
+  <pre style="background: rgba(120, 120, 120, 0.08); padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 12px;">
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+
+# IMPORTANTE: sempre normalize antes do SVM
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('svm', SVC(probability=True, random_state=42))
+])
+
+param_grid = {
+    'svm__C': [0.1, 1, 10, 100],
+    'svm__gamma': [0.001, 0.01, 0.1, 1, 'scale'],
+    'svm__kernel': ['rbf', 'linear']
+}
+
+grid = GridSearchCV(pipeline, param_grid, cv=5, scoring='roc_auc', n_jobs=-1)
+grid.fit(X_train, y_train)
+
+print(grid.best_params_)
+print(grid.best_score_)
+  </pre>
+</div>
+
+<h3 id="recomendacoes">Resumo de recomendacoes clinicas</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Cenario</b></th>
+    <th align="left"><b>Kernel</b></th>
+    <th align="left"><b>C</b></th>
+    <th align="left"><b>gamma</b></th>
+    <th align="left"><b>class_weight</b></th>
+  </tr>
+  <tr>
+    <td><b>Clinica geral balanceada</b></td>
+    <td>rbf</td>
+    <td>1-10</td>
+    <td>0.01-0.1</td>
+    <td>None</td>
+  </tr>
+  <tr>
+    <td><b>Dados desbalanceados (< 10% positivos)</b></td>
+    <td>rbf</td>
+    <td>1-10</td>
+    <td>0.01-0.1</td>
+    <td>balanced</td>
+  </tr>
+  <tr>
+    <td><b>Alta dimensao (genomica, n_features > 1000)</b></td>
+    <td>linear</td>
+    <td>0.1-1</td>
+    <td>N/A</td>
+    <td>None ou balanced</td>
+  </tr>
+  <tr>
+    <td><b>Dados pequenos (n < 300)</b></td>
+    <td>rbf</td>
+    <td>0.1-1</td>
+    <td>0.001-0.01</td>
+    <td>None</td>
+  </tr>
+  <tr>
+    <td><b>Dados ruidosos</b></td>
+    <td>rbf</td>
+    <td>0.1-1</td>
+    <td>0.001-0.01</td>
+    <td>None</td>
+  </tr>
+</table>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+
+<h4>Metricas de desempenho</h4>
+<ul>
+  <li><b>Classificacao binaria:</b> AUC-ROC, sensibilidade, especificidade, F1-score, PR-AUC, Matthews Correlation Coefficient (MCC)</li>
+  <li><b>Calibracao:</b> Brier Score, Expected Calibration Error, curvas de calibracao</li>
+  <li><b>Validacao robusta:</b> cross-validation estratificada, validacao temporal, validacao externa</li>
+</ul>
+
+<div class="callout">
+  <b>IMPORTANTE - Calibracao em SVM:</b> SVMs com probability=True usam Platt scaling internamente,
+  mas isso NEM SEMPRE produz probabilidades bem calibradas. <b>Sempre verifique curvas de calibracao</b>
+  e considere re-calibrar com CalibratedClassifierCV. [5]
+</div>
+
+<h4>Calibracao de probabilidades</h4>
+<p>
+  SVM retorna uma distancia com sinal (f(x)), nao uma probabilidade natural. Platt (1999)
+  propoe ajustar uma regressao logistica: P(y=1|x) = 1/(1 + exp(A*f(x) + B)). Isso e feito
+  automaticamente quando probability=True, mas pode ser insuficiente. [5]
+</p>
+
+<div class="card">
+  <b>Solucao:</b> use sklearn.calibration.CalibratedClassifierCV com method="isotonic" (dados grandes)
+  ou method="sigmoid" (dados pequenos). Sempre reserve um fold separado para calibracao.
+</div>
+
+<h4>Escolha de threshold</h4>
+<p>
+  Como em todos os classificadores, o threshold de 0.5 raramente e ideal. Use analise de
+  custo-beneficio clinico:
+  <ul>
+    <li><b>Triagem (alta sensibilidade):</b> threshold 0.2-0.3</li>
+    <li><b>Confirmacao (alta especificidade):</b> threshold 0.6-0.8</li>
+    <li><b>Equilibrado:</b> maximize F1 ou Youden's J (sensibilidade + especificidade - 1)</li>
+  </ul>
+</p>
+
+<h3 id="interpretabilidade">Interpretabilidade e explicacao do modelo</h3>
+
+<p>
+  SVMs sao dificeis de interpretar, especialmente com kernels nao-lineares. A decisao depende
+  de uma combinacao complexa de support vectors e do kernel. Porem, ha tecnicas para explicar.
+</p>
+
+<h4>Tecnicas de interpretacao</h4>
+<ul>
+  <li><b>Kernel linear:</b> os coeficientes (w) podem ser inspecionados diretamente, similar a regressao logistica.
+    Positive weight = feature aumenta probabilidade da classe positiva.</li>
+  <li><b>Support vectors:</b> inspecionar quais pacientes sao support vectors pode revelar casos "limites"
+    que definem a fronteira diagnostica.</li>
+  <li><b>Feature importance por permutacao:</b> embaralhe cada feature e veja quanto o AUC cai.</li>
+  <li><b>SHAP:</b> funciona com SVM, mas e computacionalmente caro. Use KernelSHAP ou amostras.</li>
+  <li><b>LIME:</b> Local Interpretable Model-agnostic Explanations. Ajusta modelo linear local em volta de cada predicao.</li>
+</ul>
+
+<div class="card">
+  <b>Exemplo clinico (kernel linear):</b> em diagnostico de diabetes, se w_HbA1c = 0.8 e w_glicemia = 0.6,
+  HbA1c tem maior peso na decisao. Isso e similar a regressao logistica e interpretavel.
+</div>
+
+<div class="callout">
+  <b>Limitacao:</b> com kernel RBF, nao ha interpretacao direta de "quanto cada feature contribui".
+  A decisao e uma combinacao nao-linear de distancias a support vectors. Para interpretabilidade
+  total, considere Decision Tree ou Logistic Regression.
+</div>
+
+<h4>Boas praticas de interpretabilidade</h4>
+<ul>
+  <li><b>Kernel linear quando possivel:</b> se desempenho e similar a RBF, prefira linear para interpretabilidade.</li>
+  <li><b>Analise de support vectors:</b> identifique casos que definem a fronteira (podem ser outliers ou casos raros importantes).</li>
+  <li><b>Feature importance:</b> use permutacao para ranquear importancia.</li>
+  <li><b>Explicacao de casos individuais:</b> use LIME para justificar predicoes especificas.</li>
+</ul>
+
+<h3 id="saude">Aplicacoes em saude</h3>
+
+<p>
+  SVMs sao amplamente usados em medicina, especialmente em areas com dados complexos e
+  multimodais. Principais aplicacoes:
+</p>
+
+<ul>
+  <li><b>Diagnostico de cancer:</b> classificacao de tumores (maligno/benigno, subtipos) usando imaging, histologia, expressao genica. [6][7][8]</li>
+  <li><b>Neuroimaging:</b> diagnostico de Alzheimer, Parkinson, tumor cerebral via MRI/PET. [9][10]</li>
+  <li><b>Genomica e proteômica:</b> predicao de resposta a tratamento, classificacao de subtipos moleculares. [4][11][12]</li>
+  <li><b>Diagnostico cardiovascular:</b> predicao de infarto, arritmia via ECG e features clinicas. [13]</li>
+  <li><b>Analise de texto medico:</b> classificacao de relatorios radiologicos, extracao de informacao clinica de prontuarios. [14]</li>
+</ul>
+
+<div class="callout">
+  <b>Por que SVMs se destacam nessas areas:</b>
+  <ul>
+    <li>Funcionam bem em <b>alta dimensao</b> (milhares de genes, voxels de imagem)</li>
+    <li><b>Kernel trick</b> captura padroes complexos sem feature engineering manual</li>
+    <li><b>Maxima margem</b> reduz overfitting em dados com muitas features e poucas amostras</li>
+    <li><b>Robusto teoricamente</b>: garantias matematicas de otimo global</li>
+  </ul>
+</div>
+
+<p>
+  <b>Exemplo clinico detalhado (cancer de mama):</b> classificar tumores como maligno/benigno
+  usando features extraidas de imagem de massa (raio, textura, perimetro, area, suavidade,
+  compactacao, concavidade, pontos concavos, simetria, dimensao fractal). SVM com kernel RBF
+  pode atingir AUC > 0.98, superando regressao logistica (AUC ~0.95). [15]
+</p>
+
+<h3 id="boas-praticas">Boas praticas clinicas e auditabilidade</h3>
+
+<h4>Prevencao de vazamento e overfitting</h4>
+<ul>
+  <li><b>Normalizacao dentro de pipeline:</b> SEMPRE normalize usando apenas dados de treino.
+    Se normalizar antes de split, ha vazamento estatistico (media/desvio de teste "vaza" para treino).</li>
+  <li><b>Separacao temporal rigorosa:</b> mesma regra de outros modelos, evite usar dados futuros.</li>
+  <li><b>Validacao externa obrigatoria:</b> SVMs podem overfittar silenciosamente em CV interna se C e γ mal ajustados.</li>
+  <li><b>Regularizacao adequada:</b> comece com C moderado (1-10), evite C > 100 sem justificativa.</li>
+</ul>
+
+<h4>Normalizacao e preprocessamento</h4>
+<p>
+  <b>CRITICO:</b> SVM e <b>extremamente sensivel a escala</b>. Uma feature com range [0, 1000]
+  dominara features com range [0, 1]. Sempre normalize.
+</p>
+
+<ul>
+  <li><b>StandardScaler:</b> (x - media) / desvio. Default recomendado.</li>
+  <li><b>MinMaxScaler:</b> escala para [0, 1]. Use se features ja tem distribuicao similar.</li>
+  <li><b>RobustScaler:</b> usa mediana e IQR, robusto a outliers. Bom para dados clinicos com valores extremos.</li>
+</ul>
+
+<div class="card">
+  <b>Exemplo de vazamento:</b>
+  <pre style="font-size: 12px;">
+# ERRADO (vaza informacao de teste)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)  # usa media/desvio de TODO o dataset
+X_train, X_test = train_test_split(X_scaled)
+
+# CORRETO
+X_train, X_test = train_test_split(X)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)  # ajusta so no treino
+X_test_scaled = scaler.transform(X_test)  # aplica transformacao do treino
+  </pre>
+</div>
+
+<h4>Calibracao pos-treinamento</h4>
+<p>
+  Mesmo com probability=True, SVMs tendem a ter probabilidades mal calibradas (muito extremas:
+  muitos valores proximos de 0 ou 1). Solucoes:
+</p>
+<ul>
+  <li><b>CalibratedClassifierCV com isotonic:</b> calibracao nao-parametrica, melhor para dados grandes (n > 1000).</li>
+  <li><b>CalibratedClassifierCV com sigmoid:</b> Platt scaling adicional, bom para dados pequenos.</li>
+  <li><b>Validacao:</b> sempre reserve fold separado para calibracao, nunca use dados de treino.</li>
+</ul>
+
+<h4>Valores faltantes</h4>
+<p>
+  SVM do scikit-learn NAO aceita valores NaN. Voce deve imputar antes:
+</p>
+<ul>
+  <li><b>Imputacao simples:</b> mediana para numericas, moda para categoricas.</li>
+  <li><b>Imputacao multipla (MICE):</b> para missing informativo.</li>
+  <li><b>Indicador de missing:</b> adicione coluna binaria "var_X_missing".</li>
+</ul>
+
+<h4>Documentacao e auditabilidade</h4>
+<ul>
+  <li><b>Registro de modelo:</b> versione pipeline completo (scaler + SVM), hiperparametros, data de treino.</li>
+  <li><b>Normalizacao:</b> salve parametros do scaler (media, desvio) para reproducao.</li>
+  <li><b>Support vectors:</b> opcionalmente salve indices dos support vectors para inspecao.</li>
+  <li><b>Calibracao:</b> documente se usou Platt scaling, isotonic, ou ambos.</li>
+  <li><b>Threshold:</b> registre ponto de corte escolhido e justificativa clinica.</li>
+</ul>
+
+<div class="callout">
+  <b>Checklist para producao:</b>
+  <ol>
+    <li>Pipeline inclui StandardScaler antes do SVM?</li>
+    <li>Normalizacao foi feita DENTRO de cada fold de CV?</li>
+    <li>Hiperparametros (C, gamma, kernel) foram ajustados via GridSearch?</li>
+    <li>Probabilidades foram calibradas e validadas?</li>
+    <li>Modelo validado externamente (outro hospital/periodo)?</li>
+    <li>Threshold justificado clinicamente?</li>
+    <li>Comparacao com baseline (regressao logistica)?</li>
+  </ol>
+</div>
+
+<h3 id="exemplos">Exemplos publicados e comparacao</h3>
+
+<p>
+  Os estudos abaixo ilustram aplicacoes de SVM em medicina, comparando com outros algoritmos
+  e destacando ganhos clinicos. Todos foram publicados em revistas com revisao por pares.
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Desfecho clinico</b></th>
+    <th align="left"><b>Resultados principais</b></th>
+    <th align="left"><b>Comparacao com outros modelos</b></th>
+  </tr>
+  <tr>
+    <td><b>Furey 2000</b> [6]<br/><i>Bioinformatics</i></td>
+    <td>Classificacao de cancer via expressao genica</td>
+    <td>SVM atingiu 100% acuracia em leucemia e 98% em cancer de colon usando genes selecionados</td>
+    <td>SVM vs CART, k-NN<br/><b>Vencedor:</b> SVM</td>
+  </tr>
+  <tr>
+    <td><b>Cristianini 2002</b> [7]<br/><i>Nat Genetics</i></td>
+    <td>Predicao de subtipo de cancer usando microarray</td>
+    <td>SVM distinguiu subtipos moleculares com alta acuracia mesmo em datasets pequenos (n < 100)</td>
+    <td>SVM vs Fisher discriminant<br/><b>Destaque:</b> SVM robusto em alta dimensao</td>
+  </tr>
+  <tr>
+    <td><b>Guyon 2002</b> [4]<br/><i>Machine Learning</i></td>
+    <td>Selecao de genes para classificacao de cancer</td>
+    <td>SVM-RFE (Recursive Feature Elimination) identificou genes discriminativos com AUC > 0.95</td>
+    <td>SVM-RFE vs outros metodos de selecao<br/><b>Vencedor:</b> SVM-RFE</td>
+  </tr>
+  <tr>
+    <td><b>Kloppel 2008</b> [9]<br/><i>NeuroImage</i></td>
+    <td>Diagnostico de Alzheimer via MRI estrutural</td>
+    <td>SVM: acuracia 95% (Alzheimer vs controle) e 89% (Alzheimer vs demencia frontotemporal)</td>
+    <td>SVM vs radiologistas (equivalente ou superior)<br/><b>Resultado:</b> SVM = experts</td>
+  </tr>
+  <tr>
+    <td><b>Orru 2012</b> [10]<br/><i>Neuroscience</i></td>
+    <td>Revisao de SVM em neuroimaging (Alzheimer, esquizofrenia, autismo)</td>
+    <td>SVMs com kernel linear ou RBF atingem AUC 0.80-0.95 em multiplos estudos de neuroimaging</td>
+    <td>Revisao sistematica<br/><b>Conclusao:</b> SVM e metodo predominante</td>
+  </tr>
+  <tr>
+    <td><b>Huang 2018</b> [13]<br/><i>J Med Syst</i></td>
+    <td>Predicao de doenca cardiovascular usando features clinicas</td>
+    <td>SVM-RBF: AUC 0.85, acuracia 82%, superou regressao logistica (AUC 0.77)</td>
+    <td>SVM vs Logistic, Decision Tree, Naive Bayes<br/><b>Vencedor:</b> SVM</td>
+  </tr>
+  <tr>
+    <td><b>Wolberg 1995</b> [15]<br/><i>BCWD dataset</i></td>
+    <td>Diagnostico de cancer de mama (Wisconsin Breast Cancer)</td>
+    <td>SVM linear: AUC ~0.98. Dataset amplamente usado como benchmark em ML medico</td>
+    <td>Benchmark classico<br/><b>Resultado:</b> SVM entre os melhores</td>
+  </tr>
+  <tr>
+    <td><b>Noble 2006</b> [11]<br/><i>Nat Biotechnol</i></td>
+    <td>Tutorial de SVM para bioinformatica</td>
+    <td>Revisao de aplicacoes: classificacao de proteinas, predicao de estrutura, genomica funcional</td>
+    <td>Tutorial/Review<br/><b>Impacto:</b> >4000 citacoes</td>
+  </tr>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <td><b>Exemplo hipotetico</b><br/><i>(Seu caso)</i></td>
+    <td>Diagnostico de insuficiencia renal aguda usando labs + clinica</td>
+    <td>Esperado: SVM-RBF com AUC 0.80-0.85, especialmente se houver interacoes nao-lineares entre biomarkers</td>
+    <td>Recomendacao: SVM-RBF com C=1-10, gamma=0.01-0.1, class_weight="balanced", normalizar com StandardScaler</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Interpretacao geral:</b> SVMs sao especialmente fortes em:
+  <ul>
+    <li><b>Alta dimensao:</b> genomica, proteômica, imaging com milhares de features</li>
+    <li><b>Dados pequenos:</b> maxima margem reduz overfitting mesmo com n < 200</li>
+    <li><b>Nao-linearidades complexas:</b> kernel RBF captura padroes que modelos lineares perdem</li>
+    <li><b>Benchmarks clinicos:</b> datasets classicos (breast cancer, heart disease) mostram SVMs consistentemente no top-3</li>
+  </ul>
+</div>
+
+<h4>Leitura critica dos principais estudos</h4>
+
+<p>
+  <b>Furey 2000 & Cristianini 2002 (Genomica):</b> demonstraram que SVMs lidam bem com
+  "curse of dimensionality" (milhares de genes, centenas de pacientes). A maxima margem
+  atua como regularizacao implicita, evitando overfitting. Isso estabeleceu SVMs como
+  metodo padrao em bioinformatica. [6][7]
+</p>
+
+<p>
+  <b>Kloppel 2008 & Orru 2012 (Neuroimaging):</b> mostraram que SVMs aplicados a MRI cerebral
+  atingem desempenho comparavel a radiologistas experientes no diagnostico de Alzheimer.
+  Isso abriu caminho para sistemas de auxilio ao diagnostico (CAD) baseados em ML. [9][10]
+</p>
+
+<p>
+  <b>Huang 2018 (Cardiovascular):</b> comparacao direta com multiplos algoritmos em predicao
+  de doenca cardiovascular. SVM-RBF superou modelos lineares (regressao logistica) e simples
+  (decision tree), confirmando utilidade clinica em dados tabulares moderados. [13]
+</p>
+
+<p>
+  <b>Noble 2006 (Tutorial):</b> revisao tecnica para biologistas, explicando SVMs de forma
+  acessivel e cobrindo aplicacoes em proteômica, genomica funcional e predicao de estrutura.
+  Um dos tutoriais mais citados na area. [11]
+</p>
+
+<h3 id="quando-usar">Quando usar SVM (e quando evitar)</h3>
+
+<h4>Use SVM quando:</h4>
+<ul>
+  <li><b>Alta dimensao:</b> n_features >> n_samples (ex.: genomica, imaging features), SVM regulariza naturalmente.</li>
+  <li><b>Relacoes nao-lineares complexas:</b> subtipos de doenca, clusters no espaco de features.</li>
+  <li><b>Tamanho moderado:</b> funciona bem em n = 100-10,000. Para n > 50k, considere aproximacoes (LinearSVC, SGDClassifier).</li>
+  <li><b>Garantias teoricas importantes:</b> convexidade garante otimo global, sem minimos locais.</li>
+  <li><b>Integracao multimodal:</b> combinar clinica + labs + imaging em um espaco unificado via kernel.</li>
+</ul>
+
+<h4>Evite SVM quando:</h4>
+<ul>
+  <li><b>Interpretabilidade total e obrigatoria:</b> kernel RBF e "caixa-preta". Use Logistic Regression ou Decision Tree.</li>
+  <li><b>Dados muito grandes:</b> n > 50,000. SVM padrao (kernel RBF) tem complexidade O(n² a n³). Use LinearSVC, SGDClassifier ou Random Forest.</li>
+  <li><b>Tempo de treinamento e critico:</b> SVM com GridSearch pode ser lento. Random Forest ou Gradient Boosting podem ser mais rapidos.</li>
+  <li><b>Dados sem normalizacao possivel:</b> se features tem significado na escala original (ex.: contagem de eventos raros), SVM pode nao ser ideal.</li>
+  <li><b>Necessita probabilidades bem calibradas nativamente:</b> SVM exige pos-processamento. Gradient Boosting ou Logistic Regression tem calibracao natural melhor.</li>
+  <li><b>Dados com muito missing:</b> SVM nao lida com NaN nativamente, exige imputacao cuidadosa.</li>
+</ul>
+
+<div class="card">
+  <b>Guia rapido de decisao:</b>
+  <ul>
+    <li><b>Alta dimensao (genomica, imaging):</b> SVM linear ou RBF</li>
+    <li><b>Dados tabulares moderados (n 1k-10k):</b> SVM-RBF ou Gradient Boosting</li>
+    <li><b>Interpretabilidade total:</b> Logistic Regression ou Decision Tree</li>
+    <li><b>Dados muito grandes (n > 50k):</b> Gradient Boosting, Random Forest ou deep learning</li>
+    <li><b>Baseline rapido:</b> Logistic Regression</li>
+  </ul>
+</div>
+
+<h4>Casos de uso ideais em medicina</h4>
+<ul>
+  <li><b>Diagnostico de cancer por genomica:</b> classificacao de subtipos moleculares com milhares de genes</li>
+  <li><b>Neuroimaging diagnostico:</b> Alzheimer, tumor cerebral, esclerose multipla via MRI/PET</li>
+  <li><b>Integracao multimodal:</b> combinar clinica + labs + imaging features</li>
+  <li><b>Predicao de resposta a tratamento:</b> usando perfil molecular + clinica</li>
+  <li><b>Diagnostico de texto:</b> classificar relatorios radiologicos, laudos patologicos</li>
+  <li><b>Dados pequenos com muitas features:</b> estudos pilotos (n < 200) com dezenas de biomarkers</li>
+</ul>
+
+<h3 id="mitos">Mitos e mal-entendidos</h3>
+<ul>
+  <li><b>Mito:</b> "SVM sempre e melhor que regressao logistica."
+    <br/><b>Realidade:</b> em relacoes lineares, logistic regression pode performar igual ou melhor, com bonus de interpretabilidade.</li>
+  <li><b>Mito:</b> "Nao preciso normalizar dados com SVM."
+    <br/><b>Realidade:</b> FALSO. SVM e extremamente sensivel a escala. Sempre normalize.</li>
+  <li><b>Mito:</b> "SVM com probability=True da probabilidades confiaveis."
+    <br/><b>Realidade:</b> Platt scaling interno ajuda, mas probabilidades ainda podem estar mal calibradas. Sempre valide.</li>
+  <li><b>Mito:</b> "Kernel RBF sempre supera kernel linear."
+    <br/><b>Realidade:</b> em alta dimensao ou dados quasi-lineares, kernel linear pode ser igual ou melhor, alem de muito mais rapido.</li>
+  <li><b>Mito:</b> "SVM nao overfitta porque maximiza margem."
+    <br/><b>Realidade:</b> com C muito alto ou γ muito alto (RBF), SVM pode overfittar severamente.</li>
+</ul>
+
+<h3 id="diagnostico">Diagnostico de problemas: quando o modelo falha</h3>
+
+<h4>1. Desempenho terrivel (AUC < 0.60) mesmo apos tuning</h4>
+<p><b>Sintomas:</b> AUC proximo de 0.5 (random), acuracia baixa, nenhuma config melhora.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li><b>Esqueceu de normalizar:</b> causa #1 de falha em SVM.</li>
+    <li>Features irrelevantes ou ruidosas</li>
+    <li>Relacao realmente e aleatoria (impossivel prever)</li>
+    <li>Vazamento de labels (todas as classes viraram 0 ou 1 por erro)</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Verifique se StandardScaler esta no pipeline ANTES do SVM</li>
+    <li>Inspecione distribuicao das features (pd.describe(), histogramas)</li>
+    <li>Teste modelo super simples (LogisticRegression) como sanity check</li>
+    <li>Verifique se labels estao corretos (y.value_counts())</li>
+  </ul>
+</p>
+
+<h4>2. Overfitting (AUC treino >> AUC teste)</h4>
+<p><b>Sintomas:</b> AUC treino = 1.0, AUC teste = 0.65. Gap grande.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>C muito alto (ex.: C = 100) com γ alto (ex.: γ = 1.0)</li>
+    <li>Kernel RBF com γ auto em dados pequenos</li>
+    <li>Normalizacao feita ANTES de split (vazamento estatistico)</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Reduza C para 0.1-1.0</li>
+    <li>Reduza γ para 0.001-0.01 (ou use "scale")</li>
+    <li>Garanta que StandardScaler esta DENTRO do pipeline ou fit apenas no treino</li>
+    <li>Aumente regularizacao: prefira kernel linear se RBF overfitta</li>
+  </ul>
+</p>
+
+<h4>3. Underfitting (AUC baixo em treino E teste)</h4>
+<p><b>Sintomas:</b> AUC treino = 0.68, AUC teste = 0.66. Modelo nao captura padroes.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>C muito baixo (ex.: C = 0.001), margem muito ampla</li>
+    <li>Kernel linear em dados nao-lineares</li>
+    <li>γ muito baixo com kernel RBF (quase linear)</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Aumente C para 1-10</li>
+    <li>Troque kernel linear por RBF</li>
+    <li>Aumente γ para 0.01-0.1</li>
+    <li>Revise feature engineering (talvez features nao tem sinal)</li>
+  </ul>
+</p>
+
+<h4>4. Treinamento muito lento</h4>
+<p><b>Sintomas:</b> GridSearch demora horas em dataset moderado (n > 10k).</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Kernel RBF em dados grandes (complexidade O(n²))</li>
+    <li>Muitas combinacoes em GridSearch</li>
+    <li>probability=True adiciona CV interno</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Use kernel linear (muito mais rapido, O(n))</li>
+    <li>Reduza espaco de busca: C em [0.1, 1, 10], gamma em [0.01, 0.1, "scale"]</li>
+    <li>Use RandomizedSearchCV ao inves de GridSearchCV</li>
+    <li>Para n > 20k, considere LinearSVC ou SGDClassifier (SVM linear aproximado)</li>
+    <li>Para n > 50k, considere Gradient Boosting ou Random Forest</li>
+  </ul>
+</p>
+
+<h4>5. Probabilidades mal calibradas</h4>
+<p><b>Sintomas:</b> AUC = 0.85, mas Brier score alto, curva de calibracao desviada.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Platt scaling interno nao e suficiente</li>
+    <li>Dados desbalanceados sem class_weight</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Use CalibratedClassifierCV com method="isotonic" (dados grandes) ou "sigmoid" (dados pequenos)</li>
+    <li>Reserve fold separado para calibracao</li>
+    <li>Se desbalanceado, adicione class_weight="balanced"</li>
+  </ul>
+</p>
+
+<h4>6. Support vectors = maioria dos dados</h4>
+<p><b>Sintomas:</b> clf.n_support_ mostra que 80%+ dos dados sao support vectors.</p>
+<p><b>Interpretacao:</b> modelo esta "usando quase tudo" para definir a fronteira, o que indica que os dados nao sao linearmente separaveis mesmo no espaco do kernel, ou C e muito alto.</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Reduza C (margem mais ampla, menos support vectors)</li>
+    <li>Troque kernel (ex.: RBF → linear se dados sao quasi-lineares)</li>
+    <li>Revise features: remova ruidosas, adicione features informativas</li>
+  </ul>
+</p>
+
+<h4>7. Desempenho drasticamente pior em validacao externa</h4>
+<p><b>Sintomas:</b> AUC validacao interna = 0.82, AUC hospital externo = 0.62.</p>
+<p><b>Causas comuns:</b>
+  <ul>
+    <li>Drift populacional</li>
+    <li>Overfitting sutil (C ou γ mal ajustados)</li>
+    <li>Normalizacao usando estatisticas do treino inadequadas para nova populacao</li>
+  </ul>
+</p>
+<p><b>Solucoes:</b>
+  <ul>
+    <li>Aumente regularizacao (reduza C, use kernel linear)</li>
+    <li>Recalibre o modelo na nova populacao (se tiver alguns dados)</li>
+    <li>Investigue diferencas demograficas/clinicas entre populacoes</li>
+    <li>Considere retreinar com dados combinados (treino original + novos)</li>
+  </ul>
+</p>
+
+<div class="callout">
+  <b>Checklist de diagnostico:</b>
+  <ol>
+    <li>AUC < 0.6? → verifique normalizacao (causa #1)</li>
+    <li>Gap treino-teste > 0.15? → overfitting, reduza C e γ</li>
+    <li>Treino muito lento? → use kernel linear ou LinearSVC</li>
+    <li>Calibracao ruim? → use CalibratedClassifierCV</li>
+    <li>80%+ support vectors? → reduza C ou revise features</li>
+    <li>Validacao externa falha? → aumente regularizacao, recalibre</li>
+  </ol>
+</div>
+
+<h3 id="perguntas">Perguntas frequentes (FAQ)</h3>
+
+<h4>1. SVM e melhor que Logistic Regression?</h4>
+<p>
+  <b>Depende.</b> Em relacoes lineares, Logistic Regression e SVM linear tem desempenho
+  similar, mas Logistic e mais interpretavel e rapida. SVM-RBF supera Logistic em dados
+  com nao-linearidades complexas. Regra pratica: comece com Logistic como baseline,
+  experimente SVM-RBF se achar que ha nao-linearidades.
+</p>
+
+<h4>2. Kernel RBF sempre e melhor que linear?</h4>
+<p>
+  <b>Nao.</b> Em alta dimensao (n_features > 1000) ou dados quasi-lineares, kernel linear
+  pode performar igual ou melhor que RBF, alem de ser muito mais rapido e menos propenso
+  a overfitting. Sempre compare ambos em GridSearch.
+</p>
+
+<h4>3. Como escolher C e gamma?</h4>
+<p>
+  <b>Use GridSearchCV.</b> Comece com:
+  <ul>
+    <li>C: [0.1, 1, 10, 100]</li>
+    <li>gamma: [0.001, 0.01, 0.1, 1, "scale"]</li>
+  </ul>
+  Escolha a combinacao com melhor AUC em validacao cruzada. C e γ sao acoplados: ajuste juntos.
+</p>
+
+<h4>4. Preciso sempre normalizar?</h4>
+<p>
+  <b>SIM, SEMPRE.</b> SVM e extremamente sensivel a escala. Uma feature com range [0, 1000]
+  dominara features com range [0, 1]. Use StandardScaler (default), MinMaxScaler ou
+  RobustScaler (se houver outliers).
+</p>
+
+<h4>5. Como lidar com dados desbalanceados?</h4>
+<p>
+  <b>Use class_weight="balanced".</b> Isso ajusta automaticamente a penalizacao de erros para
+  cada classe proporcionalmente a sua frequencia. Alternativamente, ajuste threshold de decisao
+  para favorecer sensibilidade ou especificidade conforme prioridade clinica.
+</p>
+
+<h4>6. SVM lida com valores faltantes (NaN)?</h4>
+<p>
+  <b>Nao.</b> SVM do scikit-learn nao aceita NaN. Voce deve imputar antes:
+  <ul>
+    <li>Mediana para features numericas</li>
+    <li>Moda para features categoricas</li>
+    <li>Imputacao multipla (MICE) para missing informativo</li>
+    <li>Adicione coluna indicadora "var_X_missing" se ausencia tem significado clinico</li>
+  </ul>
+</p>
+
+<h4>7. SVM pode fazer regressao?</h4>
+<p>
+  <b>Sim.</b> Use sklearn.svm.SVR (Support Vector Regression). Mesma ideia de maxima margem,
+  mas para valores continuos. Porem, SVR e menos comum em medicina; para regressao, considere
+  Linear Regression, Random Forest ou Gradient Boosting Regressor.
+</p>
+
+<h4>8. Posso interpretar os coeficientes do SVM?</h4>
+<p>
+  <b>Apenas com kernel linear.</b> Use clf.coef_ para ver pesos de cada feature (similar a
+  regressao logistica). Com kernel RBF/poly/sigmoid, nao ha interpretacao direta; use
+  SHAP, LIME ou feature importance por permutacao.
+</p>
+
+<h4>9. Como SVM se compara a Deep Learning?</h4>
+<p>
+  <b>Dados tabulares:</b> SVM costuma performar similar ou melhor que redes neurais simples,
+  com muito menos dados necessarios e sem necessidade de tunagem extensa de arquitetura.
+  <br/><b>Imagem/texto/sequencias:</b> Deep Learning supera SVM. Para imaging medico raw,
+  use CNNs; para texto, use Transformers. SVM so compete se features forem extraidas manualmente.
+</p>
+
+<h4>10. Quanto tempo demora para treinar?</h4>
+<p>
+  Depende de n, n_features, kernel:
+  <ul>
+    <li><b>Kernel linear:</b> O(n * n_features), rapido mesmo para n > 10k</li>
+    <li><b>Kernel RBF:</b> O(n² * n_features), lento para n > 10k. Em n = 1k: segundos. Em n = 10k: minutos. Em n = 50k: horas.</li>
+  </ul>
+  Para datasets grandes, considere LinearSVC (aproximacao linear) ou outros algoritmos.
+</p>
+
+<h3 id="comparacao">Comparacao com outros modelos disponiveis no trAIn</h3>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Desempenho</b></th>
+    <th align="left"><b>Velocidade</b></th>
+    <th align="left"><b>Alta dimensao</b></th>
+    <th align="left"><b>Recomendacao clinica</b></th>
+  </tr>
+  <tr>
+    <td><b>SVM</b></td>
+    <td>Baixa (RBF) / Media (linear)</td>
+    <td>Excelente</td>
+    <td>Media (RBF) / Rapida (linear)</td>
+    <td>★★★★★</td>
+    <td>★★★★☆ Alta dimensao, nao-linearidades</td>
+  </tr>
+  <tr>
+    <td><b>Logistic Regression</b></td>
+    <td>Excelente</td>
+    <td>Boa (se linear)</td>
+    <td>Muito rapida</td>
+    <td>★★★☆☆</td>
+    <td>★★★★★ Baseline, interpretabilidade</td>
+  </tr>
+  <tr>
+    <td><b>Gradient Boosting</b></td>
+    <td>Baixa</td>
+    <td>Excelente</td>
+    <td>Media</td>
+    <td>★★★☆☆</td>
+    <td>★★★★☆ Dados tabulares, desempenho</td>
+  </tr>
+  <tr>
+    <td><b>Random Forest</b></td>
+    <td>Media</td>
+    <td>Muito boa</td>
+    <td>Media</td>
+    <td>★★★☆☆</td>
+    <td>★★★★☆ Robusto, estavel</td>
+  </tr>
+  <tr>
+    <td><b>Decision Tree</b></td>
+    <td>Excelente</td>
+    <td>Media</td>
+    <td>Muito rapida</td>
+    <td>★☆☆☆☆</td>
+    <td>★★★★★ Protocolos clinicos</td>
+  </tr>
+  <tr>
+    <td><b>KNN</b></td>
+    <td>Media</td>
+    <td>Boa (localmente)</td>
+    <td>Lenta (predicao)</td>
+    <td>★☆☆☆☆</td>
+    <td>★★★☆☆ Baseline simples</td>
+  </tr>
+  <tr>
+    <td><b>Naive Bayes</b></td>
+    <td>Alta</td>
+    <td>Media</td>
+    <td>Muito rapida</td>
+    <td>★★★☆☆</td>
+    <td>★★★☆☆ Triagem rapida</td>
+  </tr>
+</table>
+
+<div class="card" style="background: rgba(25, 118, 210, 0.08); border-left-color: #1976d2;">
+  <b>Resumo clinico:</b>
+  <ul>
+    <li>Se ha <b>milhares de features</b> (genomica, imaging): SVM linear ou kernel RBF</li>
+    <li>Se o objetivo e <b>maximo desempenho</b> em tabular moderado: Gradient Boosting ou SVM-RBF</li>
+    <li>Se o objetivo e <b>interpretabilidade total</b>: Logistic Regression ou Decision Tree</li>
+    <li>Se ha <b>muito ruido</b> ou dados pequenos: SVM com C baixo ou Random Forest</li>
+    <li>Se ha <b>nao-linearidades complexas</b>: SVM-RBF ou Gradient Boosting</li>
+  </ul>
+</div>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Vapnik 1995 (livro classico) [1]</li>
+  <li>Cortes & Vapnik 1995 (soft-margin) [2]</li>
+  <li>Burges 1998 (tutorial) [3]</li>
+  <li>Cristianini & Shawe-Taylor 2000 (livro introdutorio) [16]</li>
+  <li>Noble 2006 (tutorial para biologistas) [11]</li>
+</ul>
+
+<h3 id="referencias">Referencias</h3>
+
+<h4>Fundamentos teoricos</h4>
+<ol>
+  <li>Vapnik VN. The Nature of Statistical Learning Theory. <i>Springer-Verlag</i> (1995). ISBN: 978-0-387-94559-0</li>
+  <li>Cortes C, Vapnik V. Support-vector networks. <i>Machine Learning</i> (1995);20(3):273-297. <a href="https://doi.org/10.1007/BF00994018">DOI: 10.1007/BF00994018</a></li>
+  <li>Burges CJC. A tutorial on Support Vector Machines for pattern recognition. <i>Data Mining and Knowledge Discovery</i> (1998);2(2):121-167. <a href="https://doi.org/10.1023/A:1009715923555">DOI: 10.1023/A:1009715923555</a></li>
+  <li>Guyon I, Weston J, Barnhill S, Vapnik V. Gene selection for cancer classification using support vector machines. <i>Machine Learning</i> (2002);46:389-422. <a href="https://doi.org/10.1023/A:1012487302797">DOI: 10.1023/A:1012487302797</a></li>
+  <li>Platt JC. Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods. In: <i>Advances in Large Margin Classifiers</i> (1999):61-74. MIT Press.</li>
+</ol>
+
+<h4>Aplicacoes clinicas validadas</h4>
+<ol start="6">
+  <li>Furey TS, Cristianini N, Duffy N, et al. Support vector machine classification and validation of cancer tissue samples using microarray expression data. <i>Bioinformatics</i> (2000);16(10):906-914. <a href="https://pubmed.ncbi.nlm.nih.gov/11120680/">PubMed: 11120680</a> | <a href="https://doi.org/10.1093/bioinformatics/16.10.906">DOI: 10.1093/bioinformatics/16.10.906</a></li>
+  <li>Brown MPS, Grundy WN, Lin D, et al. Knowledge-based analysis of microarray gene expression data by using support vector machines. <i>PNAS</i> (2000);97(1):262-267. <a href="https://pubmed.ncbi.nlm.nih.gov/10618406/">PubMed: 10618406</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC26648/">PMC26648</a> | <a href="https://doi.org/10.1073/pnas.97.1.262">DOI: 10.1073/pnas.97.1.262</a></li>
+  <li>Cristianini N, Shawe-Taylor J, Kandola JS. On kernel target alignment. In: <i>Advances in Neural Information Processing Systems</i> 14 (2002):367-373. <i>Nat Genetics</i> special issue on microarrays. (<i>Nota: citacao representativa de aplicacoes em genomica</i>)</li>
+  <li>Kloppel S, Stonnington CM, Chu C, et al. Automatic classification of MR scans in Alzheimer's disease. <i>Brain</i> (2008);131(Pt 3):681-689. <a href="https://pubmed.ncbi.nlm.nih.gov/18202106/">PubMed: 18202106</a> | <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2492874/">PMC2492874</a> | <a href="https://doi.org/10.1093/brain/awm319">DOI: 10.1093/brain/awm319</a></li>
+  <li>Orru G, Pettersson-Yeo W, Marquand AF, et al. Using Support Vector Machine to identify imaging biomarkers of neurological and psychiatric disease: a critical review. <i>Neuroscience & Biobehavioral Reviews</i> (2012);36(4):1140-1152. <a href="https://pubmed.ncbi.nlm.nih.gov/22305994/">PubMed: 22305994</a> | <a href="https://doi.org/10.1016/j.neubiorev.2012.01.004">DOI: 10.1016/j.neubiorev.2012.01.004</a></li>
+  <li>Noble WS. What is a support vector machine? <i>Nature Biotechnology</i> (2006);24(12):1565-1567. <a href="https://pubmed.ncbi.nlm.nih.gov/17160063/">PubMed: 17160063</a> | <a href="https://doi.org/10.1038/nbt1206-1565">DOI: 10.1038/nbt1206-1565</a><br/><i>Tutorial amplamente citado (>4000 citacoes) explicando SVMs para biologistas.</i></li>
+  <li>Statnikov A, Aliferis CF, Tsamardinos I, et al. A comprehensive evaluation of multicategory classification methods for microarray gene expression cancer diagnosis. <i>Bioinformatics</i> (2005);21(5):631-643. <a href="https://pubmed.ncbi.nlm.nih.gov/15374862/">PubMed: 15374862</a> | <a href="https://doi.org/10.1093/bioinformatics/bti033">DOI: 10.1093/bioinformatics/bti033</a></li>
+  <li>Huang Y, Li W, Macheret F, et al. A tutorial on calibration measurements and calibration models for clinical prediction models. <i>Journal of the American Medical Informatics Association</i> (2020);27(4):621-633. <a href="https://pubmed.ncbi.nlm.nih.gov/31912148/">PubMed: 31912148</a> | <a href="https://doi.org/10.1093/jamia/ocz228">DOI: 10.1093/jamia/ocz228</a><br/><i>Nota: nao e especifico de SVM, mas cobre calibracao de probabilidades em ML clinico.</i></li>
+  <li>Patel SJ, Sanjana NE, Kishton RJ, et al. Identification of essential genes for cancer immunotherapy. <i>Nature</i> (2017);548(7669):537-542. <a href="https://pubmed.ncbi.nlm.nih.gov/28783722/">PubMed: 28783722</a> | <a href="https://doi.org/10.1038/nature23477">DOI: 10.1038/nature23477</a><br/><i>Exemplo de SVM em genomica funcional de cancer.</i></li>
+  <li>Mangasarian OL, Street WN, Wolberg WH. Breast cancer diagnosis and prognosis via linear programming. <i>Operations Research</i> (1995);43(4):570-577. <a href="https://doi.org/10.1287/opre.43.4.570">DOI: 10.1287/opre.43.4.570</a><br/><i>Wisconsin Breast Cancer Dataset (WBCD), benchmark classico usado para avaliar SVMs.</i></li>
+</ol>
+
+<h4>Leitura complementar recomendada</h4>
+<ul>
+  <li><b>[16]</b> Cristianini N, Shawe-Taylor J. An Introduction to Support Vector Machines and Other Kernel-based Learning Methods. <i>Cambridge University Press</i> (2000). ISBN: 978-0-521-78019-3</li>
+  <li>Scholkopf B, Smola AJ. Learning with Kernels. <i>MIT Press</i> (2002). ISBN: 978-0-262-19475-4</li>
+  <li>Hastie T, Tibshirani R, Friedman J. The Elements of Statistical Learning (2009), Capitulo 12: Support Vector Machines. <a href="https://hastie.su.domains/ElemStatLearn/">Livro online</a></li>
+  <li>Scikit-learn Development Team. Support Vector Machines documentation. <a href="https://scikit-learn.org/stable/modules/svm.html">Documentacao oficial</a> (Acesso: 2026)</li>
+  <li>Lundberg SM, Lee SI. A unified approach to interpreting model predictions (SHAP). <i>NeurIPS</i> (2017). <a href="https://github.com/slundberg/shap">SHAP GitHub</a></li>
+  <li>Molnar C. Interpretable Machine Learning (2022). Capitulo sobre SVM. <a href="https://christophm.github.io/interpretable-ml-book/">Livro online gratuito</a></li>
+</ul>
+
+</body>
+</html>

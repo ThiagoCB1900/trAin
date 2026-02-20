@@ -22,21 +22,89 @@ MODEL_LITERATURE_FILES = {
 
 def _wrap_html(body_html: str, is_dark: bool) -> str:
     colors = {
-        "bg": "#121212" if is_dark else "#ffffff",
-        "text": "#e6e6e6" if is_dark else "#1f1f1f",
-        "muted": "#b5b5b5" if is_dark else "#5a5a5a",
-        "accent": "#2e7d32" if is_dark else "#2e7d32",
-        "card": "#1c1c1c" if is_dark else "#f7f4ef",
-        "border": "#3a3a3a" if is_dark else "#d6d3cf",
+        "bg": "#14212b" if is_dark else "#ffffff",
+        "text": "#e7f2ef" if is_dark else "#1f2d2a",
+        "muted": "#a9c1bc" if is_dark else "#5f7370",
+        "accent": "#49b9a6" if is_dark else "#2f8f83",
+        "accent_hover": "#5ecab7" if is_dark else "#3ca094",
+        "card": "#1a2b38" if is_dark else "#f4f8f7",
+        "border": "#2d4152" if is_dark else "#c8dbd5",
+        "callout_bg": "#1f4b4d" if is_dark else "#d8efea",
+        "warning_bg": "#4d2020" if is_dark else "#ffe8e8",
+        "code_bg": "#0f1720" if is_dark else "#edf5f2",
     }
     return (
-        "<html><body style=\""
-        f"font-family: Segoe UI, Arial; color: {colors['text']}; background: {colors['bg']};"
-        "\">"
-        "<style>"
-        "a { color: " + colors["accent"] + "; text-decoration: none; }"
-        "code, pre { background: " + colors["card"] + "; border: 1px solid " + colors["border"] + "; }"
-        "</style>"
+        "<html><head><style>"
+        "* { color: " + colors["text"] + " !important; }"
+        "body { "
+        f"  font-family: 'Segoe UI', Arial, sans-serif !important; "
+        f"  color: {colors['text']} !important; "
+        f"  background: {colors['bg']} !important; "
+        "  line-height: 1.7 !important; "
+        "  padding: 4px !important; "
+        "}"
+        "h1, h2, h3, h4, h5, h6 { "
+        f"  color: {colors['text']} !important; "
+        "  font-weight: 700 !important; "
+        "}"
+        "a { "
+        f"  color: {colors['accent']} !important; "
+        "  text-decoration: none !important; "
+        "}"
+        "a:hover { "
+        f"  color: {colors['accent_hover']} !important; "
+        "  text-decoration: underline !important; "
+        "}"
+        "code, pre, .formula { "
+        f"  background: {colors['code_bg']} !important; "
+        f"  border: 1px solid {colors['border']} !important; "
+        f"  color: {colors['text']} !important; "
+        "  border-radius: 6px !important; "
+        "  padding: 4px 6px !important; "
+        "}"
+        ".card, .formula-box { "
+        f"  border: 1px solid {colors['border']} !important; "
+        f"  background: {colors['card']} !important; "
+        "  border-radius: 10px !important; "
+        "  padding: 12px !important; "
+        "}"
+        ".callout { "
+        f"  border-left: 4px solid {colors['accent']} !important; "
+        f"  background: {colors['callout_bg']} !important; "
+        f"  color: {colors['text']} !important; "
+        "  border-radius: 8px !important; "
+        "  padding: 12px !important; "
+        "}"
+        ".warning { "
+        f"  border-left: 4px solid #d16b6b !important; "
+        f"  background: {colors['warning_bg']} !important; "
+        f"  color: {colors['text']} !important; "
+        "  border-radius: 8px !important; "
+        "  padding: 12px !important; "
+        "}"
+        "table { "
+        f"  border-collapse: collapse !important; "
+        "  width: 100% !important; "
+        "  margin: 12px 0 !important; "
+        "}"
+        "table th, table td { "
+        f"  border: 1px solid {colors['border']} !important; "
+        f"  color: {colors['text']} !important; "
+        "  padding: 10px !important; "
+        "  text-align: left !important; "
+        "}"
+        "table th { "
+        f"  background: {colors['card']} !important; "
+        "  font-weight: 700 !important; "
+        "}"
+        "p, li, td, th, span, div { "
+        f"  color: {colors['text']} !important; "
+        "}"
+        "b, strong { "
+        f"  color: {colors['text']} !important; "
+        "  font-weight: 700 !important; "
+        "}"
+        "</style></head><body>"
         f"{body_html}"
         "</body></html>"
     )

@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6.QtCore import Qt, QRect, QThread, pyqtSignal, QEvent, QTimer
-from PyQt6.QtGui import QPalette, QColor, QPainter
+from PyQt6.QtGui import QPalette, QColor, QPainter, QFont
 
 # Importando lógica existente
 from data_handler import load_data, separate_features_target, identify_problem_type, split_data
@@ -35,6 +35,15 @@ class ToggleSwitch(QAbstractButton):
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(40, 20)
+        self._on_color = QColor(46, 125, 50)
+        self._off_color = QColor(200, 200, 200)
+        self._knob_color = QColor(245, 245, 245)
+
+    def set_colors(self, on_color: QColor, off_color: QColor, knob_color: QColor):
+        self._on_color = on_color
+        self._off_color = off_color
+        self._knob_color = knob_color
+        self.update()
 
     def paintEvent(self, _event):
         painter = QPainter(self)
@@ -42,8 +51,7 @@ class ToggleSwitch(QAbstractButton):
 
         rect = self.rect()
         radius = rect.height() / 2
-        track_color = QColor(46, 125, 50) if self.isChecked() else QColor(200, 200, 200)
-        knob_color = QColor(245, 245, 245)
+        track_color = self._on_color if self.isChecked() else self._off_color
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(track_color)
@@ -52,7 +60,7 @@ class ToggleSwitch(QAbstractButton):
         knob_size = rect.height() - 4
         knob_x = rect.width() - knob_size - 2 if self.isChecked() else 2
         knob_rect = QRect(knob_x, 2, knob_size, knob_size)
-        painter.setBrush(knob_color)
+        painter.setBrush(self._knob_color)
         painter.drawEllipse(knob_rect)
 
 
@@ -217,7 +225,8 @@ class MLWorker(QThread):
 class MLApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ML Reprodutível Desktop v3 (Otimizado)")
+        self.setObjectName("mainWindow")
+        self.setWindowTitle("trAIn Health • Clinical ML Studio")
         self.setGeometry(100, 100, 1200, 850)
         
         self.df = None
@@ -242,13 +251,18 @@ class MLApp(QMainWindow):
         
     def init_ui(self):
         central_widget = QWidget()
+        central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
+        self.setFont(QFont("Segoe UI", 10))
         main_layout = QHBoxLayout(central_widget)
         
         # --- Painel Lateral ---
         sidebar = QWidget()
+        sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(320)
         sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(12, 12, 12, 12)
+        sidebar_layout.setSpacing(10)
         
         # 1. Dados
         group_data = QGroupBox("1. Dados (CSV ou Parquet)")
@@ -303,7 +317,8 @@ class MLApp(QMainWindow):
         self.lbl_status = QLabel("Pronto")
         
         self.btn_run = QPushButton(" Executar Experimento")
-        self.btn_run.setStyleSheet("background-color: #2E7D32; color: white; font-weight: bold; height: 45px;")
+        self.btn_run.setObjectName("primaryButton")
+        self.btn_run.setMinimumHeight(46)
         self.btn_run.clicked.connect(self.run_experiment)
         
         group_models.setSizePolicy(group_models.sizePolicy().horizontalPolicy(), group_models.sizePolicy().verticalPolicy())
@@ -317,14 +332,23 @@ class MLApp(QMainWindow):
         
         # --- Painel Principal ---
         self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
+        self.tabs.setDocumentMode(True)
         self.welcome_tab = QWidget()
         welcome_layout = QVBoxLayout(self.welcome_tab)
+        welcome_layout.setContentsMargins(16, 16, 16, 16)
+        welcome_layout.setSpacing(10)
         header_row = QHBoxLayout()
-        header_row.addWidget(QLabel("<h1>trAIn V.5</h1>"))
+        brand = QLabel()
+        brand.setObjectName("brandTitle")
+        brand.setTextFormat(Qt.TextFormat.RichText)
+        self.brand_label = brand
+        header_row.addWidget(brand)
         header_row.addStretch()
         theme_wrap = QHBoxLayout()
         theme_wrap.setContentsMargins(0, 0, 0, 0)
         theme_label = QLabel("Tema")
+        theme_label.setObjectName("themeLabel")
         self.theme_toggle = ToggleSwitch()
         self.theme_toggle.setToolTip("Alternar tema claro/escuro")
         self.theme_toggle.toggled.connect(self.set_theme)
@@ -334,6 +358,10 @@ class MLApp(QMainWindow):
         theme_container.setLayout(theme_wrap)
         header_row.addWidget(theme_container)
         welcome_layout.addLayout(header_row)
+        welcome_subtitle = QLabel("Plataforma de experimentação em ML para saúde com foco em reprodutibilidade e governança.")
+        welcome_subtitle.setObjectName("brandSubtitle")
+        welcome_subtitle.setWordWrap(True)
+        welcome_layout.addWidget(welcome_subtitle)
         welcome_layout.addWidget(QLabel("Suporte a <b>Parquet</b> e processamento em <b>segundo plano</b> para arquivos grandes."))
         welcome_layout.addWidget(QLabel("<h3>Modelos selecionados</h3>"))
         self.list_selected_models = QListWidget()
@@ -376,6 +404,7 @@ class MLApp(QMainWindow):
         main_layout.addWidget(sidebar)
 
         self.right_container = QWidget()
+        self.right_container.setObjectName("rightContainer")
         self.right_layout = QVBoxLayout(self.right_container)
         self.right_layout.setContentsMargins(0, 0, 0, 0)
         self.right_layout.addWidget(self.tabs)
@@ -866,86 +895,342 @@ class MLApp(QMainWindow):
     def apply_theme(self):
         app = QApplication.instance()
         if self.is_dark_theme:
-            palette = QPalette()
-            palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
-            palette.setColor(QPalette.ColorRole.WindowText, QColor(230, 230, 230))
-            palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
-            palette.setColor(QPalette.ColorRole.AlternateBase, QColor(35, 35, 35))
-            palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(230, 230, 230))
-            palette.setColor(QPalette.ColorRole.ToolTipText, QColor(30, 30, 30))
-            palette.setColor(QPalette.ColorRole.Text, QColor(230, 230, 230))
-            palette.setColor(QPalette.ColorRole.Button, QColor(40, 40, 40))
-            palette.setColor(QPalette.ColorRole.ButtonText, QColor(230, 230, 230))
-            palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 255, 255))
-            palette.setColor(QPalette.ColorRole.Highlight, QColor(46, 125, 50))
-            palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
-            if app:
-                app.setPalette(palette)
-            self.setStyleSheet(
-                "QWidget { color: #e6e6e6; }"
-                "QGroupBox { border: 1px solid #3a3a3a; border-radius: 8px; margin-top: 10px; padding-top: 18px; }"
-                "QGroupBox::title {"
-                "  subcontrol-origin: margin; left: 12px; top: 0px;"
-                "  background: #1e1e1e; padding: 1px 8px; color: #cfcfcf;"
-                "  border: 1px solid #3a3a3a; border-radius: 6px;"
-                "}"
-                "QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QListWidget, QTableWidget {"
-                "  background-color: #1f1f1f; color: #e6e6e6; border: 1px solid #3a3a3a;"
-                "  border-radius: 6px; padding: 4px;"
-                "}"
-                "QComboBox::drop-down { border: none; width: 22px; }"
-                "QComboBox QAbstractItemView { background: #1f1f1f; color: #e6e6e6; selection-background-color: #2e7d32; }"
-                "QTabWidget::pane { border: 1px solid #3a3a3a; border-radius: 6px; }"
-                "QTabBar::tab { background: #2b2b2b; color: #e6e6e6; padding: 6px 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; }"
-                "QTabBar::tab:selected { background: #3a3a3a; }"
-                "QPushButton { background: #2b2d30; color: #e6e6e6; border: 1px solid #3a3a3a; border-radius: 8px; padding: 6px 12px; }"
-                "QPushButton:hover { background: #3a3a3a; }"
-                "QPushButton:pressed { background: #262626; }"
-                "QPushButton:disabled { background: #252525; color: #777777; border-color: #2b2b2b; }"
-                "QHeaderView::section { background: #2b2b2b; color: #e6e6e6; border: 1px solid #3a3a3a; padding: 6px; }"
-                "QTableWidget { gridline-color: #3a3a3a; }"
-                "QScrollBar:vertical { background: #1f1f1f; width: 12px; margin: 2px; }"
-                "QScrollBar::handle:vertical { background: #3a3a3a; border-radius: 6px; min-height: 24px; }"
-                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
-                "#literaturePanel { background: #1b1b1b; border-top: 1px solid #3a3a3a; }"
-                "#literatureHandle { background: #2b2b2b; border-top: 1px solid #3a3a3a; }"
-                "#literatureHandle QLabel { color: #e6e6e6; font-weight: bold; }"
-                "#literatureViewer { background: #1f1f1f; color: #e6e6e6; border: 1px solid #3a3a3a; border-radius: 6px; padding: 6px; }"
-            )
+            colors = {
+                "window": "#0f1720",
+                "surface": "#14212b",
+                "surface_alt": "#1a2b38",
+                "panel": "#12202a",
+                "border": "#2d4152",
+                "text": "#e7f2ef",
+                "muted": "#a9c1bc",
+                "accent": "#49b9a6",
+                "accent_hover": "#5ecab7",
+                "accent_pressed": "#3ba793",
+                "accent_soft": "#1f4b4d",
+                "accent_light": "#6dd4c0",
+                "danger": "#d16b6b",
+                "shadow": "rgba(0, 0, 0, 0.3)",
+            }
         else:
-            if app:
-                app.setPalette(app.style().standardPalette())
-            self.setStyleSheet(
-                "QWidget { color: #1f1f1f; }"
-                "QGroupBox { border: 1px solid #d6d3cf; border-radius: 8px; margin-top: 10px; padding-top: 18px; background: #f4f1ec; }"
-                "QGroupBox::title {"
-                "  subcontrol-origin: margin; left: 12px; top: 0px;"
-                "  background: #f4f1ec; padding: 1px 8px; color: #3b3b3b;"
-                "  border: 1px solid #d6d3cf; border-radius: 6px;"
-                "}"
-                "QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QListWidget, QTableWidget {"
-                "  background-color: #ffffff; color: #1f1f1f; border: 1px solid #d6d3cf;"
-                "  border-radius: 6px; padding: 4px;"
-                "}"
-                "QComboBox::drop-down { border: none; width: 22px; }"
-                "QComboBox QAbstractItemView { background: #ffffff; color: #1f1f1f; selection-background-color: #2e7d32; selection-color: #ffffff; }"
-                "QTabWidget::pane { border: 1px solid #d6d3cf; border-radius: 6px; background: #ffffff; }"
-                "QTabBar::tab { background: #e8e3dc; color: #1f1f1f; padding: 6px 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; }"
-                "QTabBar::tab:selected { background: #ffffff; }"
-                "QPushButton { background: #ede8e1; color: #1f1f1f; border: 1px solid #d6d3cf; border-radius: 8px; padding: 6px 12px; }"
-                "QPushButton:hover { background: #f4efe9; }"
-                "QPushButton:pressed { background: #e3ddd6; }"
-                "QPushButton:disabled { background: #f6f3ef; color: #9a948d; border-color: #e4dfd7; }"
-                "QHeaderView::section { background: #e8e3dc; color: #1f1f1f; border: 1px solid #d6d3cf; padding: 6px; }"
-                "QTableWidget { gridline-color: #d6d3cf; }"
-                "QScrollBar:vertical { background: #f4f1ec; width: 12px; margin: 2px; }"
-                "QScrollBar::handle:vertical { background: #d6d3cf; border-radius: 6px; min-height: 24px; }"
-                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
-                "#literaturePanel { background: #ffffff; border-top: 1px solid #d6d3cf; }"
-                "#literatureHandle { background: #e8e3dc; border-top: 1px solid #d6d3cf; }"
-                "#literatureHandle QLabel { color: #1f1f1f; font-weight: bold; }"
-                "#literatureViewer { background: #ffffff; color: #1f1f1f; border: 1px solid #d6d3cf; border-radius: 6px; padding: 6px; }"
-            )
+            colors = {
+                "window": "#f4f8f7",
+                "surface": "#ffffff",
+                "surface_alt": "#edf5f2",
+                "panel": "#eef6f3",
+                "border": "#c8dbd5",
+                "text": "#1f2d2a",
+                "muted": "#5f7370",
+                "accent": "#2f8f83",
+                "accent_hover": "#3ca094",
+                "accent_pressed": "#287b71",
+                "accent_soft": "#d8efea",
+                "accent_light": "#4db3a3",
+                "danger": "#b95858",
+                "shadow": "rgba(0, 0, 0, 0.08)",
+            }
+
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(colors["window"]))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(colors["text"]))
+        palette.setColor(QPalette.ColorRole.Base, QColor(colors["surface"]))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(colors["surface_alt"]))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(colors["surface"]))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(colors["text"]))
+        palette.setColor(QPalette.ColorRole.Text, QColor(colors["text"]))
+        palette.setColor(QPalette.ColorRole.Button, QColor(colors["surface_alt"]))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(colors["text"]))
+        palette.setColor(QPalette.ColorRole.BrightText, QColor("#ffffff"))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(colors["accent"]))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+        if app:
+            app.setPalette(palette)
+
+        self.theme_toggle.set_colors(
+            QColor(colors["accent"]),
+            QColor(colors["border"]),
+            QColor(colors["surface"]),
+        )
+        
+        if hasattr(self, 'brand_label'):
+            if self.is_dark_theme:
+                self.brand_label.setText(f'<span style="color: {colors["accent"]}">tr<span style="color: {colors["accent_light"]}">AI</span>n</span> <span style="color: {colors["text"]}">Health</span>')
+            else:
+                self.brand_label.setText(f'<span style="color: #000000">tr<span style="color: {colors["accent_light"]}">AI</span>n</span> <span style="color: {colors["muted"]}">Health</span>')
+
+        self.setStyleSheet(
+            f"""
+            QToolTip {{
+                background: {colors['surface']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                padding: 6px;
+                border-radius: 6px;
+            }}
+
+            QMainWindow#mainWindow, QWidget#centralWidget {{
+                background: {colors['window']};
+                color: {colors['text']};
+            }}
+
+            QWidget#sidebar {{
+                background: {colors['panel']};
+                border: 1px solid {colors['border']};
+                border-radius: 16px;
+                padding: 4px;
+            }}
+
+            QWidget#rightContainer {{
+                background: transparent;
+            }}
+
+            QLabel#brandTitle {{
+                font-size: 32px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                padding: 4px 0px;
+            }}
+
+            QLabel#brandSubtitle {{
+                color: {colors['muted']};
+                font-size: 13px;
+            }}
+
+            QLabel#themeLabel {{
+                color: {colors['muted']};
+                font-weight: 600;
+            }}
+
+            QGroupBox {{
+                border: 1px solid {colors['border']};
+                border-radius: 14px;
+                margin-top: 14px;
+                padding: 24px 16px 16px 16px;
+                background: {colors['surface']};
+                font-weight: 600;
+            }}
+
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 14px;
+                top: 0px;
+                background: {colors['surface']};
+                color: {colors['muted']};
+                border: 1px solid {colors['border']};
+                border-radius: 10px;
+                padding: 4px 12px;
+                font-weight: 600;
+                font-size: 11px;
+            }}
+
+            QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QListWidget, QTableWidget, QProgressBar {{
+                background-color: {colors['surface']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                border-radius: 10px;
+                padding: 7px 10px;
+                selection-background-color: {colors['accent']};
+                selection-color: {colors['text']};
+                outline: none;
+            }}
+
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QTextEdit:focus, QListWidget:focus, QTableWidget:focus {{
+                border: 1px solid {colors['accent']};
+                outline: none;
+            }}
+
+            QComboBox::drop-down {{ border: none; width: 22px; }}
+
+            QComboBox QAbstractItemView {{
+                background: {colors['surface']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                selection-background-color: {colors['accent']};
+                selection-color: #ffffff;
+            }}
+
+            QListWidget::item {{
+                padding: 8px 12px;
+                margin: 3px 2px;
+                border-radius: 10px;
+                border: 1px solid transparent;
+            }}
+
+            QListWidget::item:hover {{
+                background: {colors['surface_alt']};
+                border: 1px solid {colors['border']};
+            }}
+
+            QListWidget::item:selected {{
+                background: {colors['accent_soft']};
+                border: 1px solid {colors['accent']};
+                color: {colors['text']};
+                font-weight: 600;
+            }}
+
+            QListWidget::item:focus {{
+                outline: none;
+            }}
+
+            QTabWidget#mainTabs::pane {{
+                border: 1px solid {colors['border']};
+                border-radius: 14px;
+                background: {colors['surface']};
+                top: -1px;
+                padding: 2px;
+            }}
+
+            QTabBar::tab {{
+                background: {colors['surface_alt']};
+                color: {colors['muted']};
+                border: 1px solid {colors['border']};
+                border-bottom: none;
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
+                padding: 10px 18px;
+                margin-right: 6px;
+                font-weight: 600;
+                min-width: 80px;
+            }}
+
+            QTabBar::tab:hover {{
+                background: {colors['surface']};
+                color: {colors['text']};
+                border-bottom: none;
+            }}
+
+            QTabBar::tab:selected {{
+                background: {colors['surface']};
+                color: {colors['accent']};
+                font-weight: 700;
+            }}
+
+            QPushButton {{
+                background: {colors['surface_alt']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                border-radius: 11px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+
+            QPushButton:hover {{
+                background: {colors['accent_soft']};
+                border-color: {colors['accent']};
+                color: {colors['accent']};
+            }}
+
+            QPushButton:pressed {{
+                background: {colors['surface']};
+                border-color: {colors['accent_pressed']};
+            }}
+
+            QPushButton:disabled {{
+                background: {colors['surface']};
+                color: {colors['muted']};
+                border-color: {colors['border']};
+            }}
+
+            QPushButton#primaryButton {{
+                background: {colors['accent']};
+                color: #ffffff;
+                border: none;
+                font-weight: 700;
+                font-size: 13px;
+                border-radius: 14px;
+                padding: 12px 18px;
+            }}
+
+            QPushButton#primaryButton:hover {{
+                background: {colors['accent_hover']};
+            }}
+
+            QPushButton#primaryButton:pressed {{
+                background: {colors['accent_pressed']};
+            }}
+
+            QProgressBar {{
+                min-height: 16px;
+                text-align: center;
+                color: {colors['text']};
+                border-radius: 10px;
+                font-weight: 600;
+            }}
+
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                           stop:0 {colors['accent']},
+                                           stop:1 {colors['accent_hover']});
+                border-radius: 9px;
+            }}
+
+            QHeaderView::section {{
+                background: {colors['surface_alt']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                padding: 6px;
+                font-weight: 600;
+            }}
+
+            QTableWidget {{
+                gridline-color: {colors['border']};
+                alternate-background-color: {colors['surface_alt']};
+            }}
+
+            QScrollBar:vertical {{
+                background: {colors['surface']};
+                width: 12px;
+                margin: 2px;
+                border-radius: 6px;
+            }}
+
+            QScrollBar::handle:vertical {{
+                background: {colors['border']};
+                border-radius: 6px;
+                min-height: 24px;
+            }}
+
+            QScrollBar::handle:vertical:hover {{
+                background: {colors['accent']};
+            }}
+
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+
+            #literaturePanel {{
+                background: {colors['surface']};
+                border-top: 2px solid {colors['accent']};
+                border-left: 1px solid {colors['border']};
+                border-right: 1px solid {colors['border']};
+                border-top-left-radius: 16px;
+                border-top-right-radius: 16px;
+            }}
+
+            #literatureHandle {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                           stop:0 {colors['accent_soft']},
+                                           stop:1 {colors['surface_alt']});
+                border-top-left-radius: 16px;
+                border-top-right-radius: 16px;
+                border-bottom: 1px solid {colors['accent']};
+                padding: 2px 0px;
+            }}
+
+            #literatureHandle QLabel {{
+                color: {colors['accent']};
+                font-weight: 700;
+                font-size: 12px;
+            }}
+
+            #literatureViewer {{
+                background: {colors['surface']};
+                color: {colors['text']};
+                border: 1px solid {colors['border']};
+                border-radius: 12px;
+                padding: 12px;
+            }}
+            """
+        )
 
         if hasattr(self, "literature_panel"):
             self.literature_panel.update_position()

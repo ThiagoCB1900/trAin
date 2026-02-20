@@ -2,7 +2,13 @@
 # -*- coding: utf-8 -*-
 """Test script for XGBoost literature integration."""
 
-from literature_content import get_literature_html
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.ui.literature import get_literature_html
 
 def test_xgboost_literature():
     """Test that XGBoost literature loads correctly."""
@@ -24,10 +30,11 @@ def test_xgboost_literature():
     print(f"✓ Includes mathematical formulations")
     print(f"✓ References clinical studies")
     
-    # Test XGBoost Regressor (should map to same file)
+    # Test XGBoost Regressor (now has dedicated file)
     html_reg = get_literature_html('XGBoost Regressor', False)
-    assert html_reg == html, "Regressor should use same literature file"
-    print(f"✓ XGBoost Regressor mapping works correctly")
+    assert len(html_reg) > 0, "XGBoost Regressor HTML should not be empty"
+    assert 'XGBoost Regressor' in html_reg or 'regressão' in html_reg, "Should be regression-focused"
+    print(f"✓ XGBoost Regressor has dedicated literature")
     
     return True
 

@@ -2,7 +2,13 @@
 # -*- coding: utf-8 -*-
 """Test script for Linear Regression literature integration."""
 
-from literature_content import get_literature_html
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.ui.literature import get_literature_html
 
 def test_linear_regression_literature():
     """Test that Linear Regression literature loads correctly."""

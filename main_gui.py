@@ -1,7 +1,6 @@
 import sys
 import time
 import pandas as pd
-import numpy as np
 import io
 import joblib
 import os
@@ -20,13 +19,14 @@ from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6.QtCore import Qt, QRect, QThread, pyqtSignal, QEvent, QTimer
 from PyQt6.QtGui import QPalette, QColor, QPainter, QFont
 
-# Importando lógica existente
-from data_handler import load_data, separate_features_target, identify_problem_type, split_data
-from pipeline_builder import build_pipeline, SCALER_OPTIONS, SAMPLER_OPTIONS
-from experiment_runner import evaluate_model, generate_plots, save_pipeline_to_buffer
-from reporter import generate_report
-from models.registry import get_model_specs_by_problem
-from literature_content import get_literature_html
+# Import from refactored src/ structure
+from src.core.data_handler import load_data, separate_features_target, identify_problem_type, split_data
+from src.core.pipeline_builder import build_pipeline
+from src.utils.evaluator import evaluate_model, generate_plots, save_pipeline_to_buffer
+from src.utils.reporter import generate_report
+from src.models.registry import get_model_specs_by_problem
+from src.ui.literature import get_literature_html
+from config import DARK_THEME, LIGHT_THEME, SCALER_OPTIONS, SAMPLER_OPTIONS
 
 
 class ToggleSwitch(QAbstractButton):
@@ -894,40 +894,7 @@ class MLApp(QMainWindow):
 
     def apply_theme(self):
         app = QApplication.instance()
-        if self.is_dark_theme:
-            colors = {
-                "window": "#0f1720",
-                "surface": "#14212b",
-                "surface_alt": "#1a2b38",
-                "panel": "#12202a",
-                "border": "#2d4152",
-                "text": "#e7f2ef",
-                "muted": "#a9c1bc",
-                "accent": "#49b9a6",
-                "accent_hover": "#5ecab7",
-                "accent_pressed": "#3ba793",
-                "accent_soft": "#1f4b4d",
-                "accent_light": "#6dd4c0",
-                "danger": "#d16b6b",
-                "shadow": "rgba(0, 0, 0, 0.3)",
-            }
-        else:
-            colors = {
-                "window": "#f4f8f7",
-                "surface": "#ffffff",
-                "surface_alt": "#edf5f2",
-                "panel": "#eef6f3",
-                "border": "#c8dbd5",
-                "text": "#1f2d2a",
-                "muted": "#5f7370",
-                "accent": "#2f8f83",
-                "accent_hover": "#3ca094",
-                "accent_pressed": "#287b71",
-                "accent_soft": "#d8efea",
-                "accent_light": "#4db3a3",
-                "danger": "#b95858",
-                "shadow": "rgba(0, 0, 0, 0.08)",
-            }
+        colors = DARK_THEME if self.is_dark_theme else LIGHT_THEME
 
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(colors["window"]))
@@ -1247,7 +1214,14 @@ class MLApp(QMainWindow):
         if hasattr(self, "literature_panel"):
             QTimer.singleShot(0, self.literature_panel.update_position)
 
-if __name__ == "__main__":
+
+def run_application():
+    """Launch the ML application."""
     app = QApplication(sys.argv)
-    window = MLApp(); window.show()
+    window = MLApp()
+    window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    run_application()

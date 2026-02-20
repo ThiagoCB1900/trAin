@@ -1,7 +1,17 @@
+"""
+trAIn Health - Literature Module
+=================================
+Functions for loading and rendering ML literature content.
+"""
+
+import logging
 from pathlib import Path
+from typing import Dict
 
+logger = logging.getLogger(__name__)
 
-MODEL_LITERATURE_FILES = {
+# Mapping of model names to their literature HTML file paths
+MODEL_LITERATURE_FILES: Dict[str, str] = {
     "RandomForestClassifier": "random_forest/index.html",
     "RandomForestRegressor": "random_forest_regressor/index.html",
     "Logistic Regression": "logistic_regression/index.html",
@@ -21,6 +31,19 @@ MODEL_LITERATURE_FILES = {
 
 
 def _wrap_html(body_html: str, is_dark: bool) -> str:
+    """
+    Wrap raw HTML content with styled HTML document.
+    
+    Applies theme-aware styling for both dark and light modes.
+    
+    Args:
+        body_html: HTML content to wrap
+        is_dark: Whether to use dark theme colors
+        
+    Returns:
+        Complete HTML document with styling
+    """
+    # Theme colors
     colors = {
         "bg": "#14212b" if is_dark else "#ffffff",
         "text": "#e7f2ef" if is_dark else "#1f2d2a",
@@ -33,6 +56,8 @@ def _wrap_html(body_html: str, is_dark: bool) -> str:
         "warning_bg": "#4d2020" if is_dark else "#ffe8e8",
         "code_bg": "#0f1720" if is_dark else "#edf5f2",
     }
+
+    # Build styled HTML
     return (
         "<html><head><style>"
         "* { color: " + colors["text"] + " !important; }"
@@ -111,16 +136,44 @@ def _wrap_html(body_html: str, is_dark: bool) -> str:
 
 
 def _load_literature_file(filename: str) -> str:
-    base_dir = Path(__file__).resolve().parent
+    """
+    Load literature HTML file from the literature directory.
+    
+    Args:
+        filename: Relative path to the HTML file in literature directory
+        
+    Returns:
+        HTML content as string, or empty string if file not found
+    """
+    # Get project root (3 levels up from this file: src/ui/literature.py -> project root)
+    base_dir = Path(__file__).resolve().parent.parent.parent
     file_path = base_dir / "literature" / filename
+
     if not file_path.exists():
+        logger.warning(f"Literature file not found: {file_path}")
         return ""
+
+    logger.info(f"Loading literature file: {filename}")
     return file_path.read_text(encoding="utf-8")
 
 
 def get_literature_html(model_name: str, is_dark: bool) -> str:
+    """
+    Get themed HTML literature content for a specific model.
+    
+    Args:
+        model_name: Name of the ML model
+        is_dark: Whether to use dark theme
+        
+    Returns:
+        Styled HTML document containing the literature content
+    """
+    logger.info(f"Fetching literature for model: {model_name}")
+    
     filename = MODEL_LITERATURE_FILES.get(model_name)
+    
     if not filename:
+        logger.warning(f"No literature mapping found for model: {model_name}")
         body = (
             "<h2 style='margin-top:0;'>Literatura</h2>"
             "<p>Selecione um modelo para carregar a literatura.</p>"
@@ -128,9 +181,11 @@ def get_literature_html(model_name: str, is_dark: bool) -> str:
         return _wrap_html(body, is_dark)
 
     body_html = _load_literature_file(filename)
+    
     if not body_html:
         body_html = (
             "<h2 style='margin-top:0;'>Literatura</h2>"
             "<p>Conteudo do modelo ainda nao foi adicionado.</p>"
         )
+
     return _wrap_html(body_html, is_dark)

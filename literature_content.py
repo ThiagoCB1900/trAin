@@ -3,7 +3,7 @@ from pathlib import Path
 
 MODEL_LITERATURE_FILES = {
     "RandomForestClassifier": "random_forest/index.html",
-    "RandomForestRegressor": "random_forest/index.html",
+    "RandomForestRegressor": "random_forest_regressor/index.html",
     "Logistic Regression": "logistic_regression/index.html",
     "Linear Regression": "linear_regression/index.html",
     "Ridge Regression": "ridge_regression/index.html",
@@ -12,11 +12,11 @@ MODEL_LITERATURE_FILES = {
     "Naive Bayes": "naive_bayes/index.html",
     "Gradient Boosting": "gradient_boosting/index.html",
     "Decision Tree": "decision_tree/index.html",
-    "Decision Tree Regressor": "decision_tree/index.html",
-    "Gradient Boosting Regressor": "gradient_boosting/index.html",
+    "Decision Tree Regressor": "decision_tree_regressor/index.html",
+    "Gradient Boosting Regressor": "gradient_boosting_regressor/index.html",
     "SVM": "svm/index.html",
     "XGBoost": "xgboost/index.html",
-    "XGBoost Regressor": "xgboost/index.html",
+    "XGBoost Regressor": "xgboost_regressor/index.html",
 }
 
 

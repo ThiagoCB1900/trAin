@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gradient Boosting Regressor - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .warning {
+    border-left: 4px solid #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Gradient Boosting Regressor</h2>
+
+<p>
+  <b>Gradient Boosting Regressor</b> é um método de ensemble aditivo que constrói,
+  em sequência,
+  várias árvores rasas de regressão,
+  onde cada nova árvore corrige o erro residual acumulado pelas anteriores.
+  A ideia central vem de Friedman (2001):
+  fazer descida do gradiente no espaço de funções.
+  [1][2][3]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b>
+  em vez de aprender tudo de uma vez,
+  o modelo aprende em etapas,
+  corrigindo os próprios erros até formar um regressor forte e calibrável.
+  [1][2]
+</div>
+
+<p>
+  <b>Contexto histórico:</b>
+  o framework de Gradient Boosting foi formalizado por Friedman em 2001,
+  e a versão estocástica (subsample < 1.0) em 2002,
+  tornando-se base para GBM moderno e família de modelos de alto desempenho tabular,
+  incluindo aplicações clínicas.
+  [1][2][4]
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário rápido</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#residuos-gradiente">Resíduos e gradiente negativo</a></li>
+  <li><a href="#criterio-regressao">Critério em regressão</a></li>
+  <li><a href="#vies-variancia">Trade-off viés-variância</a></li>
+  <li><a href="#normalizacao">Normalização (precisa?)</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#learning-rate">learning_rate</a></li>
+  <li><a href="#n-estimators">n_estimators</a></li>
+  <li><a href="#max-depth">max_depth</a></li>
+  <li><a href="#subsample">subsample</a></li>
+  <li><a href="#min-samples">min_samples_split e min_samples_leaf</a></li>
+  <li><a href="#max-features">max_features</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#residuos">Análise de resíduos</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#importancia">Importância de variáveis</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#comparacao">Comparação com outros regressores</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#playbook">Playbook de tuning</a></li>
+  <li><a href="#validacao-externa">Validação externa</a></li>
+  <li><a href="#fairness">Fairness e subgrupos</a></li>
+  <li><a href="#drift">Monitoramento e drift</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+  <li><a href="#fontes-por-tema">Fontes por tema</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  O Gradient Boosting Regressor cria um modelo aditivo:
+  a cada estágio,
+  treina-se uma nova árvore para reduzir os erros atuais do ensemble.
+  A predição final é soma ponderada das árvores.
+  [1][2][3]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Modelo aditivo por estágio</div>
+  <div class="formula">F_m(x) = F_{m-1}(x) + ν · h_m(x)</div>
+  <p style="font-size: 13px;">
+    ν = learning_rate,
+    h_m(x) = árvore do estágio m.
+  </p>
+</div>
+
+<p><b>Características principais:</b></p>
+<ul>
+  <li><b>Alta capacidade preditiva:</b> muito forte em dados tabulares.</li>
+  <li><b>Não linearidade:</b> captura interações complexas.</li>
+  <li><b>Regularização explícita:</b> learning_rate, subsample e profundidade.</li>
+  <li><b>Sensível a tuning:</b> precisa ajuste cuidadoso para evitar overfit.</li>
+  <li><b>Interpretabilidade intermediária:</b> melhor que deep nets, pior que árvore única.</li>
+</ul>
+
+<p style="font-size: 13px;">
+  Base científica: [1][2][3][4][5][10]
+</p>
+
+<div class="callout">
+  <b>Analogia clínica:</b>
+  imagine rounds sequenciais de discussão de casos.
+  Em cada rodada,
+  a equipe corrige os casos em que mais errou antes,
+  refinando protocolo de decisão gradualmente.
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Um único modelo pode errar padrões diferentes ao mesmo tempo.
+  O boosting divide esse problema em vários ajustes pequenos,
+  cada um focado em erros residuais.
+  Ao final,
+  a soma desses ajustes gera um preditor forte.
+  [1][2]
+</p>
+
+<p>
+  Na prática clínica,
+  isso ajuda quando o alvo depende de múltiplos efeitos não lineares
+  (ex.: idade + função renal + inflamação + comorbidades),
+  que dificilmente cabem em uma regra única simples.
+  [4][5][6]
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Boosting:</b> combinação sequencial de modelos fracos.</li>
+  <li><b>Stage-wise:</b> treinamento em etapas.</li>
+  <li><b>Residual:</b> erro atual a ser corrigido.</li>
+  <li><b>Learning rate:</b> tamanho do passo de atualização.</li>
+  <li><b>Shrinkage:</b> redução do impacto de cada árvore (ν pequeno).</li>
+  <li><b>Subsample:</b> fração de amostras usada em cada etapa.</li>
+  <li><b>Early stopping:</b> parar antes de overfitar.</li>
+  <li><b>PDP/ICE:</b> técnicas para inspeção de efeitos de features.</li>
+</ul>
+
+<h3 id="matematica">Matemática por trás</h3>
+<p>
+  O boosting minimiza função de perda adicionando,
+  iterativamente,
+  funções base na direção do gradiente negativo.
+  [1][2]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Objetivo global</div>
+  <div class="formula">F* = argmin_F Σ L(y_i, F(x_i))</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Pseudo-resíduo no estágio m</div>
+  <div class="formula">r_{im} = - [∂L(y_i, F(x_i))/∂F(x_i)]_{F=F_{m-1}}</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Atualização</div>
+  <div class="formula">F_m(x) = F_{m-1}(x) + ν·γ_m·h_m(x)</div>
+  <p style="font-size: 13px;">
+    γ_m ajusta escala ótima do novo estágio.
+  </p>
+</div>
+
+<h3 id="residuos-gradiente">Resíduos e gradiente negativo</h3>
+<p>
+  Para perda quadrática em regressão,
+  o gradiente negativo coincide com o resíduo clássico,
+  o que torna a intuição bem direta:
+  cada árvore tenta explicar o que ainda ficou errado.
+  [1][3]
+</p>
+
+<div class="card">
+  <b>Exemplo clínico (tempo de internação):</b>
+  <ul>
+    <li>Estágio 1: modelo erra pacientes muito graves (subestimação).</li>
+    <li>Estágio 2: nova árvore corrige esse padrão.</li>
+    <li>Estágio 3: corrige outra faixa de pacientes (ex.: idosos frágeis).</li>
+    <li>Resultado: erro global reduz sem depender de uma regra única.</li>
+  </ul>
+</div>
+
+<h3 id="criterio-regressao">Critério em regressão no seu trAIn</h3>
+<p>
+  O `GradientBoostingRegressor` do projeto usa internamente árvores de regressão,
+  com controle de complexidade por `max_depth`,
+  `min_samples_split`,
+  `min_samples_leaf`,
+  além de `learning_rate`, `n_estimators`, `subsample`, `max_features`.
+  [3]
+</p>
+
+<h3 id="vies-variancia">Trade-off viés-variância</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Viés</b></th>
+    <th align="left"><b>Variância</b></th>
+    <th align="left"><b>Risco</b></th>
+  </tr>
+  <tr>
+    <td>learning_rate alto + poucas árvores</td>
+    <td>médio</td>
+    <td>alto</td>
+    <td>overfit/instabilidade</td>
+  </tr>
+  <tr>
+    <td>learning_rate baixo + muitas árvores</td>
+    <td>baixo</td>
+    <td>médio</td>
+    <td>bom compromisso (mais custo)</td>
+  </tr>
+  <tr>
+    <td>árvores muito profundas</td>
+    <td>baixo</td>
+    <td>alto</td>
+    <td>memorizar ruído</td>
+  </tr>
+  <tr>
+    <td>subsample < 1.0</td>
+    <td>ligeiramente maior</td>
+    <td>menor</td>
+    <td>regularização útil</td>
+  </tr>
+</table>
+
+<h3 id="normalizacao">Normalização (precisa?)</h3>
+<p>
+  Para árvores de boosting clássico,
+  normalização <b>não é obrigatória</b>.
+  Como os splits são por limiar,
+  a escala costuma importar menos que em métodos por distância.
+  [3][16]
+</p>
+
+<div class="card">
+  <b>Resumo prático:</b>
+  <ul>
+    <li>Sem normalização: geralmente funciona muito bem.</li>
+    <li>Com normalização: pode ser útil por padronização de pipeline multiproduto.</li>
+    <li>Priorize limpeza, imputação e engenharia clínica relevante.</li>
+  </ul>
+</div>
+
+<h3 id="hiperparametros">Hiperparâmetros e impactos</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Papel</b></th>
+    <th align="left"><b>Faixa prática</b></th>
+    <th align="left"><b>Risco extremo</b></th>
+  </tr>
+  <tr>
+    <td>learning_rate</td>
+    <td>tamanho do passo por estágio</td>
+    <td>0.01 - 0.2</td>
+    <td>alto demais: overfit rápido</td>
+  </tr>
+  <tr>
+    <td>n_estimators</td>
+    <td>número de estágios</td>
+    <td>100 - 2000</td>
+    <td>baixo: underfit; alto sem controle: overfit</td>
+  </tr>
+  <tr>
+    <td>max_depth</td>
+    <td>complexidade da árvore base</td>
+    <td>2 - 6</td>
+    <td>alto: ajusta ruído</td>
+  </tr>
+  <tr>
+    <td>subsample</td>
+    <td>fração de amostras por estágio</td>
+    <td>0.5 - 1.0</td>
+    <td>muito baixo: viés alto</td>
+  </tr>
+  <tr>
+    <td>min_samples_split</td>
+    <td>mínimo para dividir nó</td>
+    <td>2 - 20</td>
+    <td>baixo: árvores fragmentadas</td>
+  </tr>
+  <tr>
+    <td>min_samples_leaf</td>
+    <td>mínimo por folha</td>
+    <td>1 - 20</td>
+    <td>1 com ruído: alta variância</td>
+  </tr>
+  <tr>
+    <td>max_features</td>
+    <td>features candidatas por split</td>
+    <td>None/sqrt/log2</td>
+    <td>baixo demais: perda de sinal</td>
+  </tr>
+</table>
+
+<h3 id="learning-rate">learning_rate</h3>
+<p>
+  `learning_rate` controla quanto cada nova árvore altera o modelo final.
+  Valores menores tendem a generalizar melhor,
+  mas exigem mais estágios.
+  [1][2][3]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Regra prática</div>
+  <div class="formula">Se reduzir ν pela metade, normalmente precisa aumentar n_estimators para manter desempenho.</div>
+</div>
+
+<h3 id="n-estimators">n_estimators</h3>
+<p>
+  É o número de árvores adicionadas em sequência.
+  Pouco valor tende a underfit;
+  excesso pode overfitar sem regularização adequada.
+  [1][2][3]
+</p>
+
+<h3 id="max-depth">max_depth</h3>
+<p>
+  Profundidade das árvores base.
+  Em boosting,
+  árvores rasas (2-4) muitas vezes são suficientes para ótimo desempenho.
+  [1][2]
+</p>
+
+<div class="warning">
+  <b>Alerta:</b>
+  `max_depth` alto + `learning_rate` alto
+  costuma gerar overfitting agressivo.
+</div>
+
+<h3 id="subsample">subsample</h3>
+<p>
+  `subsample < 1.0` implementa boosting estocástico,
+  ajudando a reduzir variância e melhorar generalização.
+  [2]
+</p>
+
+<h3 id="min-samples">min_samples_split e min_samples_leaf</h3>
+<p>
+  São regularizadores locais da árvore base.
+  Aumentá-los suaviza o ajuste e reduz sensibilidade a ruído.
+  [3]
+</p>
+
+<h3 id="max-features">max_features</h3>
+<p>
+  Limitar features por split pode reduzir correlação e overfit,
+  especialmente em bases com muitas variáveis ruidosas.
+  [3][16]
+</p>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+<p>
+  Avalie com combinação de métricas e validação robusta.
+  [3][6][7]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Leitura</b></th>
+    <th align="left"><b>Melhor</b></th>
+  </tr>
+  <tr>
+    <td>R²</td>
+    <td>variância explicada</td>
+    <td>maior</td>
+  </tr>
+  <tr>
+    <td>RMSE</td>
+    <td>erro com penalização quadrática</td>
+    <td>menor</td>
+  </tr>
+  <tr>
+    <td>MAE</td>
+    <td>erro absoluto médio</td>
+    <td>menor</td>
+  </tr>
+  <tr>
+    <td>MAPE</td>
+    <td>erro percentual</td>
+    <td>menor</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Boas práticas:</b>
+  comparar com baseline linear,
+  usar CV com média/desvio,
+  e reportar teste final separado (idealmente externo).
+  [6][7][9]
+</div>
+
+<h3 id="residuos">Análise de resíduos</h3>
+<p>
+  Mesmo com bom R²,
+  resíduos podem mostrar falhas críticas em subgrupos clínicos.
+</p>
+
+<ul>
+  <li>Erro alto em extremos do alvo.</li>
+  <li>Viés sistemático por faixa etária ou centro.</li>
+  <li>Padrão não aleatório em resíduos vs predição.</li>
+</ul>
+
+<div class="card">
+  <b>Checklist mínimo:</b>
+  <ol>
+    <li>Scatter y_true vs y_pred.</li>
+    <li>Histograma de resíduos.</li>
+    <li>MAE por quantis de y.</li>
+    <li>MAE/RMSE por subgrupo clínico.</li>
+  </ol>
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  Gradient Boosting Regressor é menos transparente que árvore única,
+  porém pode ser explicado com métodos de inspeção global e local.
+  [10][11][12][15]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Método</b></th>
+    <th align="left"><b>Escopo</b></th>
+    <th align="left"><b>Ponto de atenção</b></th>
+  </tr>
+  <tr>
+    <td>Feature importance (impureza)</td>
+    <td>global</td>
+    <td>pode ter viés em alta cardinalidade</td>
+  </tr>
+  <tr>
+    <td>Permutation importance</td>
+    <td>global</td>
+    <td>preferir em validação/teste</td>
+  </tr>
+  <tr>
+    <td>PDP/ICE</td>
+    <td>global+local</td>
+    <td>cuidado com correlação forte entre features</td>
+  </tr>
+  <tr>
+    <td>SHAP</td>
+    <td>local+global</td>
+    <td>custo maior e interpretação contextual</td>
+  </tr>
+</table>
+
+<h3 id="importancia">Importância de variáveis</h3>
+<p>
+  Para robustez científica,
+  use permutation importance como referência principal
+  e trate importance por impureza como complementar.
+  [13][14][15]
+</p>
+
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import r2_score
+
+gbr = GradientBoostingRegressor(
+    random_state=42,
+    n_estimators=600,
+    learning_rate=0.03,
+    max_depth=3,
+    min_samples_split=5,
+    min_samples_leaf=3,
+    subsample=0.8,
+)
+
+gbr.fit(X_train, y_train)
+pred = gbr.predict(X_test)
+print('R2 teste:', r2_score(y_test, pred))
+
+imp = permutation_importance(gbr, X_test, y_test, n_repeats=20, random_state=42)
+for i in imp.importances_mean.argsort()[::-1][:10]:
+    print(feature_names[i], imp.importances_mean[i])
+  </pre>
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+<p>
+  O modelo é útil em tarefas clínicas de regressão com interações complexas.
+  [4][5][6]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Caso clínico</b></th>
+    <th align="left"><b>Alvo contínuo</b></th>
+    <th align="left"><b>Por que GB Regressor ajuda</b></th>
+  </tr>
+  <tr>
+    <td>UTI</td>
+    <td>dias de internação</td>
+    <td>captura não linearidade e heterogeneidade de gravidade</td>
+  </tr>
+  <tr>
+    <td>Nefrologia</td>
+    <td>eGFR futuro</td>
+    <td>modela interações entre função renal e inflamação</td>
+  </tr>
+  <tr>
+    <td>Farmacologia</td>
+    <td>dose individual</td>
+    <td>captura efeitos combinados entre genética/labs/idade</td>
+  </tr>
+  <tr>
+    <td>Gestão hospitalar</td>
+    <td>custo previsto</td>
+    <td>aprende regras aditivas complexas de utilização de recursos</td>
+  </tr>
+</table>
+
+<h3 id="exemplos">Exemplos publicados</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Tema</b></th>
+    <th align="left"><b>Contribuição</b></th>
+    <th align="left"><b>Observação</b></th>
+  </tr>
+  <tr>
+    <td>Friedman 2001 [1]</td>
+    <td>Fundamento GBM</td>
+    <td>descida do gradiente em espaço funcional</td>
+    <td>base matemática do método</td>
+  </tr>
+  <tr>
+    <td>Friedman 2002 [2]</td>
+    <td>Stochastic GB</td>
+    <td>subsample para melhor generalização</td>
+    <td>regularização relevante</td>
+  </tr>
+  <tr>
+    <td>Rajkomar et al. [5]</td>
+    <td>ML em medicina</td>
+    <td>valor de modelos tabulares em ambiente clínico</td>
+    <td>ênfase em validação e adoção</td>
+  </tr>
+  <tr>
+    <td>Steyerberg et al. [6]</td>
+    <td>Predição clínica</td>
+    <td>framework para avaliação e utilidade clínica</td>
+    <td>boas práticas de modelagem</td>
+  </tr>
+</table>
+
+<h3 id="comparacao">Comparação com outros regressores</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Não linearidade</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Estabilidade</b></th>
+    <th align="left"><b>Padrão de uso</b></th>
+  </tr>
+  <tr>
+    <td>Linear Regression</td>
+    <td>baixa</td>
+    <td>muito alta</td>
+    <td>alta</td>
+    <td>baseline inferencial</td>
+  </tr>
+  <tr>
+    <td>Decision Tree Regressor</td>
+    <td>alta</td>
+    <td>alta (local)</td>
+    <td>média-baixa</td>
+    <td>regras explícitas</td>
+  </tr>
+  <tr>
+    <td>Random Forest Regressor</td>
+    <td>alta</td>
+    <td>média</td>
+    <td>alta</td>
+    <td>robustez tabular</td>
+  </tr>
+  <tr>
+    <td>Gradient Boosting Regressor</td>
+    <td>muito alta</td>
+    <td>média</td>
+    <td>alta (com tuning)</td>
+    <td>alta performance tabular</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Regra prática:</b>
+  quando você precisa extrair mais sinal de interações não lineares
+  e aceita tuning mais cuidadoso,
+  Gradient Boosting Regressor costuma ser uma excelente escolha.
+  [1][2][3]
+</div>
+
+<h3 id="quando-usar">Quando usar (e quando evitar)</h3>
+<h4>Use quando:</h4>
+<ul>
+  <li>há relações complexas em dados tabulares;</li>
+  <li>baseline linear ficou limitado;</li>
+  <li>há capacidade de tuning e validação adequada;</li>
+  <li>objetivo é alto desempenho preditivo.</li>
+</ul>
+
+<h4>Evite quando:</h4>
+<ul>
+  <li>explicação por regra simples é requisito principal;</li>
+  <li>tempo para tuning é muito restrito;</li>
+  <li>pipeline clínico ainda não tem governança de validação robusta.</li>
+</ul>
+
+<h3 id="boas-praticas">Boas práticas clínicas</h3>
+<ol>
+  <li>Definir desfecho contínuo clinicamente relevante.</li>
+  <li>Evitar vazamento temporal e por centro.</li>
+  <li>Fazer tuning com validação cruzada.</li>
+  <li>Reportar métricas por subgrupos clínicos.</li>
+  <li>Comparar com baseline linear e árvore única.</li>
+  <li>Executar validação externa antes de uso operacional.</li>
+  <li>Documentar pipeline conforme TRIPOD/PROBAST.</li>
+</ol>
+
+<h3 id="diagnostico">Diagnóstico de problemas</h3>
+
+<h4>1) Overfitting</h4>
+<p><b>Sintoma:</b> treino muito superior ao teste.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>reduzir learning_rate e max_depth;</li>
+  <li>usar subsample < 1.0;</li>
+  <li>aumentar min_samples_leaf;</li>
+  <li>usar early stopping quando disponível.</li>
+</ul>
+
+<h4>2) Underfitting</h4>
+<p><b>Sintoma:</b> treino e teste ambos fracos.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>aumentar n_estimators;</li>
+  <li>permitir profundidade um pouco maior;</li>
+  <li>revisar engenharia de features.</li>
+</ul>
+
+<h4>3) Instabilidade entre folds</h4>
+<p><b>Sintoma:</b> variação alta de desempenho em CV.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>reduzir complexidade local;</li>
+  <li>aumentar robustez de dados;</li>
+  <li>avaliar repetição de CV.</li>
+</ul>
+
+<h4>4) Queda em validação externa</h4>
+<p><b>Sintoma:</b> bom internamente, ruim fora.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>investigar shift de distribuição;</li>
+  <li>revisar variáveis específicas de centro;</li>
+  <li>recalibrar em coorte alvo.</li>
+</ul>
+
+<h4>5) Erro alto em casos graves</h4>
+<p><b>Sintoma:</b> MAE explode em quantis altos.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>avaliar métricas por quantil;</li>
+  <li>enriquecer dados de extremos;</li>
+  <li>ajustar regularização e profundidade.</li>
+</ul>
+
+<h3 id="playbook">Playbook de tuning (passo a passo)</h3>
+<p>
+  Estratégia prática e eficiente de ajuste:
+  [1][2][3][6]
+</p>
+
+<ol>
+  <li><b>Baseline:</b> learning_rate=0.05, n_estimators=500, max_depth=3, subsample=0.8.</li>
+  <li><b>Ajuste principal:</b> grid em learning_rate x n_estimators.</li>
+  <li><b>Regularização local:</b> variar max_depth, min_samples_leaf.</li>
+  <li><b>Robustez:</b> testar subsample (0.6-1.0).</li>
+  <li><b>Final:</b> validar em hold-out temporal e externo.</li>
+</ol>
+
+<div class="card">
+  <b>Grid inicial sugerido</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+param_grid = {
+    "n_estimators": [200, 500, 800, 1200],
+    "learning_rate": [0.01, 0.03, 0.05, 0.1],
+    "max_depth": [2, 3, 4, 5],
+    "min_samples_split": [2, 5, 10],
+    "min_samples_leaf": [1, 2, 5, 10],
+    "subsample": [0.6, 0.8, 1.0],
+    "max_features": [None, "sqrt", "log2"]
+}
+  </pre>
+</div>
+
+<h3 id="validacao-externa">Validação externa</h3>
+<p>
+  Em modelos clínicos,
+  validação externa é requisito crítico para transportabilidade.
+  [6][7][9]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Nível</b></th>
+    <th align="left"><b>O que mede</b></th>
+    <th align="left"><b>Limitação</b></th>
+  </tr>
+  <tr>
+    <td>CV interna</td>
+    <td>consistência na mesma base</td>
+    <td>não mede transportabilidade</td>
+  </tr>
+  <tr>
+    <td>Hold-out temporal</td>
+    <td>robustez no tempo</td>
+    <td>mesmo ecossistema local</td>
+  </tr>
+  <tr>
+    <td>Validação externa</td>
+    <td>generalização real entre centros</td>
+    <td>custo operacional maior</td>
+  </tr>
+</table>
+
+<h3 id="fairness">Fairness e subgrupos</h3>
+<p>
+  Um regressor pode ter ótima média global e erro desbalanceado por subgrupo.
+  [5][6][7]
+</p>
+
+<ul>
+  <li>reportar MAE/RMSE por sexo e faixa etária;</li>
+  <li>reportar erro por centro/hospital;</li>
+  <li>monitorar gaps clinicamente relevantes entre grupos.</li>
+</ul>
+
+<div class="warning">
+  <b>Alerta:</b>
+  performance média não garante segurança para todos os perfis clínicos.
+</div>
+
+<h3 id="drift">Monitoramento e drift</h3>
+<p>
+  Após deploy,
+  alterações de população, protocolo e coleta de dados podem degradar desempenho.
+  [5][6]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sinal</b></th>
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Limiar sugerido</b></th>
+  </tr>
+  <tr>
+    <td>Data drift</td>
+    <td>PSI em features críticas</td>
+    <td>PSI > 0.2 investigar</td>
+  </tr>
+  <tr>
+    <td>Performance drift</td>
+    <td>RMSE mensal vs baseline</td>
+    <td>Piora > 15% investigar</td>
+  </tr>
+  <tr>
+    <td>Drift de subgrupo</td>
+    <td>MAE por grupo no tempo</td>
+    <td>Gap crescente investigar</td>
+  </tr>
+</table>
+
+<h3 id="faq">Perguntas frequentes</h3>
+
+<h4>1. Gradient Boosting Regressor sempre vence Random Forest?</h4>
+<p>
+  Não sempre.
+  Muitas vezes ganha,
+  mas depende da base,
+  do tuning,
+  e do objetivo clínico.
+  [3][4][16]
+</p>
+
+<h4>2. Preciso normalizar?</h4>
+<p>
+  Em geral não,
+  mas pode ser útil para padronização de pipeline multimodelo.
+  [3]
+</p>
+
+<h4>3. Melhor estratégia: learning_rate baixo com muitas árvores?</h4>
+<p>
+  Frequentemente sim,
+  pois tende a generalizar melhor,
+  mas com maior custo computacional.
+  [1][2]
+</p>
+
+<h4>4. subsample deve ser sempre menor que 1?</h4>
+<p>
+  Não obrigatoriamente,
+  porém valores entre 0.6 e 0.9 costumam ajudar regularização.
+  [2][3]
+</p>
+
+<h4>5. max_depth ideal?</h4>
+<p>
+  Não há valor universal.
+  Em muitos casos,
+  profundidade 2-4 é forte baseline para boosting.
+  [1][2]
+</p>
+
+<h4>6. Como reportar incerteza?</h4>
+<p>
+  Use bootstrap de métricas e distribuição de resultados em CV.
+  [6][7]
+</p>
+
+<h4>7. Como evitar vazamento?</h4>
+<p>
+  Fazer imputação e engenharia de features apenas no treino,
+  dentro de pipeline validado.
+  [7][9]
+</p>
+
+<h4>8. Posso usar em séries temporais?</h4>
+<p>
+  Sim,
+  desde que validação seja temporal e sem shuffle indevido.
+  [6]
+</p>
+
+<h4>9. Feature importance pode enganar?</h4>
+<p>
+  Pode.
+  Use permutation importance e análise de correlação de features.
+  [13][14]
+</p>
+
+<h4>10. Vale usar SHAP com GB Regressor?</h4>
+<p>
+  Sim,
+  é uma das abordagens mais usadas para explicações locais e globais.
+  [12]
+</p>
+
+<h3 id="fontes-por-tema">Fontes por tema (mapa rápido)</h3>
+<ul>
+  <li><b>Fundamentos de Gradient Boosting:</b> [1], [2], [3]</li>
+  <li><b>Implementação e parâmetros no sklearn:</b> [3], [16]</li>
+  <li><b>Modelagem e validação clínica:</b> [6], [7], [9]</li>
+  <li><b>Interpretabilidade (PDP/ICE/SHAP):</b> [10], [11], [12]</li>
+  <li><b>Importância de variáveis e vieses:</b> [13], [14], [15]</li>
+  <li><b>Aplicações e governança em saúde:</b> [5], [6], [7]</li>
+</ul>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Friedman 2001 (Gradient Boosting) [1]</li>
+  <li>Friedman 2002 (Stochastic Gradient Boosting) [2]</li>
+  <li>scikit-learn GradientBoostingRegressor [3]</li>
+  <li>scikit-learn Permutation Importance [15]</li>
+  <li>scikit-learn Ensemble User Guide [16]</li>
+  <li>TRIPOD e PROBAST para modelos clínicos [7][9]</li>
+  <li>PDP/ICE e SHAP para explicabilidade [10][12]</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>
+    Friedman JH.
+    Greedy Function Approximation: A Gradient Boosting Machine.
+    <i>Annals of Statistics</i>.
+    2001;29(5):1189-1232.
+    <a href="https://doi.org/10.1214/aos/1013203451">DOI: 10.1214/aos/1013203451</a>
+  </li>
+  <li>
+    Friedman JH.
+    Stochastic Gradient Boosting.
+    <i>Computational Statistics & Data Analysis</i>.
+    2002;38(4):367-378.
+    <a href="https://doi.org/10.1016/S0167-9473(01)00065-2">DOI: 10.1016/S0167-9473(01)00065-2</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    GradientBoostingRegressor API Reference.
+    <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html">https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html</a>
+  </li>
+  <li>
+    Hastie T,
+    Tibshirani R,
+    Friedman J.
+    The Elements of Statistical Learning.
+    2nd ed.
+    Springer;
+    2009.
+    <a href="https://doi.org/10.1007/978-0-387-84858-7">DOI: 10.1007/978-0-387-84858-7</a>
+  </li>
+  <li>
+    Rajkomar A,
+    Dean J,
+    Kohane I.
+    Machine Learning in Medicine.
+    <i>N Engl J Med</i>.
+    2019;380:1347-1358.
+    <a href="https://doi.org/10.1056/NEJMra1814259">DOI: 10.1056/NEJMra1814259</a>
+  </li>
+  <li>
+    Steyerberg EW,
+    Moons KGM,
+    van der Windt DA,
+    et al.
+    Prognosis Research Strategy (PROGRESS) 3.
+    <i>PLOS Med</i>.
+    2013;10(2):e1001381.
+    <a href="https://doi.org/10.1371/journal.pmed.1001381">DOI: 10.1371/journal.pmed.1001381</a>
+  </li>
+  <li>
+    Collins GS,
+    Reitsma JB,
+    Altman DG,
+    Moons KGM.
+    TRIPOD.
+    <i>Ann Intern Med</i>.
+    2015;162:55-63.
+    <a href="https://doi.org/10.7326/M14-0697">DOI: 10.7326/M14-0697</a>
+  </li>
+  <li>
+    Chen T,
+    Guestrin C.
+    XGBoost: A Scalable Tree Boosting System.
+    <i>KDD</i>.
+    2016.
+    <a href="https://doi.org/10.1145/2939672.2939785">DOI: 10.1145/2939672.2939785</a>
+  </li>
+  <li>
+    Wolff RF,
+    Moons KGM,
+    Riley RD,
+    et al.
+    PROBAST.
+    <i>Ann Intern Med</i>.
+    2019;170:51-58.
+    <a href="https://doi.org/10.7326/M18-1376">DOI: 10.7326/M18-1376</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Partial Dependence and ICE.
+    <a href="https://scikit-learn.org/stable/modules/partial_dependence.html">https://scikit-learn.org/stable/modules/partial_dependence.html</a>
+  </li>
+  <li>
+    Goldstein A,
+    Kapelner A,
+    Bleich J,
+    Pitkin E.
+    ICE Plots.
+    <i>Journal of Computational and Graphical Statistics</i>.
+    2015;24(1):44-65.
+    <a href="https://doi.org/10.1080/10618600.2014.907095">DOI: 10.1080/10618600.2014.907095</a>
+  </li>
+  <li>
+    Lundberg SM,
+    Lee SI.
+    A Unified Approach to Interpreting Model Predictions.
+    <i>NeurIPS</i>.
+    2017.
+    <a href="https://doi.org/10.48550/arXiv.1705.07874">DOI: 10.48550/arXiv.1705.07874</a>
+  </li>
+  <li>
+    Strobl C,
+    Boulesteix AL,
+    Zeileis A,
+    Hothorn T.
+    Bias in random forest variable importance measures.
+    <i>BMC Bioinformatics</i>.
+    2007;8:25.
+    <a href="https://doi.org/10.1186/1471-2105-8-25">DOI: 10.1186/1471-2105-8-25</a>
+  </li>
+  <li>
+    Altmann A,
+    Toloşi L,
+    Sander O,
+    Lengauer T.
+    Permutation importance: a corrected feature importance measure.
+    <i>Bioinformatics</i>.
+    2010;26(10):1340-1347.
+    <a href="https://doi.org/10.1093/bioinformatics/btq134">DOI: 10.1093/bioinformatics/btq134</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Permutation feature importance (User Guide).
+    <a href="https://scikit-learn.org/stable/modules/permutation_importance.html">https://scikit-learn.org/stable/modules/permutation_importance.html</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Ensemble methods (Gradient Boosting / HistGradientBoosting User Guide).
+    <a href="https://scikit-learn.org/stable/modules/ensemble.html#gradient-boosting">https://scikit-learn.org/stable/modules/ensemble.html#gradient-boosting</a>
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Resumo final:</b>
+  Gradient Boosting Regressor é uma opção de alto desempenho para dados clínicos tabulares,
+  especialmente quando há interações não lineares e heterogeneidade de risco.
+  Com tuning adequado,
+  validação externa e monitoramento contínuo,
+  pode entregar excelente precisão com governança técnica sólida.
+</div>
+
+<h3 id="ablation">Ablation study simplificado</h3>
+<p>
+  Para demonstrar valor incremental real do modelo,
+  execute ablação por blocos de variáveis clínicas.
+  [4][6][7]
+</p>
+
+<div class="card">
+  <b>Plano de ablação recomendado</b>
+  <ol>
+    <li>Modelo completo (todas as features).</li>
+    <li>Remover bloco laboratorial.</li>
+    <li>Remover comorbidades.</li>
+    <li>Remover sinais vitais.</li>
+    <li>Comparar R², RMSE e MAE entre cenários.</li>
+  </ol>
+</div>
+
+<p>
+  Isso reduz risco de conclusões frágeis do tipo
+  "variável X é essencial" sem evidência de impacto preditivo incremental.
+</p>
+
+<h3 id="calibracao-erro">Calibração de erro em regressão</h3>
+<p>
+  Em regressão,
+  a avaliação deve ir além da média global:
+  precisamos verificar estabilidade do erro por faixa de risco e subgrupos.
+  [6][7]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Análise</b></th>
+    <th align="left"><b>Como aplicar</b></th>
+    <th align="left"><b>Objetivo</b></th>
+  </tr>
+  <tr>
+    <td>MAE por quantil de y</td>
+    <td>dividir alvo em decis/quantis</td>
+    <td>detectar falha em extremos clínicos</td>
+  </tr>
+  <tr>
+    <td>Erro por subgrupo</td>
+    <td>sexo/idade/centro/unidade</td>
+    <td>detectar desigualdade de desempenho</td>
+  </tr>
+  <tr>
+    <td>Viés sistemático</td>
+    <td>y_true vs y_pred com linha identidade</td>
+    <td>detectar sub/superestimação persistente</td>
+  </tr>
+</table>
+
+<h3 id="comparacao-configs">Comparação de configurações típicas</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Perfil</b></th>
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td>Conservador</td>
+    <td>lr=0.03, n=400, depth=2, subsample=0.8</td>
+    <td>alta robustez, menor risco de overfit</td>
+  </tr>
+  <tr>
+    <td>Intermediário</td>
+    <td>lr=0.05, n=600, depth=3, subsample=0.8</td>
+    <td>bom equilíbrio em tabular clínico</td>
+  </tr>
+  <tr>
+    <td>Agressivo</td>
+    <td>lr=0.1, n=800, depth=5, subsample=1.0</td>
+    <td>captura máxima de padrão, vigiar overfit</td>
+  </tr>
+</table>
+
+<h3 id="governanca">Governança e auditabilidade</h3>
+<p>
+  Modelos de boosting em saúde exigem trilha de auditoria robusta.
+  [5][7][9]
+</p>
+
+<ol>
+  <li>Versionar dados, código, hiperparâmetros e seed.</li>
+  <li>Registrar métricas por subgrupo e por período.</li>
+  <li>Definir gatilho de retraining e rollback.</li>
+  <li>Documentar critérios clínicos de aceitação.</li>
+  <li>Manter reporte alinhado com TRIPOD/PROBAST.</li>
+</ol>
+
+<div class="warning">
+  <b>Ponto crítico:</b>
+  alta acurácia interna sem validação externa não é suficiente para adoção clínica.
+</div>
+
+<h3 id="pipeline-clinico">Pipeline clínico recomendado (end-to-end)</h3>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+1) Definir desfecho contínuo e janela temporal
+2) Definir coorte e critérios de inclusão/exclusão
+3) Preparar dados sem vazamento
+4) Treinar baseline linear e árvore única
+5) Treinar Gradient Boosting Regressor com tuning
+6) Avaliar CV + teste temporal
+7) Avaliar fairness por subgrupos
+8) Validar externamente
+9) Documentar TRIPOD/PROBAST
+10) Deploy com monitoramento de drift
+  </pre>
+</div>
+
+<h3 id="faq-avancado">FAQ avançado</h3>
+
+<h4>11. GB Regressor substitui totalmente modelos lineares?</h4>
+<p>
+  Não.
+  Modelos lineares continuam importantes para interpretação causal e baseline.
+  [4][6]
+</p>
+
+<h4>12. Vale usar perda robusta para outliers?</h4>
+<p>
+  Em cenários com outliers severos,
+  considerar variações de loss pode ajudar,
+  mas deve ser validado por CV e impacto clínico.
+  [3][4]
+</p>
+
+<h4>13. Como escolher entre GB clássico e HistGradientBoosting?</h4>
+<p>
+  Para bases maiores,
+  HistGradientBoosting costuma ser mais eficiente computacionalmente.
+  [3]
+</p>
+
+<h4>14. `subsample` sempre melhora?</h4>
+<p>
+  Nem sempre.
+  Ajuda regularização em muitos cenários,
+  mas pode elevar viés se baixo demais.
+  [2][3]
+</p>
+
+<h4>15. Quando usar `max_features` reduzido?</h4>
+<p>
+  Quando houver forte risco de overfit e muitas features ruidosas.
+  A decisão deve ser empírica por validação.
+  [3][16]
+</p>
+
+<h4>16. Como avaliar estabilidade do modelo?</h4>
+<p>
+  Use repetição de CV,
+  bootstrap de métricas,
+  e monitoramento de variação temporal em produção.
+  [6][7]
+</p>
+
+<h4>17. Pode usar GB Regressor em séries temporais?</h4>
+<p>
+  Sim,
+  com engenharia de lags e validação temporal estrita,
+  sem shuffle indevido.
+  [6]
+</p>
+
+<h4>18. Feature importance por ganho é suficiente?</h4>
+<p>
+  Não sozinha.
+  Combine com permutation importance e análise de correlação.
+  [13][14][15]
+</p>
+
+<h4>19. Quando migrar para XGBoost/LightGBM/CatBoost?</h4>
+<p>
+  Quando desempenho adicional justificar complexidade operacional extra.
+  [8]
+</p>
+
+<h4>20. Maior erro comum em projetos clínicos com boosting?</h4>
+<p>
+  Focar apenas na métrica global e ignorar subgrupos, validação externa e drift.
+  [6][7][9]
+</p>
+
+<h3 id="nota-classificacao">Nota importante: diferença para Gradient Boosting Classifier</h3>
+<div class="warning">
+  Este documento é exclusivo para <b>regressão</b>.
+  Não cobre métricas e decisões de classificação (AUC, F1, limiar).
+  Para classificação,
+  use a documentação específica do Gradient Boosting Classifier.
+</div>
+
+</body>
+</html>

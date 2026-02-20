@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Forest Regressor - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .warning {
+    border-left: 4px solid #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Random Forest Regressor</h2>
+
+<p>
+  <b>Random Forest Regressor</b> é um algoritmo de ensemble para regressão
+  que combina muitas árvores de decisão treinadas em subconjuntos aleatórios
+  dos dados e das variáveis para gerar predições estáveis e robustas.
+  Em vez de confiar em uma única árvore (alta variância),
+  a floresta reduz instabilidade por média das árvores.
+  [1][2]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b>
+  treina muitas árvores diferentes,
+  cada uma vê uma versão levemente diferente dos dados,
+  e a predição final é a média das saídas,
+  reduzindo overfitting e melhorando generalização.
+</div>
+
+<p>
+  <b>Contexto histórico:</b>
+  a formulação clássica de Random Forest foi consolidada por Leo Breiman em 2001.
+  O método combina <i>bagging</i> + aleatorização de features,
+  produzindo ganho consistente de desempenho em problemas tabulares reais,
+  incluindo contexto clínico e biomédico.
+  [1][3]
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário rápido</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#bagging">Bagging e bootstrap</a></li>
+  <li><a href="#randomizacao">Randomização de features</a></li>
+  <li><a href="#vies-variancia">Trade-off viés-variância</a></li>
+  <li><a href="#normalizacao">Normalização (precisa?)</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#n-estimators">n_estimators</a></li>
+  <li><a href="#max-depth">max_depth</a></li>
+  <li><a href="#min-samples">min_samples_split e min_samples_leaf</a></li>
+  <li><a href="#max-features">max_features</a></li>
+  <li><a href="#bootstrap">bootstrap</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#residuos">Análise de resíduos</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#importancia">Importância de variáveis</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#comparacao">Comparação com outros regresssores</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  Random Forest Regressor é uma coleção de árvores de regressão.
+  Cada árvore faz uma predição contínua,
+  e a saída final da floresta é a média dessas predições.
+  [1][2][10]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Predição final da floresta</div>
+  <div class="formula">ŷ(x) = (1 / T) Σₜ fₜ(x)</div>
+  <p style="font-size: 13px;">
+    T = número de árvores (n_estimators)<br/>
+    fₜ(x) = predição da árvore t para a amostra x
+  </p>
+</div>
+
+<p><b>Características principais:</b></p>
+<ul>
+  <li><b>Não linear:</b> captura interações e padrões complexos.</li>
+  <li><b>Robusto:</b> menos sensível a ruído do que árvore única.</li>
+  <li><b>Baixa necessidade de pré-processamento:</b> escala das features raramente é crítica.</li>
+  <li><b>Forte baseline:</b> costuma performar muito bem em dados tabulares.</li>
+  <li><b>Interpretabilidade parcial:</b> tem feature importance, PDP e SHAP.</li>
+  <li><b>Escalável:</b> paralelizável em múltiplos núcleos.</li>
+</ul>
+
+<p style="font-size: 13px;">
+  Base técnica dos pontos acima: [1][2][10][11][16][18]
+</p>
+
+<div class="callout">
+  <b>Contexto clínico:</b>
+  em tarefas como predição de tempo de internação,
+  custo hospitalar,
+  dose de medicação,
+  níveis laboratoriais futuros,
+  o Random Forest Regressor costuma ser uma opção muito competitiva
+  quando relações são não-lineares e heterogêneas.
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Uma árvore sozinha aprende regras como:
+  "se idade > 65 e creatinina > 1.8,
+  então tempo de internação tende a ser alto".
+</p>
+
+<p>
+  O problema é que uma árvore pode se ajustar demais a ruídos do treino.
+  A floresta resolve isso treinando centenas de árvores com pequenas variações.
+  Quando você faz a média das árvores,
+  erros aleatórios se cancelam,
+  e sinais estáveis permanecem.
+  [1][3]
+</p>
+
+<p>
+  Em termos simples:
+  <ul>
+    <li>árvore única = opinião de 1 especialista;</li>
+    <li>random forest = opinião média de 200 especialistas independentes.</li>
+  </ul>
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Ensemble:</b> combinação de múltiplos modelos.</li>
+  <li><b>Bagging:</b> treinar modelos em amostras bootstrap e agregar.</li>
+  <li><b>Bootstrap:</b> amostragem com reposição.</li>
+  <li><b>Tree depth:</b> profundidade máxima da árvore.</li>
+  <li><b>Leaf:</b> nó terminal com valor de predição.</li>
+  <li><b>MSE:</b> erro quadrático médio.</li>
+  <li><b>MAE:</b> erro absoluto médio.</li>
+  <li><b>R²:</b> variância explicada pelo modelo.</li>
+  <li><b>OOB:</b> out-of-bag, validação interna com amostras fora do bootstrap.</li>
+  <li><b>Feature importance:</b> estimativa de relevância de cada variável.</li>
+</ul>
+
+<h3 id="matematica">Matemática por trás do algoritmo</h3>
+<p>
+  Cada árvore de regressão divide o espaço de features em regiões,
+  e prediz a média de y em cada região terminal.
+  O Random Forest agrega várias dessas árvores.
+  [1][2][10]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Objetivo local em um split (árvore de regressão)</div>
+  <div class="formula">ΔI = I(pai) - [ (n_L/n)I(esq) + (n_R/n)I(dir) ]</div>
+  <p style="font-size: 13px;">
+    I = impureza (tipicamente MSE para regressão)<br/>
+    split ótimo maximiza redução de impureza
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Impureza MSE em um nó</div>
+  <div class="formula">I(nó) = (1 / n) Σ (yᵢ - ȳ_nó)²</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Predição da floresta</div>
+  <div class="formula">ŷ_RF(x) = (1/T) Σₜ ŷ_t(x)</div>
+  <p style="font-size: 13px;">
+    a média reduz variância aproximadamente por fator ~1/T
+    quando árvores são pouco correlacionadas
+  </p>
+</div>
+
+<h4>Intuição estatística</h4>
+<div class="card">
+  <p style="font-size: 13px;">
+    Se cada árvore tem variância σ² e correlação ρ entre árvores,
+    a variância média do ensemble é aproximadamente:
+  </p>
+  <div class="formula">Var(média) ≈ ρσ² + (1-ρ)σ²/T</div>
+  <p style="font-size: 13px;">
+    Logo:
+    reduzir correlação entre árvores (via bootstrap + max_features)
+    é tão importante quanto aumentar T.
+  </p>
+</div>
+
+<h3 id="bagging">Bagging e bootstrap</h3>
+<p>
+  Em cada árvore:
+  [1][3][10]
+</p>
+<ol>
+  <li>gera-se uma amostra bootstrap do treino (com reposição);</li>
+  <li>treina-se a árvore inteira nessa amostra;</li>
+  <li>amostras não sorteadas ficam OOB para validação interna.</li>
+</ol>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Conceito</b></th>
+    <th align="left"><b>Efeito principal</b></th>
+    <th align="left"><b>Impacto clínico</b></th>
+  </tr>
+  <tr>
+    <td>Bootstrap</td>
+    <td>Diversifica árvores</td>
+    <td>Melhor robustez entre coortes</td>
+  </tr>
+  <tr>
+    <td>Agregação por média</td>
+    <td>Reduz variância</td>
+    <td>Predições menos instáveis</td>
+  </tr>
+  <tr>
+    <td>OOB</td>
+    <td>Estimativa de erro sem split extra</td>
+    <td>Validação rápida inicial</td>
+  </tr>
+</table>
+
+<h3 id="randomizacao">Randomização de features</h3>
+<p>
+  Em cada split,
+  a árvore considera apenas um subconjunto de features
+  definido por <b>max_features</b>.
+  Isso força diversidade entre árvores
+  e reduz correlação de erros.
+  [1][10][14]
+</p>
+
+<div class="callout">
+  <b>Ponto crítico:</b>
+  em regressão,
+  `max_features="sqrt"` costuma funcionar bem,
+  mas pode valer testar também `log2` e `None` em grid search,
+  pois o comportamento depende do número de variáveis e do ruído.
+</div>
+
+<h3 id="vies-variancia">Trade-off viés-variância</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Viés</b></th>
+    <th align="left"><b>Variância</b></th>
+    <th align="left"><b>Risco</b></th>
+  </tr>
+  <tr>
+    <td>Árvores rasas</td>
+    <td>Alto</td>
+    <td>Baixo</td>
+    <td>Underfitting</td>
+  </tr>
+  <tr>
+    <td>Árvores profundas + poucas árvores</td>
+    <td>Baixo</td>
+    <td>Alto</td>
+    <td>Overfitting</td>
+  </tr>
+  <tr>
+    <td>Árvores profundas + muitas árvores</td>
+    <td>Baixo</td>
+    <td>Moderado</td>
+    <td>Bom equilíbrio</td>
+  </tr>
+</table>
+
+<h3 id="normalizacao">Normalização (precisa?)</h3>
+<p>
+  Diferente de modelos baseados em distância (KNN, SVR),
+  Random Forest Regressor <b>não exige normalização</b> para funcionar bem,
+  porque splits em árvores dependem de ordenação e limiares,
+  não de distância euclidiana.
+  [2][10]
+</p>
+
+<div class="card">
+  <b>Resumo prático:</b>
+  <ul>
+    <li>Sem normalização: geralmente ok.</li>
+    <li>Com normalização: também funciona, mas não costuma mudar muito performance.</li>
+    <li>Use normalização se pipeline for compartilhado com modelos sensíveis à escala.</li>
+  </ul>
+</div>
+
+<h3 id="hiperparametros">Hiperparâmetros e impactos</h3>
+<p>
+  No trAIn,
+  o `RandomForestRegressor` usa:
+  `n_estimators`,
+  `max_depth`,
+  `min_samples_split`,
+  `min_samples_leaf`,
+  `max_features`,
+  `bootstrap`.
+  [10]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Papel</b></th>
+    <th align="left"><b>Faixa típica</b></th>
+    <th align="left"><b>Risco se extremo</b></th>
+  </tr>
+  <tr>
+    <td>n_estimators</td>
+    <td>Número de árvores</td>
+    <td>200-1000</td>
+    <td>Baixo: alta variância; muito alto: custo computacional</td>
+  </tr>
+  <tr>
+    <td>max_depth</td>
+    <td>Profundidade máxima</td>
+    <td>6-40 ou None</td>
+    <td>Muito baixo: underfit; None sem controle: overfit local</td>
+  </tr>
+  <tr>
+    <td>min_samples_split</td>
+    <td>Mínimo para dividir nó</td>
+    <td>2-20</td>
+    <td>Baixo demais: árvores muito fragmentadas</td>
+  </tr>
+  <tr>
+    <td>min_samples_leaf</td>
+    <td>Mínimo por folha</td>
+    <td>1-20</td>
+    <td>1 com ruído: variação alta</td>
+  </tr>
+  <tr>
+    <td>max_features</td>
+    <td>Features candidatas por split</td>
+    <td>sqrt / log2 / None</td>
+    <td>None: árvores mais correlacionadas</td>
+  </tr>
+  <tr>
+    <td>bootstrap</td>
+    <td>Amostragem com reposição</td>
+    <td>True/False</td>
+    <td>False reduz diversidade</td>
+  </tr>
+</table>
+
+<h3 id="n-estimators">n_estimators</h3>
+<p>
+  Aumentar número de árvores,
+  em geral,
+  melhora estabilidade e reduz variância,
+  até atingir platô.
+  [1][10]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Heurística prática</div>
+  <div class="formula">Comece em 300; teste 500, 800, 1200; pare quando ganho de CV for marginal.</div>
+</div>
+
+<h3 id="max-depth">max_depth</h3>
+<p>
+  Controla quão complexas são as regras em cada árvore.
+  [10]
+</p>
+<ul>
+  <li><b>max_depth baixo:</b> modelo mais simples, possível underfit.</li>
+  <li><b>max_depth alto/None:</b> captura detalhes finos, mas pode memorizar ruído.</li>
+</ul>
+
+<div class="warning">
+  <b>Sinal clássico:</b>
+  se R² treino muito alto e R² validação baixo,
+  reduza `max_depth` e/ou aumente `min_samples_leaf`.
+</div>
+
+<h3 id="min-samples">min_samples_split e min_samples_leaf</h3>
+<p>
+  Esses dois parâmetros são os principais reguladores da granularidade das árvores.
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Efeito</b></th>
+    <th align="left"><b>Quando aumentar</b></th>
+  </tr>
+  <tr>
+    <td>min_samples_split</td>
+    <td>Evita splits muito precoces</td>
+    <td>Quando há overfit e alta fragmentação</td>
+  </tr>
+  <tr>
+    <td>min_samples_leaf</td>
+    <td>Evita folhas com poucos casos</td>
+    <td>Quando resíduos explodem em subgrupos pequenos</td>
+  </tr>
+</table>
+
+<h3 id="max-features">max_features</h3>
+<p>
+  Define quantas features candidatas cada split pode avaliar.
+  É um controle importante de diversidade.
+  [1][10][14]
+</p>
+
+<ul>
+  <li><b>sqrt:</b> geralmente bom compromisso.</li>
+  <li><b>log2:</b> mais aleatorização, potencialmente menor correlação entre árvores.</li>
+  <li><b>None:</b> usa todas as features, menor aleatorização.</li>
+</ul>
+
+<h3 id="bootstrap">bootstrap</h3>
+<p>
+  Em geral,
+  manter `bootstrap=True` é recomendado,
+  pois aumenta diversidade das árvores,
+  melhorando generalização.
+  [1][3][10]
+</p>
+
+<div class="card">
+  <b>Quando testar bootstrap=False?</b>
+  <ul>
+    <li>dataset muito grande e homogêneo;</li>
+    <li>objetivo de reduzir custo;</li>
+    <li>validação mostra ganho claro (não é o padrão).</li>
+  </ul>
+</div>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+<p>
+  Para regressão,
+  use conjunto de métricas complementares:
+  [2][10]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Interpretação</b></th>
+    <th align="left"><b>Melhor valor</b></th>
+  </tr>
+  <tr>
+    <td>R²</td>
+    <td>Variância explicada</td>
+    <td>Maior</td>
+  </tr>
+  <tr>
+    <td>RMSE</td>
+    <td>Erro típico com penalização quadrática</td>
+    <td>Menor</td>
+  </tr>
+  <tr>
+    <td>MAE</td>
+    <td>Erro absoluto médio</td>
+    <td>Menor</td>
+  </tr>
+  <tr>
+    <td>MAPE</td>
+    <td>Erro percentual médio</td>
+    <td>Menor (cuidado com y≈0)</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Boas práticas de validação:</b>
+  use validação cruzada,
+  reporte média + desvio,
+  e sempre compare com baseline simples
+  (Linear Regression / Ridge).
+</div>
+
+<h3 id="residuos">Análise de resíduos</h3>
+<p>
+  Mesmo com bom R²,
+  resíduos podem revelar falhas importantes.
+</p>
+
+<ul>
+  <li>Resíduos muito maiores em valores altos de y → possível heterocedasticidade.</li>
+  <li>Erro sistemático por subgrupo clínico → viés de segmentação.</li>
+  <li>Caudas longas em erro absoluto → outliers não capturados.</li>
+</ul>
+
+<div class="card">
+  <b>Checklist rápido de resíduos:</b>
+  <ol>
+    <li>Plot `y_true` vs `y_pred`.</li>
+    <li>Histograma de resíduos.</li>
+    <li>Boxplot de resíduos por subgrupo (sexo/faixa etária/centro).</li>
+    <li>Erro absoluto por quantil de risco.</li>
+  </ol>
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  Random Forest Regressor é mais interpretável que redes neurais profundas,
+  mas menos transparente que regressão linear.
+  [2][11][16][17][18]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Técnica</b></th>
+    <th align="left"><b>Escopo</b></th>
+    <th align="left"><b>Limitação</b></th>
+  </tr>
+  <tr>
+    <td>Feature importance (impurity)</td>
+    <td>Global</td>
+    <td>Viés com variáveis correlacionadas</td>
+  </tr>
+  <tr>
+    <td>Permutation importance</td>
+    <td>Global</td>
+    <td>Custo computacional maior</td>
+  </tr>
+  <tr>
+    <td>PDP/ICE</td>
+    <td>Global + local</td>
+    <td>Assume independência parcial de features</td>
+  </tr>
+  <tr>
+    <td>SHAP</td>
+    <td>Local + global</td>
+    <td>Mais pesado, requer cuidado de interpretação</td>
+  </tr>
+</table>
+
+<h3 id="importancia">Importância de variáveis</h3>
+<p>
+  Use preferencialmente <b>permutation importance</b>
+  para reduzir viés das importâncias por impureza.
+  [11][12][13]
+</p>
+
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import r2_score
+
+rf = RandomForestRegressor(
+    random_state=42,
+    n_estimators=500,
+    max_depth=None,
+    min_samples_split=2,
+    min_samples_leaf=1,
+    max_features='sqrt',
+    bootstrap=True,
+)
+rf.fit(X_train, y_train)
+
+pred = rf.predict(X_test)
+print('R2 teste:', r2_score(y_test, pred))
+
+imp = permutation_importance(rf, X_test, y_test, n_repeats=20, random_state=42)
+for i in imp.importances_mean.argsort()[::-1][:10]:
+    print(feature_names[i], imp.importances_mean[i])
+  </pre>
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+<p>
+  Random Forest Regressor aparece com frequência em estudos clínicos por lidar bem com:
+  [4][5][6]
+</p>
+<ul>
+  <li>não-linearidade;</li>
+  <li>interações entre variáveis;</li>
+  <li>dados ruidosos;</li>
+  <li>mistura de features clínicas/laboratoriais.</li>
+</ul>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Caso clínico</b></th>
+    <th align="left"><b>Alvo (regressão)</b></th>
+    <th align="left"><b>Por que RF ajuda</b></th>
+  </tr>
+  <tr>
+    <td>UTI</td>
+    <td>Tempo de internação (dias)</td>
+    <td>Interações complexas entre comorbidades e exames</td>
+  </tr>
+  <tr>
+    <td>Nefrologia</td>
+    <td>eGFR futuro</td>
+    <td>Relações não-lineares com creatinina, idade, albuminúria</td>
+  </tr>
+  <tr>
+    <td>Farmacologia</td>
+    <td>Dose individual ótima</td>
+    <td>Captura heterogeneidade interpaciente</td>
+  </tr>
+  <tr>
+    <td>Oncologia</td>
+    <td>Tempo até progressão (proxy contínuo)</td>
+    <td>Combina biomarcadores múltiplos sem suposição linear</td>
+  </tr>
+</table>
+
+<h3 id="exemplos">Exemplos publicados</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Problema</b></th>
+    <th align="left"><b>Resultado</b></th>
+    <th align="left"><b>Observação</b></th>
+  </tr>
+  <tr>
+    <td>Breiman 2001 [1]</td>
+    <td>Fundamentos RF</td>
+    <td>Consistência de ganho vs árvores únicas</td>
+    <td>Base teórica do método</td>
+  </tr>
+  <tr>
+    <td>Goldstein et al. [4]</td>
+    <td>Risco clínico contínuo</td>
+    <td>Melhor RMSE em dados heterogêneos</td>
+    <td>Importância de validação externa</td>
+  </tr>
+  <tr>
+    <td>Rajkomar et al. [5]</td>
+    <td>Predição hospitalar</td>
+    <td>Ensembles robustos em tabular clínico</td>
+    <td>Comparações com lineares e boosting</td>
+  </tr>
+  <tr>
+    <td>Topol 2019 [6]</td>
+    <td>Panorama IA em medicina</td>
+    <td>Modelos de árvore como fortes baselines</td>
+    <td>Ênfase em governança e explicabilidade</td>
+  </tr>
+</table>
+
+<h3 id="comparacao">Comparação com outros regresssores</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Não-linearidade</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Escala de dados</b></th>
+    <th align="left"><b>Padrão de uso</b></th>
+  </tr>
+  <tr>
+    <td>Linear Regression</td>
+    <td>Baixa</td>
+    <td>Muito alta</td>
+    <td>Muito grande</td>
+    <td>Baseline e inferência</td>
+  </tr>
+  <tr>
+    <td>Ridge</td>
+    <td>Baixa</td>
+    <td>Alta</td>
+    <td>Muito grande</td>
+    <td>Multicolinearidade</td>
+  </tr>
+  <tr>
+    <td>SVR</td>
+    <td>Alta</td>
+    <td>Média-baixa</td>
+    <td>Pequeno/médio</td>
+    <td>Não-linear com tuning fino</td>
+  </tr>
+  <tr>
+    <td>Random Forest Regressor</td>
+    <td>Alta</td>
+    <td>Média</td>
+    <td>Médio/grande</td>
+    <td>Tabular robusto</td>
+  </tr>
+  <tr>
+    <td>XGBoost Regressor</td>
+    <td>Muito alta</td>
+    <td>Média</td>
+    <td>Médio/grande</td>
+    <td>Máxima performance tabular</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Regra prática:</b>
+  se você quer excelente baseline tabular,
+  pouco pré-processamento,
+  boa robustez e explicabilidade razoável,
+  Random Forest Regressor é uma escolha muito segura.
+  [1][2][10][14]
+</div>
+
+<h3 id="quando-usar">Quando usar (e quando evitar)</h3>
+<h4>Use quando:</h4>
+<ul>
+  <li>dados tabulares com relações complexas;</li>
+  <li>mistura de variáveis clínicas e laboratoriais;</li>
+  <li>necessidade de modelo robusto sem engenharia excessiva;</li>
+  <li>baseline forte antes de partir para boosting.</li>
+</ul>
+
+<h4>Evite quando:</h4>
+<ul>
+  <li>objetivo principal é interpretação causal direta por coeficientes;</li>
+  <li>há forte exigência de extrapolação fora do intervalo observado;</li>
+  <li>dataset extremamente grande e latência crítica (pode preferir gradient boosting otimizado).</li>
+</ul>
+
+<h3 id="boas-praticas">Boas práticas clínicas</h3>
+<ol>
+  <li>Defina desfecho contínuo clinicamente válido e mensuração consistente.</li>
+  <li>Separe treino/validação/teste por tempo ou centro quando possível.</li>
+  <li>Use validação cruzada estratificada por centro/coorte quando aplicável.</li>
+  <li>Reporte R², RMSE, MAE e intervalos por bootstrap.</li>
+  <li>Avalie performance por subgrupos clínicos relevantes.</li>
+  <li>Faça análise de calibração de erro por faixas do alvo.</li>
+  <li>Documente hiperparâmetros finais e justificativa de seleção.</li>
+  <li>Guarde versão de dados, features e seed para reprodutibilidade.</li>
+  <li>Inclua comparação com baseline linear.</li>
+  <li>Planeje validação externa antes de uso operacional.</li>
+</ol>
+
+<p style="font-size: 13px;">
+  Diretrizes de reporte/risco de viés para modelos clínicos: [8][9]
+</p>
+
+<h3 id="diagnostico">Diagnóstico de problemas</h3>
+
+<h4>1) Overfitting</h4>
+<p><b>Sintoma:</b> R² treino muito maior que validação/teste.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>reduzir `max_depth`;</li>
+  <li>aumentar `min_samples_leaf`;</li>
+  <li>aumentar `min_samples_split`;</li>
+  <li>revisar vazamento de dados.</li>
+</ul>
+
+<h4>2) Underfitting</h4>
+<p><b>Sintoma:</b> R² baixo em treino e teste.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>aumentar complexidade (maior depth);</li>
+  <li>reduzir restrições de folhas;</li>
+  <li>melhorar features clínicas e temporais.</li>
+</ul>
+
+<h4>3) Feature importance instável</h4>
+<p><b>Sintoma:</b> ranking muda muito entre folds.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>usar permutation importance com repetição;</li>
+  <li>agrupar features correlacionadas;</li>
+  <li>aumentar tamanho de amostra.</li>
+</ul>
+
+<h4>4) Generalização ruim em hospital externo</h4>
+<p><b>Sintoma:</b> queda forte de R² na validação externa.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>revisar shift de distribuição;</li>
+  <li>incluir variável de domínio/centro;</li>
+  <li>recalibrar e reavaliar por subgrupos.</li>
+</ul>
+
+<h4>5) Erro alto em extremos do alvo</h4>
+<p><b>Sintoma:</b> pacientes muito graves têm erro muito maior.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>amostragem balanceada por quantis de y;</li>
+  <li>loss ponderada por faixa de risco (em modelos alternativos);</li>
+  <li>features específicas para extremos clínicos.</li>
+</ul>
+
+<h3 id="faq">Perguntas frequentes</h3>
+
+<h4>1. Precisa normalizar para Random Forest Regressor?</h4>
+<p>
+  Em geral não.
+  Árvores não dependem de distância euclidiana.
+</p>
+
+<h4>2. Qual métrica devo priorizar?</h4>
+<p>
+  Depende do objetivo clínico:
+  RMSE penaliza erros grandes,
+  MAE é mais robusto,
+  R² resume variância explicada.
+  Ideal reportar as três.
+</p>
+
+<h4>3. Quantas árvores usar?</h4>
+<p>
+  Comece em 300-500 e aumente até estabilizar CV.
+  Muitos casos estabilizam entre 500 e 1000.
+</p>
+
+<h4>4. Random Forest extrapola bem?</h4>
+<p>
+  Não muito.
+  Como árvore aprende partições do espaço observado,
+  extrapolação fora do intervalo de treino é limitada.
+</p>
+
+<h4>5. RF é melhor que XGBoost?</h4>
+<p>
+  Nem sempre.
+  XGBoost costuma ganhar em benchmark final,
+  mas RF é mais simples,
+  robusto,
+  e excelente baseline.
+</p>
+
+<h4>6. Posso usar RF com dados faltantes?</h4>
+<p>
+  Em versões recentes do scikit-learn,
+  o RandomForestRegressor possui suporte nativo para NaN em vários cenários.
+  Ainda assim,
+  em ambiente clínico,
+  costuma ser mais seguro manter política explícita de imputação no pipeline
+  por reprodutibilidade e compatibilidade entre versões.
+  [10]
+</p>
+
+<h4>7. Como evitar vazamento?</h4>
+<p>
+  Ajuste imputação e engenharia de features apenas no treino
+  dentro de pipeline validado por CV.
+</p>
+
+<h4>8. Posso usar OOB no lugar de CV?</h4>
+<p>
+  OOB é útil para triagem,
+  mas para relatório clínico e decisão final,
+  prefira CV e teste externo.
+  [1][10]
+</p>
+
+<h4>9. RF lida com multicolinearidade?</h4>
+<p>
+  Sim melhor que modelos lineares puros,
+  mas importâncias podem ficar diluídas entre variáveis correlacionadas.
+  [11][12]
+</p>
+
+<h4>10. RF serve para série temporal?</h4>
+<p>
+  Serve com engenharia de lags e validação temporal correta.
+  Não use split aleatório em dados temporais.
+</p>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Breiman L. Random Forests (2001) [1]</li>
+  <li>Hastie, Tibshirani, Friedman. ESL Capítulo de árvores e ensembles [2]</li>
+  <li>Kuhn & Johnson. Applied Predictive Modeling [7]</li>
+  <li>scikit-learn API + User Guide: RandomForestRegressor [10]</li>
+  <li>Permutation Importance e limites de MDI [11][12][13]</li>
+  <li>PDP/ICE e SHAP para explicabilidade [15][16][18]</li>
+  <li>Documentações clínicas de modelagem preditiva TRIPOD/PROBAST</li>
+</ul>
+
+<h3 id="fontes-por-tema">Fontes por tema (mapa rápido)</h3>
+<ul>
+  <li><b>Fundamentos RF/bagging:</b> [1], [2], [3], [10]</li>
+  <li><b>Escolha de hiperparâmetros e comportamento do sklearn:</b> [10], [14]</li>
+  <li><b>Importância de variáveis:</b> [11], [12], [13]</li>
+  <li><b>Interpretabilidade (PDP/ICE/SHAP):</b> [15], [16], [17], [18]</li>
+  <li><b>Aplicações clínicas e governança:</b> [4], [5], [6], [8], [9]</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>
+    Breiman L.
+    Random Forests.
+    <i>Machine Learning</i>.
+    2001;45:5-32.
+    <a href="https://doi.org/10.1023/A:1010933404324">DOI: 10.1023/A:1010933404324</a>
+  </li>
+  <li>
+    Hastie T,
+    Tibshirani R,
+    Friedman J.
+    The Elements of Statistical Learning.
+    2nd ed.
+    Springer;
+    2009.
+    <a href="https://doi.org/10.1007/978-0-387-84858-7">DOI: 10.1007/978-0-387-84858-7</a>
+  </li>
+  <li>
+    Breiman L.
+    Bagging Predictors.
+    <i>Machine Learning</i>.
+    1996;24:123-140.
+    <a href="https://doi.org/10.1007/BF00058655">DOI: 10.1007/BF00058655</a>
+  </li>
+  <li>
+    Goldstein BA,
+    Navar AM,
+    Pencina MJ,
+    Ioannidis JPA.
+    Opportunities and challenges in developing risk prediction models with electronic health records data.
+    <i>J Am Med Inform Assoc</i>.
+    2017;24:198-208.
+    <a href="https://doi.org/10.1093/jamia/ocw042">DOI: 10.1093/jamia/ocw042</a>
+  </li>
+  <li>
+    Rajkomar A,
+    Dean J,
+    Kohane I.
+    Machine Learning in Medicine.
+    <i>N Engl J Med</i>.
+    2019;380:1347-1358.
+    <a href="https://doi.org/10.1056/NEJMra1814259">DOI: 10.1056/NEJMra1814259</a>
+  </li>
+  <li>
+    Topol EJ.
+    High-performance medicine: the convergence of human and artificial intelligence.
+    <i>Nat Med</i>.
+    2019;25:44-56.
+    <a href="https://doi.org/10.1038/s41591-018-0300-7">DOI: 10.1038/s41591-018-0300-7</a>
+  </li>
+  <li>
+    Kuhn M,
+    Johnson K.
+    Applied Predictive Modeling.
+    Springer;
+    2013.
+    <a href="https://doi.org/10.1007/978-1-4614-6849-3">DOI: 10.1007/978-1-4614-6849-3</a>
+  </li>
+  <li>
+    Collins GS,
+    Reitsma JB,
+    Altman DG,
+    Moons KGM.
+    Transparent Reporting of a multivariable prediction model for Individual Prognosis Or Diagnosis (TRIPOD).
+    <i>Ann Intern Med</i>.
+    2015;162:55-63.
+    <a href="https://doi.org/10.7326/M14-0697">DOI: 10.7326/M14-0697</a>
+  </li>
+  <li>
+    Wolff RF,
+    Moons KGM,
+    Riley RD,
+    et al.
+    PROBAST: A Tool to Assess the Risk of Bias and Applicability of Prediction Model Studies.
+    <i>Ann Intern Med</i>.
+    2019;170:51-58.
+    <a href="https://doi.org/10.7326/M18-1376">DOI: 10.7326/M18-1376</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    RandomForestRegressor API Reference.
+    <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html">https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Permutation feature importance (User Guide).
+    <a href="https://scikit-learn.org/stable/modules/permutation_importance.html">https://scikit-learn.org/stable/modules/permutation_importance.html</a>
+  </li>
+  <li>
+    Strobl C,
+    Boulesteix AL,
+    Zeileis A,
+    Hothorn T.
+    Bias in random forest variable importance measures.
+    <i>BMC Bioinformatics</i>.
+    2007;8:25.
+    <a href="https://doi.org/10.1186/1471-2105-8-25">DOI: 10.1186/1471-2105-8-25</a>
+  </li>
+  <li>
+    Altmann A,
+    Toloşi L,
+    Sander O,
+    Lengauer T.
+    Permutation importance: a corrected feature importance measure.
+    <i>Bioinformatics</i>.
+    2010;26(10):1340-1347.
+    <a href="https://doi.org/10.1093/bioinformatics/btq134">DOI: 10.1093/bioinformatics/btq134</a>
+  </li>
+  <li>
+    Geurts P,
+    Ernst D,
+    Wehenkel L.
+    Extremely randomized trees.
+    <i>Machine Learning</i>.
+    2006;63:3-42.
+    <a href="https://doi.org/10.1007/s10994-006-6226-1">DOI: 10.1007/s10994-006-6226-1</a>
+  </li>
+  <li>
+    Goldstein A,
+    Kapelner A,
+    Bleich J,
+    Pitkin E.
+    Peeking Inside the Black Box: Visualizing Statistical Learning With Plots of Individual Conditional Expectation.
+    <i>Journal of Computational and Graphical Statistics</i>.
+    2015;24(1):44-65.
+    <a href="https://doi.org/10.1080/10618600.2014.907095">DOI: 10.1080/10618600.2014.907095</a>
+  </li>
+  <li>
+    Lundberg SM,
+    Lee SI.
+    A Unified Approach to Interpreting Model Predictions.
+    <i>NeurIPS</i>.
+    2017.
+    <a href="https://doi.org/10.48550/arXiv.1705.07874">DOI: 10.48550/arXiv.1705.07874</a>
+  </li>
+  <li>
+    Molnar C.
+    Interpretable Machine Learning (online book).
+    <a href="https://christophm.github.io/interpretable-ml-book/">https://christophm.github.io/interpretable-ml-book/</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Partial Dependence and ICE (inspection examples/docs).
+    <a href="https://scikit-learn.org/stable/modules/partial_dependence.html">https://scikit-learn.org/stable/modules/partial_dependence.html</a>
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Resumo final:</b>
+  Random Forest Regressor é uma escolha excelente para dados clínicos tabulares
+  quando você precisa de robustez,
+  boa performance sem engenharia extrema,
+  e interpretabilidade parcial com ferramentas modernas.
+</div>
+
+<h3 id="playbook-tuning">Playbook de tuning (passo a passo)</h3>
+<p>
+  A forma mais segura de ajustar o modelo é seguir uma sequência curta,
+  evitando grid search gigante já no início.
+  [2][7][10]
+</p>
+
+<ol>
+  <li><b>Passo 1:</b> fixar baseline com `n_estimators=300`, `max_features='sqrt'`, demais defaults.</li>
+  <li><b>Passo 2:</b> ajustar complexidade com `max_depth`, `min_samples_leaf`, `min_samples_split`.</li>
+  <li><b>Passo 3:</b> aumentar `n_estimators` até estabilizar CV.</li>
+  <li><b>Passo 4:</b> comparar `sqrt`, `log2`, `None` em `max_features`.</li>
+  <li><b>Passo 5:</b> validar em hold-out temporal ou externo.</li>
+</ol>
+
+<div class="card">
+  <b>Grid inicial recomendado</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+param_grid = {
+    "n_estimators": [300, 500, 800],
+    "max_depth": [8, 12, 20, None],
+    "min_samples_split": [2, 5, 10],
+    "min_samples_leaf": [1, 2, 5, 10],
+    "max_features": ["sqrt", "log2", None],
+    "bootstrap": [True]
+}
+  </pre>
+</div>
+
+<h3 id="troubleshooting-avancado">Troubleshooting avançado</h3>
+
+<p style="font-size: 13px;">
+  Referências para práticas de validação e generalização: [4][5][8][9]
+</p>
+
+<h4>A) Modelo com boa média e péssimo pior-decíl</h4>
+<p>
+  <b>Sintoma:</b>
+  RMSE geral aceitável,
+  mas erros enormes em pacientes mais graves.
+</p>
+<p><b>Possíveis causas:</b></p>
+<ul>
+  <li>representação insuficiente de extremos no treino;</li>
+  <li>features pouco informativas para casos críticos;</li>
+  <li>distribuição de y muito assimétrica.</li>
+</ul>
+<p><b>Ações:</b></p>
+<ul>
+  <li>validar métricas por decil de risco;</li>
+  <li>estratificar split por quantis de y;</li>
+  <li>engenharia de features específicas para casos graves.</li>
+</ul>
+
+<h4>B) Performance oscila entre rodadas</h4>
+<p>
+  <b>Sintoma:</b>
+  variação alta de R² entre execuções.
+</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>fixar `random_state` em pipeline e CV;</li>
+  <li>aumentar `n_estimators`;</li>
+  <li>usar repetição de CV (RepeatedKFold).</li>
+</ul>
+
+<h4>C) Resultado ótimo na validação interna e ruim na externa</h4>
+<p><b>Causas comuns:</b></p>
+<ul>
+  <li>data leakage local;</li>
+  <li>mudança de protocolo clínico entre hospitais;</li>
+  <li>diferença de distribuição de exames.</li>
+</ul>
+<p><b>Ações:</b></p>
+<ul>
+  <li>auditar pipeline feature a feature;</li>
+  <li>incluir validação por centro como rotina;</li>
+  <li>recalibrar e adaptar features de domínio.</li>
+</ul>
+
+<h3 id="calibracao-erro">Calibração de erro em regressão</h3>
+<p>
+  Em regressão,
+  não falamos de calibração de probabilidade como na classificação,
+  mas é útil avaliar se o erro cresce de forma previsível ao longo da faixa de y.
+  [2][4][5]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Análise</b></th>
+    <th align="left"><b>Como fazer</b></th>
+    <th align="left"><b>Interpretação</b></th>
+  </tr>
+  <tr>
+    <td>Erro por quantil de y</td>
+    <td>Dividir y_true em 10 quantis e calcular MAE por grupo</td>
+    <td>Detecta piora em extremos</td>
+  </tr>
+  <tr>
+    <td>Erro por subgrupo clínico</td>
+    <td>MAE/RMSE por sexo, idade, serviço, centro</td>
+    <td>Detecta desigualdade de desempenho</td>
+  </tr>
+  <tr>
+    <td>Curva y_true vs y_pred</td>
+    <td>Scatter + linha identidade</td>
+    <td>Detecta viés sistemático de subestimação/superestimação</td>
+  </tr>
+</table>
+
+<h3 id="ablation">Ablation study simplificado</h3>
+<p>
+  Para justificar robustez do pipeline,
+  vale executar um mini estudo de ablação.
+  [2][7]
+</p>
+
+<div class="card">
+  <b>Exemplo de plano de ablação</b>
+  <ol>
+    <li>Modelo completo (todas as features).</li>
+    <li>Remover bloco laboratorial.</li>
+    <li>Remover bloco comorbidades.</li>
+    <li>Remover bloco de sinais vitais.</li>
+    <li>Comparar queda de R²/MAE por cenário.</li>
+  </ol>
+</div>
+
+<p>
+  Isso ajuda a identificar quais blocos realmente sustentam desempenho,
+  e melhora explicabilidade para equipe clínica.
+</p>
+
+<h3 id="fairness">Fairness e vieses de subgrupo</h3>
+<p>
+  Em saúde,
+  um regressor pode ter boa média global e ainda ser injusto em subgrupos.
+  [5][6][8][9]
+</p>
+
+<ul>
+  <li>Calcule MAE por sexo e faixa etária.</li>
+  <li>Calcule MAE por raça/cor quando disponível e eticamente permitido.</li>
+  <li>Calcule erro por hospital/unidade.</li>
+  <li>Monitore diferença absoluta de erro entre grupos.</li>
+</ul>
+
+<div class="warning">
+  <b>Alerta de governança:</b>
+  se a diferença de erro entre grupos for clinicamente relevante,
+  não promova o modelo sem plano de mitigação.
+</div>
+
+<h3 id="drift">Monitoramento em produção (drift)</h3>
+<p>
+  Após deploy,
+  desempenho tende a degradar com mudança de perfil populacional,
+  protocolo clínico,
+  ou laboratório.
+  [4][5][6]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sinal</b></th>
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Limite sugerido</b></th>
+  </tr>
+  <tr>
+    <td>Data drift</td>
+    <td>PSI por feature principal</td>
+    <td>PSI > 0.2 investigar</td>
+  </tr>
+  <tr>
+    <td>Performance drift</td>
+    <td>RMSE mensal vs baseline</td>
+    <td>Piora > 15% investigar</td>
+  </tr>
+  <tr>
+    <td>Drift de subgrupo</td>
+    <td>MAE por grupo temporal</td>
+    <td>Gap crescente entre grupos</td>
+  </tr>
+</table>
+
+<div class="card">
+  <b>Plano operacional mínimo</b>
+  <ol>
+    <li>Monitorar métricas semanais ou mensais.</li>
+    <li>Gerar alertas automáticos por limiar.</li>
+    <li>Disparar re-treino controlado quando necessário.</li>
+    <li>Manter rastreio de versão do modelo e dataset.</li>
+  </ol>
+</div>
+
+<h3 id="pipeline-clinico">Pipeline clínico recomendado</h3>
+<p style="font-size: 13px;">
+  Estrutura alinhada a boas práticas de reporte e risco de viés em modelos clínicos [8][9].
+</p>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+1) Definir desfecho contínuo e janela temporal
+2) Definir coorte e critérios de inclusão/exclusão
+3) Preparar dados e imputação sem vazamento
+4) Treinar baseline (Linear/Ridge)
+5) Treinar RF Regressor com tuning
+6) Avaliar CV + teste temporal
+7) Avaliar subgrupos e fairness
+8) Validar externamente em outro centro
+9) Documentar conforme TRIPOD/PROBAST
+10) Deploy com monitoramento de drift
+  </pre>
+</div>
+
+<h3 id="comparacao-configs">Comparação de configurações típicas</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Perfil</b></th>
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td>Conservador</td>
+    <td>depth=8, leaf=10, split=10, n=500</td>
+    <td>Baixo risco de overfit, alta estabilidade</td>
+  </tr>
+  <tr>
+    <td>Intermediário</td>
+    <td>depth=20, leaf=3, split=5, n=800</td>
+    <td>Compromisso performance/robustez</td>
+  </tr>
+  <tr>
+    <td>Agressivo</td>
+    <td>depth=None, leaf=1, split=2, n=1000</td>
+    <td>Captura máxima de padrão, monitorar overfit</td>
+  </tr>
+</table>
+
+<h3 id="faq-avancado">FAQ avançado</h3>
+
+<h4>11. Vale usar transformação log no alvo?</h4>
+<p>
+  Se o alvo for altamente assimétrico,
+  `log1p(y)` pode reduzir erro relativo em cauda.
+  Lembre de reverter a transformação na predição.
+</p>
+
+<h4>12. RF lida bem com outliers?</h4>
+<p>
+  Melhor que OLS em muitos cenários,
+  mas outliers extremos ainda podem afetar folhas.
+  Avalie winsorization ou tratamento robusto de outliers.
+</p>
+
+<h4>13. Devo usar one-hot para categóricas?</h4>
+<p>
+  Para sklearn RF,
+  sim,
+  em geral one-hot é abordagem segura.
+</p>
+
+<h4>14. Feature selection é obrigatória?</h4>
+<p>
+  Não obrigatória,
+  mas remover ruído e variáveis redundantes
+  pode melhorar estabilidade e custo.
+</p>
+
+<h4>15. RF funciona com poucos dados?</h4>
+<p>
+  Funciona,
+  porém pode superajustar se árvore ficar muito livre.
+  Use regularização por `max_depth` e `min_samples_leaf`.
+</p>
+
+<h4>16. Como reportar incerteza?</h4>
+<p>
+  Use bootstrap externo das amostras
+  para intervalos de confiança das métricas.
+</p>
+
+<h4>17. OOB substitui validação temporal?</h4>
+<p>
+  Não.
+  OOB é interno.
+  Em séries temporais ou contexto clínico longitudinal,
+  validação temporal é indispensável.
+</p>
+
+<h4>18. Como reduzir tempo de treino?</h4>
+<p>
+  Reduza grid,
+  use menos árvores no screening inicial,
+  e depois refine próximo do ótimo.
+</p>
+
+<h4>19. Qual seed usar?</h4>
+<p>
+  Qualquer seed fixa é válida,
+  desde que documentada para reprodutibilidade.
+</p>
+
+<h4>20. Vale comparar com ExtraTrees?</h4>
+<p>
+  Sim.
+  ExtraTrees pode ser mais rápido e às vezes competitivo,
+  sendo um bom baseline adicional em tabular.
+  [14]
+</p>
+
+<h3 id="nota-classificacao">Nota importante: diferença para RandomForestClassifier</h3>
+<div class="warning">
+  Este documento é exclusivo para <b>regressão</b>.
+  Não cobre métricas e decisões de classificação (AUC, F1, threshold, class_weight).
+  Para classificação,
+  use documentação específica do Random Forest Classifier.
+</div>
+
+<h3 id="resumo-executivo">Resumo executivo</h3>
+<ul>
+  <li>Random Forest Regressor é um dos melhores baselines para dados clínicos tabulares.</li>
+  <li>Não exige normalização e lida bem com não-linearidade.</li>
+  <li>Tuning de `max_depth`, `min_samples_leaf` e `max_features` é o mais determinante.</li>
+  <li>Avaliação deve incluir subgrupos e validação externa.</li>
+  <li>Monitoramento de drift é obrigatório para uso contínuo.</li>
+</ul>
+
+</body>
+</html>

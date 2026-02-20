@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XGBoost Regressor - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .warning {
+    border-left: 4px solid #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">XGBoost Regressor</h2>
+
+<p>
+  <b>XGBoost Regressor</b> é a variante de regressão da biblioteca XGBoost
+  (Extreme Gradient Boosting),
+  um método de ensemble aditivo com árvores de decisão
+  treinadas sequencialmente para reduzir perda preditiva.
+  Diferente de boosting clássico puro,
+  o XGBoost usa otimização de segunda ordem,
+  regularização explícita e otimizações de sistema,
+  com forte desempenho em dados tabulares clínicos e industriais.
+  [1][2][3][4]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b>
+  XGBoost Regressor combina poder preditivo alto,
+  regularização controlável e robustez operacional,
+  sendo uma das melhores escolhas para regressão tabular quando tuning e validação são bem executados.
+</div>
+
+<p>
+  <b>Contexto histórico:</b>
+  gradient boosting foi formalizado por Friedman (2001),
+  e a implementação XGBoost consolidada por Chen & Guestrin (KDD 2016)
+  trouxe ganhos de escalabilidade, regularização e eficiência computacional.
+  [1][2][3]
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário rápido</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#objetivo-regressao">Objetivo em regressão</a></li>
+  <li><a href="#missing">Valores faltantes e robustez</a></li>
+  <li><a href="#normalizacao">Normalização (precisa?)</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#playbook">Playbook de tuning</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#residuos">Diagnóstico de resíduos</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#comparacao">Comparação com outros regressores</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#estudos-saude">Estudos em saúde (leitura prática)</a></li>
+  <li><a href="#resultados-saude">Resultados observados na literatura</a></li>
+  <li><a href="#leitura-critica-estudos">Como ler estudos sem superestimar o modelo</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#mitos">Mitos e mal-entendidos</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#pipeline-clinico">Pipeline clínico recomendado</a></li>
+  <li><a href="#ablation">Ablation study simplificado</a></li>
+  <li><a href="#fairness">Fairness e subgrupos</a></li>
+  <li><a href="#drift">Monitoramento e drift</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+  <li><a href="#fontes-por-tema">Fontes por tema</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  O modelo combina múltiplas árvores rasas,
+  cada uma corrigindo erros residuais da etapa anterior.
+  No XGBoost,
+  cada split e cada peso de folha são otimizados com gradiente + Hessiana,
+  sob penalização de complexidade.
+  Isso melhora generalização e estabilidade.
+  [1][2][3][4]
+</p>
+
+<ul>
+  <li><b>Alta capacidade não linear:</b> captura interações complexas sem engenharia manual extensa.</li>
+  <li><b>Regularização explícita:</b> `reg_alpha` (L1) e `reg_lambda` (L2) reduzem overfit.</li>
+  <li><b>Controle estrutural:</b> `max_depth`, `gamma`, `min_child_weight` moderam complexidade.</li>
+  <li><b>Aleatorização útil:</b> `subsample` e `colsample_bytree` ajudam a reduzir variância.</li>
+  <li><b>Escalável:</b> implementação otimizada para grandes volumes de dados tabulares.</li>
+</ul>
+
+<div class="card">
+  <b>Parâmetros do projeto trAIn (modelo atual)</b>
+  <ul>
+    <li>`n_estimators`</li>
+    <li>`learning_rate`</li>
+    <li>`max_depth`</li>
+    <li>`min_child_weight`</li>
+    <li>`subsample`</li>
+    <li>`colsample_bytree`</li>
+    <li>`gamma`</li>
+    <li>`reg_lambda`</li>
+    <li>`reg_alpha`</li>
+  </ul>
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Pense em rounds de discussão clínica.
+  No primeiro round,
+  uma regra inicial prevê mal vários casos.
+  No segundo,
+  outra regra foca só nos erros restantes.
+  Repetindo esse processo,
+  o sistema vai refinando predição em padrões cada vez mais sutis.
+  [1][2]
+</p>
+
+<p>
+  O diferencial do XGBoost é que,
+  além de corrigir direção do erro (gradiente),
+  ele considera curvatura da perda (Hessiana)
+  e penaliza modelos excessivamente complexos.
+  Isso tende a melhorar estabilidade fora da amostra.
+  [2][3][4]
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Boosting:</b> aprendizado sequencial, etapa por etapa.</li>
+  <li><b>Gradiente:</b> direção de maior redução da perda.</li>
+  <li><b>Hessiana:</b> curvatura local da perda.</li>
+  <li><b>Shrinkage:</b> redução do impacto de cada árvore (`learning_rate`).</li>
+  <li><b>Regularização L1/L2:</b> penalização de pesos para reduzir overfit.</li>
+  <li><b>Gain:</b> ganho de perda ao dividir um nó.</li>
+  <li><b>Early stopping:</b> interrupção quando validação deixa de melhorar.</li>
+  <li><b>Transportabilidade:</b> desempenho ao mudar de hospital/período/coorte.</li>
+</ul>
+
+<h3 id="matematica">Matemática por trás</h3>
+<p>
+  Em regressão,
+  a função preditora é aditiva por estágios.
+  [1][2][3]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Modelo aditivo</div>
+  <div class="formula">F_t(x) = F_{t-1}(x) + \eta \cdot f_t(x)</div>
+  <p style="font-size: 13px;">`η` = `learning_rate`; `f_t` = árvore da etapa t.</p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Objetivo regularizado</div>
+  <div class="formula">Obj = \sum_i l(y_i, \hat{y}_i) + \sum_t \Omega(f_t)</div>
+  <div class="formula">\Omega(f) = \gamma T + \frac{1}{2}\lambda\sum_j w_j^2 + \alpha\sum_j |w_j|</div>
+  <p style="font-size: 13px;">
+    `T` = número de folhas,
+    `w_j` = peso da folha,
+    `γ` = custo para abrir split,
+    `λ` e `α` = regularização L2/L1.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Aproximação de segunda ordem por etapa</div>
+  <div class="formula">Obj^{(t)} \approx \sum_i [g_i f_t(x_i) + \frac{1}{2} h_i f_t(x_i)^2] + \Omega(f_t)</div>
+  <p style="font-size: 13px;">
+    `g_i` = gradiente,
+    `h_i` = Hessiana da perda para amostra `i`.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Ganho de split (intuição)</div>
+  <div class="formula">Gain \propto \frac{G_L^2}{H_L+\lambda} + \frac{G_R^2}{H_R+\lambda} - \frac{(G_L+G_R)^2}{H_L+H_R+\lambda} - \gamma</div>
+  <p style="font-size: 13px;">
+    Split só entra se ganho líquido for positivo após penalização.
+    [2][3]
+  </p>
+</div>
+
+<h3 id="objetivo-regressao">Objetivo em regressão</h3>
+<p>
+  No seu `build_model`,
+  o objetivo está fixado em `reg:squarederror`,
+  alinhado a minimização de erro quadrático.
+  Isso favorece redução de erros grandes,
+  útil quando outliers de erro são clinicamente críticos,
+  mas pode exigir inspeção de robustez por MAE.
+  [3][5]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica/objetivo</b></th>
+    <th align="left"><b>Vantagem</b></th>
+    <th align="left"><b>Atenção</b></th>
+  </tr>
+  <tr>
+    <td>`reg:squarederror`</td>
+    <td>Otimização estável e muito utilizada</td>
+    <td>Sensível a outliers no alvo</td>
+  </tr>
+  <tr>
+    <td>RMSE</td>
+    <td>Penaliza erro grande</td>
+    <td>Pode ocultar erro mediano aceitável</td>
+  </tr>
+  <tr>
+    <td>MAE</td>
+    <td>Mais robusta a outliers</td>
+    <td>Menos sensível a erros extremos</td>
+  </tr>
+  <tr>
+    <td>R²</td>
+    <td>Resumo de variância explicada</td>
+    <td>Não expressa magnitude clínica do erro</td>
+  </tr>
+</table>
+
+<h3 id="missing">Valores faltantes e robustez</h3>
+<p>
+  O XGBoost possui mecanismo nativo para tratar `NaN` durante splits,
+  aprendendo direção padrão para ausências.
+  Em ambiente clínico,
+  mesmo com essa capacidade,
+  manter política explícita de faltantes continua recomendado para governança,
+  reprodutibilidade e auditoria.
+  [3][6][7]
+</p>
+
+<div class="warning">
+  <b>Boas práticas:</b>
+  missing nativo não elimina a necessidade de analisar
+  <i>por que</i> o dado está ausente.
+  Em saúde,
+  ausência pode carregar sinal clínico e viés de fluxo assistencial.
+</div>
+
+<h3 id="normalizacao">Normalização (precisa?)</h3>
+<p>
+  Para árvores,
+  normalização geralmente não é necessária,
+  pois decisões usam ordenação/limiares e não distância euclidiana.
+  Ainda assim,
+  padronização pode ser útil por consistência de pipeline
+  quando há comparação direta com modelos lineares/SVM.
+  [1][3][8]
+</p>
+
+<h3 id="hiperparametros">Hiperparâmetros e impactos</h3>
+<p>
+  A combinação dos hiperparâmetros controla capacidade,
+  variância,
+  custo computacional e estabilidade externa.
+  [2][3][4][8]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Impacto principal</b></th>
+    <th align="left"><b>Risco se exagerar</b></th>
+  </tr>
+  <tr>
+    <td>`n_estimators`</td>
+    <td>Número de árvores (capacidade total)</td>
+    <td>Overfit e custo alto sem early stopping</td>
+  </tr>
+  <tr>
+    <td>`learning_rate`</td>
+    <td>Tamanho do passo de cada árvore</td>
+    <td>Alto: instabilidade; baixo demais: underfit se poucas árvores</td>
+  </tr>
+  <tr>
+    <td>`max_depth`</td>
+    <td>Complexidade de interações por árvore</td>
+    <td>Depth alto: memoriza ruído</td>
+  </tr>
+  <tr>
+    <td>`min_child_weight`</td>
+    <td>Restringe folhas pouco suportadas</td>
+    <td>Muito alto: perda de sinal raro</td>
+  </tr>
+  <tr>
+    <td>`subsample`</td>
+    <td>Frações de linhas por árvore</td>
+    <td>Baixo demais: underfit</td>
+  </tr>
+  <tr>
+    <td>`colsample_bytree`</td>
+    <td>Frações de colunas por árvore</td>
+    <td>Baixo demais: perde variáveis relevantes</td>
+  </tr>
+  <tr>
+    <td>`gamma`</td>
+    <td>Ganho mínimo para split</td>
+    <td>Alto demais: árvore simplificada em excesso</td>
+  </tr>
+  <tr>
+    <td>`reg_lambda`</td>
+    <td>Regularização L2 dos pesos</td>
+    <td>Alto demais: suavização excessiva</td>
+  </tr>
+  <tr>
+    <td>`reg_alpha`</td>
+    <td>Regularização L1 (esparsidade)</td>
+    <td>Alto demais: poda agressiva de sinal</td>
+  </tr>
+</table>
+
+<div class="card">
+  <b>Regras de bolso iniciais (tabular clínico)</b>
+  <ul>
+    <li>`learning_rate`: 0.03–0.10</li>
+    <li>`n_estimators`: 300–1200 (com validação)</li>
+    <li>`max_depth`: 3–8</li>
+    <li>`min_child_weight`: 1–8</li>
+    <li>`subsample`: 0.6–1.0</li>
+    <li>`colsample_bytree`: 0.6–1.0</li>
+    <li>`gamma`: 0–5</li>
+  </ul>
+</div>
+
+<h3 id="playbook">Playbook de tuning (passo a passo)</h3>
+<p>
+  Estratégia prática para evitar busca cega de hiperparâmetros:
+  [2][3][8]
+</p>
+
+<ol>
+  <li><b>Passo 1:</b> baseline conservador (`learning_rate=0.05`, `n_estimators=500`, `max_depth=4`).</li>
+  <li><b>Passo 2:</b> ajustar estrutura (`max_depth`, `min_child_weight`, `gamma`).</li>
+  <li><b>Passo 3:</b> ajustar aleatorização (`subsample`, `colsample_bytree`).</li>
+  <li><b>Passo 4:</b> ajustar regularização (`reg_lambda`, `reg_alpha`).</li>
+  <li><b>Passo 5:</b> refinar `learning_rate` + `n_estimators` juntos.</li>
+  <li><b>Passo 6:</b> validar em cenário temporal/externo.</li>
+</ol>
+
+<div class="card">
+  <b>Grid inicial sugerido</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+param_grid = {
+    "n_estimators": [300, 600, 900, 1200],
+    "learning_rate": [0.03, 0.05, 0.08, 0.1],
+    "max_depth": [3, 4, 6, 8],
+    "min_child_weight": [1, 2, 4, 8],
+    "subsample": [0.6, 0.8, 1.0],
+    "colsample_bytree": [0.6, 0.8, 1.0],
+    "gamma": [0, 0.5, 1, 3],
+    "reg_lambda": [0.5, 1.0, 2.0, 5.0],
+    "reg_alpha": [0, 0.1, 0.5, 1.0]
+}
+  </pre>
+</div>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+<p>
+  Em regressão clínica,
+  uma única métrica é insuficiente.
+  É recomendável reportar RMSE,
+  MAE,
+  R² e análise estratificada por subgrupos e quantis do alvo.
+  [6][7][9][10]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Quando ajuda mais</b></th>
+    <th align="left"><b>Limitação</b></th>
+  </tr>
+  <tr>
+    <td>RMSE</td>
+    <td>Quando erros extremos são críticos</td>
+    <td>Muito sensível a outliers</td>
+  </tr>
+  <tr>
+    <td>MAE</td>
+    <td>Visão robusta de erro típico</td>
+    <td>Não pesa tanto erros extremos</td>
+  </tr>
+  <tr>
+    <td>R²</td>
+    <td>Comparação global de variância explicada</td>
+    <td>Pouca intuição clínica isoladamente</td>
+  </tr>
+  <tr>
+    <td>Erro por quantis de y</td>
+    <td>Detecta fragilidade em extremos</td>
+    <td>Exige tamanho amostral adequado</td>
+  </tr>
+</table>
+
+<h3 id="residuos">Diagnóstico de resíduos</h3>
+<ul>
+  <li><b>Resíduo vs predito:</b> verifica heterocedasticidade e viés local.</li>
+  <li><b>MAE por quantil de y:</b> identifica piora em pacientes mais graves.</li>
+  <li><b>Erro por centro/hospital:</b> avalia transportabilidade.</li>
+  <li><b>Erro por subgrupo:</b> inspeção de equidade operacional.</li>
+</ul>
+
+<div class="warning">
+  <b>Ponto crítico:</b>
+  bom R² global pode mascarar erro clinicamente inaceitável
+  em grupos pequenos e de alto risco.
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  XGBoost não é caixa-preta absoluta,
+  mas exige interpretabilidade pós-hoc estruturada.
+  Práticas robustas incluem:
+  permutation importance,
+  PDP/ICE,
+  SHAP global e local,
+  e validação de estabilidade das explicações.
+  [11][12][13][14][15]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Técnica</b></th>
+    <th align="left"><b>Entrega</b></th>
+    <th align="left"><b>Cuidados</b></th>
+  </tr>
+  <tr>
+    <td>Gain/Cover/Weight (interno XGBoost)</td>
+    <td>Importância rápida</td>
+    <td>Pode ter viés com correlação/cardinalidade</td>
+  </tr>
+  <tr>
+    <td>Permutation importance</td>
+    <td>Impacto de embaralhar variável</td>
+    <td>Repetir e usar em conjunto de validação</td>
+  </tr>
+  <tr>
+    <td>PDP/ICE</td>
+    <td>Efeito marginal e variação individual</td>
+    <td>Cuidado com extrapolação fora do suporte</td>
+  </tr>
+  <tr>
+    <td>SHAP</td>
+    <td>Contribuição local por predição</td>
+    <td>Interpretar com contexto clínico e correlação</td>
+  </tr>
+</table>
+
+<h3 id="comparacao">Comparação com outros regressores</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Força principal</b></th>
+    <th align="left"><b>Quando perde para XGBoost</b></th>
+  </tr>
+  <tr>
+    <td>Linear/Ridge</td>
+    <td>Interpretação simples e estabilidade</td>
+    <td>Quando há não linearidade e interação forte</td>
+  </tr>
+  <tr>
+    <td>Decision Tree Regressor</td>
+    <td>Regras transparentes</td>
+    <td>Alta variância e menor acurácia média</td>
+  </tr>
+  <tr>
+    <td>Random Forest Regressor</td>
+    <td>Robustez com tuning mais simples</td>
+    <td>Quando o ajuste fino de boosting traz ganho adicional</td>
+  </tr>
+  <tr>
+    <td>Gradient Boosting Regressor (sklearn)</td>
+    <td>Implementação integrada e didática</td>
+    <td>Em escala/desempenho onde XGBoost é mais otimizado</td>
+  </tr>
+</table>
+
+<h3 id="saude">Aplicações em saúde</h3>
+<p>
+  XGBoost é frequente em tarefas de regressão clínica,
+  como previsão de tempo de internação,
+  risco contínuo de piora,
+  carga de custos,
+  e estimativas laboratoriais derivadas.
+  A literatura mostra ganhos preditivos consistentes em cenários tabulares complexos,
+  desde que haja validação externa e governança adequada.
+  [6][7][10][16][17]
+</p>
+
+<p>
+  Em linguagem prática,
+  o XGBoost Regressor costuma funcionar bem quando o desfecho contínuo
+  depende de múltiplos mecanismos simultâneos
+  (fisiologia, inflamação, função renal, perfil demográfico e comorbidades),
+  com efeitos não lineares e interações que não cabem em uma equação simples.
+  Esse é exatamente o cenário típico de prontuário eletrônico hospitalar.
+  [6][7][17]
+</p>
+
+<div class="callout">
+  <b>Analogia clínica:</b>
+  pense no modelo como uma equipe multidisciplinar em rounds.
+  O primeiro ajuste corrige os erros mais evidentes.
+  Os próximos ajustes entram em nuances:
+  casos limítrofes,
+  perfis pouco frequentes,
+  combinações de sinais que não aparecem em protocolos lineares.
+  O ganho final vem da soma desses pequenos refinamentos.
+</div>
+
+<h3 id="estudos-saude">Estudos em saúde (leitura prática)</h3>
+<p>
+  Em regressão clínica,
+  os estudos com XGBoost geralmente se concentram em desfechos contínuos operacionais,
+  como tempo de permanência,
+  progressão de gravidade,
+  custo assistencial e marcadores laboratoriais derivados.
+  Mais importante do que um número isolado,
+  é observar padrão de resultado em múltiplos cenários.
+  [6][7][17]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Cenário de estudo</b></th>
+    <th align="left"><b>O que costuma ser comparado</b></th>
+    <th align="left"><b>Padrão de resultado reportado</b></th>
+    <th align="left"><b>Interpretação clínica</b></th>
+  </tr>
+  <tr>
+    <td>Tempo de internação (LOS)</td>
+    <td>Linear/Ridge, árvore única, RF, GB</td>
+    <td>Redução de erro preditivo em relação a baselines lineares</td>
+    <td>Melhor planejamento de leito e gestão de fluxo</td>
+  </tr>
+  <tr>
+    <td>Risco contínuo de deterioração</td>
+    <td>Escores tradicionais + modelos lineares</td>
+    <td>Melhor captura de interações não lineares</td>
+    <td>Antecipação de vigilância intensiva</td>
+  </tr>
+  <tr>
+    <td>Predição de custo/uso de recurso</td>
+    <td>Modelos lineares generalizados</td>
+    <td>Ganho em variância explicada em dados heterogêneos</td>
+    <td>Suporte a gestão e planejamento assistencial</td>
+  </tr>
+  <tr>
+    <td>Estimativas laboratoriais/prognósticas</td>
+    <td>Regressão clássica e RF</td>
+    <td>Desempenho competitivo com tuning cuidadoso</td>
+    <td>Apoio à priorização clínica, não substituição de exame</td>
+  </tr>
+</table>
+
+<p>
+  Um ponto recorrente:
+  diferenças de desempenho entre XGBoost e outros ensembles
+  muitas vezes são moderadas,
+  mas clinicamente relevantes em caudas de risco,
+  onde poucos pontos de erro podem mudar priorização de cuidado.
+  [6][7][17]
+</p>
+
+<h3 id="resultados-saude">Resultados observados na literatura</h3>
+<p>
+  A síntese mais confiável da literatura não é
+  “XGBoost sempre vence”,
+  e sim:
+  em dados tabulares clínicos complexos,
+  ele aparece com frequência entre os melhores,
+  especialmente quando há heterogeneidade,
+  missingness relevante
+  e interação entre variáveis clínicas e laboratoriais.
+  [6][7][16][17]
+</p>
+
+<p>
+  Em termos de métrica,
+  os ganhos mais consistentes aparecem quando a comparação é feita
+  contra baseline linear simples.
+  Contra Random Forest e outros boosting,
+  o ganho tende a ser menor,
+  porém comumente acompanhado de melhor ajuste fino e boa relação desempenho/custo.
+  Essa leitura evita promessas exageradas.
+  [8][16][17]
+</p>
+
+<div class="warning">
+  <b>Cuidado com interpretação de “melhor modelo”:</b>
+  resultado de estudo depende de desfecho,
+  janela temporal,
+  qualidade do dado,
+  política de missing,
+  e desenho de validação.
+  Comparações sem validação externa geralmente superestimam performance.
+  [9][10]
+</div>
+
+<h3 id="leitura-critica-estudos">Como ler estudos sem superestimar o modelo</h3>
+<p>
+  Para decidir se um resultado de estudo é transferível para seu cenário,
+  use uma leitura crítica simples,
+  inspirada em TRIPOD/PROBAST:
+  perguntar se o estudo mede o que importa clinicamente,
+  com risco de viés aceitável,
+  e se o desempenho foi testado fora do ambiente original.
+  [9][10]
+</p>
+
+<ol>
+  <li><b>Desfecho é clinicamente útil?</b> (não só “estatisticamente conveniente”).</li>
+  <li><b>Split temporal/externo existe?</b> Sem isso, o risco de otimismo é alto.</li>
+  <li><b>Há relatório por subgrupos?</b> Média global pode esconder falhas graves.</li>
+  <li><b>Baseline forte foi usado?</b> Comparar só com árvore rasa não basta.</li>
+  <li><b>Pipeline evita vazamento?</b> Pré-processamento deve respeitar separação treino/teste.</li>
+  <li><b>Métrica conversa com a operação?</b> RMSE/MAE por faixa de risco costuma ser mais útil.</li>
+</ol>
+
+<p>
+  Em resumo:
+  um estudo robusto não é o que apresenta o maior número,
+  e sim o que mantém desempenho sob teste duro,
+  com transparência de método e aplicabilidade real.
+  [9][10]
+</p>
+
+<h3 id="quando-usar">Quando usar (e quando evitar)</h3>
+
+<h4>Use XGBoost Regressor quando:</h4>
+<ul>
+  <li>o problema é tabular e não linear;</li>
+  <li>há interação clínica-laboratorial relevante;</li>
+  <li>você precisa de performance forte com tuning controlado;</li>
+  <li>há plano de validação externa e monitoramento pós-deploy.</li>
+</ul>
+
+<h4>Evite (ou use com cautela) quando:</h4>
+<ul>
+  <li>o dataset é muito pequeno e instável;</li>
+  <li>a prioridade absoluta é interpretabilidade causal direta por coeficientes;</li>
+  <li>o cenário exige extrapolação extrema fora da faixa observada;</li>
+  <li>não existe maturidade operacional para governança de modelo.</li>
+</ul>
+
+<div class="card">
+  <b>Regra de decisão rápida</b>
+  <ul>
+    <li><b>Quer baseline transparente:</b> Linear/Ridge + árvore única.</li>
+    <li><b>Quer robustez simples:</b> Random Forest Regressor.</li>
+    <li><b>Quer desempenho máximo tabular:</b> XGBoost Regressor com validação rigorosa.</li>
+  </ul>
+</div>
+
+<h3 id="mitos">Mitos e mal-entendidos</h3>
+<ul>
+  <li><b>Mito:</b> “XGBoost sempre é superior.”
+    <br/><b>Realidade:</b> frequentemente é muito competitivo, mas não é garantido em todo dataset.</li>
+  <li><b>Mito:</b> “Missing nativo dispensa governança de dados.”
+    <br/><b>Realidade:</b> continua essencial entender o mecanismo clínico da ausência.</li>
+  <li><b>Mito:</b> “R² alto resolve decisão clínica.”
+    <br/><b>Realidade:</b> é obrigatório olhar erro por subgrupo e por faixa de risco.</li>
+  <li><b>Mito:</b> “Feature importance interna basta para explicação.”
+    <br/><b>Realidade:</b> combine com permutation/PDP/SHAP e plausibilidade clínica.</li>
+  <li><b>Mito:</b> “Tuning maior sempre melhora.”
+    <br/><b>Realidade:</b> busca excessiva sem desenho adequado aumenta risco de overfit de validação.</li>
+</ul>
+
+<h3 id="boas-praticas">Boas práticas clínicas</h3>
+<ol>
+  <li>Defina desfecho contínuo clinicamente relevante e mensurável.</li>
+  <li>Separe treino/validação/teste por tempo ou centro quando possível.</li>
+  <li>Use pipeline sem vazamento para preparo de dados.</li>
+  <li>Reporte RMSE, MAE, R² e incerteza por bootstrap.</li>
+  <li>Avalie desempenho por subgrupos sensíveis e por quantis de y.</li>
+  <li>Documente hiperparâmetros finais e lógica de seleção.</li>
+  <li>Exija validação externa antes de uso operacional.</li>
+  <li>Planeje monitoramento de drift e gatilhos de atualização.</li>
+</ol>
+
+<p style="font-size: 13px;">
+  Diretrizes de reporte e risco de viés em modelos preditivos clínicos: [9][10]
+</p>
+
+<h3 id="pipeline-clinico">Pipeline clínico recomendado (end-to-end)</h3>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+1) Definir desfecho contínuo e janela temporal de uso clínico
+2) Definir coorte, critérios de inclusão/exclusão e unidade de análise
+3) Preparar variáveis com política explícita de faltantes e sem vazamento
+4) Treinar baseline linear e baseline de árvore única
+5) Treinar XGBoost Regressor com tuning em blocos
+6) Validar em CV + hold-out temporal
+7) Auditar subgrupos (idade, sexo, centro, gravidade)
+8) Realizar validação externa multicêntrica
+9) Documentar TRIPOD/PROBAST e versão de dados/modelo
+10) Implantar com monitoramento de drift e gatilho de atualização
+  </pre>
+</div>
+
+<h3 id="ablation">Ablation study simplificado</h3>
+<p>
+  Para reforçar embasamento e evitar narrativa frágil,
+  vale executar mini ablação por blocos de variáveis,
+  mostrando contribuição incremental de cada grupo clínico.
+  [7][8][9]
+</p>
+
+<ol>
+  <li>Modelo completo (todas as variáveis).</li>
+  <li>Remover bloco laboratorial.</li>
+  <li>Remover bloco de comorbidades.</li>
+  <li>Remover sinais vitais dinâmicos.</li>
+  <li>Comparar queda de RMSE/MAE/R² por cenário.</li>
+</ol>
+
+<p>
+  Se a queda é pequena após remover um bloco,
+  isso sugere redundância.
+  Se a queda é grande,
+  há evidência objetiva de valor incremental.
+  Esse tipo de análise melhora qualidade científica do relatório
+  e facilita discussão com equipe clínica.
+</p>
+
+<h3 id="fairness">Fairness e subgrupos</h3>
+<p>
+  Mesmo com ótima métrica global,
+  um regressor pode falhar de forma desproporcional em subgrupos.
+  Em saúde,
+  isso tem impacto ético e operacional direto.
+  [6][7][9][10]
+</p>
+
+<ul>
+  <li>Calcular MAE/RMSE por sexo, idade e centro.</li>
+  <li>Monitorar diferença absoluta de erro entre grupos.</li>
+  <li>Investigar se missingness e acesso a exame variam por grupo.</li>
+  <li>Evitar deploy quando houver gap clinicamente relevante sem mitigação.</li>
+</ul>
+
+<h3 id="drift">Monitoramento e drift</h3>
+<p>
+  Após deploy,
+  mudanças de protocolo,
+  população,
+  e laboratório podem degradar desempenho.
+  Um plano mínimo de observabilidade é obrigatório.
+  [6][7][17]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sinal</b></th>
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Gatilho sugerido</b></th>
+  </tr>
+  <tr>
+    <td>Data drift</td>
+    <td>PSI/KS por feature crítica</td>
+    <td>PSI &gt; 0.2: investigar</td>
+  </tr>
+  <tr>
+    <td>Performance drift</td>
+    <td>RMSE/MAE mensal vs baseline</td>
+    <td>Piora &gt; 15%: investigação formal</td>
+  </tr>
+  <tr>
+    <td>Drift de subgrupo</td>
+    <td>Erro por grupo ao longo do tempo</td>
+    <td>Gap crescente persistente</td>
+  </tr>
+</table>
+
+<h3 id="diagnostico">Diagnóstico de problemas</h3>
+
+<h4>1) Overfitting</h4>
+<p><b>Sintoma:</b> treino muito melhor que validação/teste.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>reduzir `max_depth`;</li>
+  <li>aumentar `min_child_weight`;</li>
+  <li>aumentar `gamma`;</li>
+  <li>reduzir `subsample`/`colsample_bytree` para regularizar;</li>
+  <li>elevar `reg_lambda` e/ou `reg_alpha`.</li>
+</ul>
+
+<h4>2) Underfitting</h4>
+<p><b>Sintoma:</b> desempenho ruim em treino e teste.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>aumentar capacidade (`max_depth`, `n_estimators`);</li>
+  <li>reduzir regularização excessiva;</li>
+  <li>revisar qualidade e cobertura das features.</li>
+</ul>
+
+<h4>3) Instabilidade entre folds</h4>
+<p><b>Sintoma:</b> variação alta de métricas em CV.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>fixar `random_state`;</li>
+  <li>aumentar amostra ou repetir CV;</li>
+  <li>simplificar espaço de busca e reduzir complexidade.</li>
+</ul>
+
+<h4>4) Queda forte em validação externa</h4>
+<p><b>Sintoma:</b> performance aceitável internamente e ruim fora.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>auditar mudança de distribuição (covariate shift);</li>
+  <li>revisar padronização de coleta/laboratório;</li>
+  <li>recalibrar e retreinar com coorte multicêntrica.</li>
+</ul>
+
+<h4>5) Erro muito maior em extremos de y</h4>
+<p><b>Sintoma:</b> último decil com MAE desproporcional.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>estratificar treino por quantis;</li>
+  <li>reforçar amostras de cauda;</li>
+  <li>monitorar erro por faixa de risco no deploy.</li>
+</ul>
+
+<h3 id="faq">Perguntas frequentes</h3>
+
+<h4>1. Precisa normalizar para XGBoost Regressor?</h4>
+<p>
+  Em geral, não.
+  Árvores usam limiares/ordenação.
+  [1][3]
+</p>
+
+<h4>2. XGBoost sempre ganha de Random Forest?</h4>
+<p>
+  Não.
+  Frequentemente ganha após tuning,
+  mas RF pode ser mais estável e simples em baseline.
+  [1][8]
+</p>
+
+<h4>3. O que mais controla overfit?</h4>
+<p>
+  Combinação de `max_depth`, `min_child_weight`, `gamma`,
+  `subsample`, `colsample_bytree`, `reg_lambda`, `reg_alpha`.
+  [2][3]
+</p>
+
+<h4>4. Posso usar sem imputação?</h4>
+<p>
+  Tecnicamente sim,
+  mas em ambiente regulado convém manter estratégia explícita de dados faltantes.
+  [3][9]
+</p>
+
+<h4>5. Qual métrica priorizar?</h4>
+<p>
+  Depende do objetivo clínico.
+  Normalmente reportar RMSE + MAE + R² é mais robusto.
+  [6][7]
+</p>
+
+<h4>6. `learning_rate` baixo sempre melhora?</h4>
+<p>
+  Não necessariamente.
+  Exige mais árvores e custo maior;
+  se exagerar pode underfitar com orçamento limitado.
+  [2][3]
+</p>
+
+<h4>7. Qual profundidade inicial razoável?</h4>
+<p>
+  Em tabular clínico,
+  `max_depth` entre 3 e 8 costuma ser ponto de partida saudável.
+  [8][16]
+</p>
+
+<h4>8. Feature importance interna é suficiente?</h4>
+<p>
+  Não.
+  Deve ser complementada com permutation importance e SHAP.
+  [11][12][14]
+</p>
+
+<h4>9. XGBoost extrapola bem fora da faixa observada?</h4>
+<p>
+  Não é ponto forte de árvores.
+  Cautela em cenários de extrapolação extrema.
+  [1][8]
+</p>
+
+<h4>10. Como reduzir custo computacional?</h4>
+<p>
+  Reduzir espaço de busca,
+  usar early stopping,
+  e restringir profundidade/árvores conforme evidência de validação.
+  [2][3]
+</p>
+
+<h4>11. Posso ajustar tudo de uma vez com grid gigante?</h4>
+<p>
+  Não é recomendado.
+  Prefira tuning em blocos sequenciais.
+  [8]
+</p>
+
+<h4>12. É obrigatório validação externa?</h4>
+<p>
+  Para uso clínico sério,
+  sim: é o teste de transportabilidade real.
+  [9][10]
+</p>
+
+<h4>13. Como reportar incerteza das métricas?</h4>
+<p>
+  Bootstrap e distribuição por folds são práticas recomendadas.
+  [6][7]
+</p>
+
+<h4>14. XGBoost é adequado para datasets pequenos?</h4>
+<p>
+  Pode funcionar,
+  mas exige regularização cuidadosa e validação rigorosa.
+  [8]
+</p>
+
+<h4>15. Qual principal erro de implementação em saúde?</h4>
+<p>
+  Aceitar métrica global sem auditoria por subgrupos,
+  drift e validação externa.
+  [6][9][10]
+</p>
+
+<h3 id="fontes-por-tema">Fontes por tema (mapa rápido)</h3>
+<ul>
+  <li><b>Fundamentos de boosting/XGBoost:</b> [1], [2], [3], [4]</li>
+  <li><b>Objetivo de regressão e API:</b> [3], [5]</li>
+  <li><b>Tuning e prática aplicada:</b> [8], [16]</li>
+  <li><b>Interpretação (permutation, PDP/ICE, SHAP):</b> [11], [12], [13], [14], [15]</li>
+  <li><b>Predição clínica, validação e governança:</b> [6], [7], [9], [10], [17]</li>
+</ul>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Friedman JH. Gradient Boosting Machine [1]</li>
+  <li>Chen T, Guestrin C. XGBoost KDD 2016 [2]</li>
+  <li>Documentação oficial XGBoost + parâmetros [3][5]</li>
+  <li>Elements of Statistical Learning (ensembles) [4]</li>
+  <li>TRIPOD + PROBAST para modelos clínicos [9][10]</li>
+  <li>PDP/ICE, permutation importance e SHAP [11][13][14][15]</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>
+    Friedman JH.
+    Greedy Function Approximation: A Gradient Boosting Machine.
+    <i>Annals of Statistics</i>.
+    2001;29(5):1189-1232.
+    <a href="https://doi.org/10.1214/aos/1013203451">DOI: 10.1214/aos/1013203451</a>
+  </li>
+  <li>
+    Chen T,
+    Guestrin C.
+    XGBoost: A Scalable Tree Boosting System.
+    <i>Proceedings of KDD</i>.
+    2016:785-794.
+    <a href="https://doi.org/10.1145/2939672.2939785">DOI: 10.1145/2939672.2939785</a>
+  </li>
+  <li>
+    XGBoost developers.
+    XGBoost Python API Reference.
+    <a href="https://xgboost.readthedocs.io/en/stable/python/python_api.html">https://xgboost.readthedocs.io/en/stable/python/python_api.html</a>
+  </li>
+  <li>
+    Hastie T,
+    Tibshirani R,
+    Friedman J.
+    The Elements of Statistical Learning.
+    2nd ed.
+    Springer;
+    2009.
+    <a href="https://doi.org/10.1007/978-0-387-84858-7">DOI: 10.1007/978-0-387-84858-7</a>
+  </li>
+  <li>
+    XGBoost developers.
+    Parameters (official documentation).
+    <a href="https://xgboost.readthedocs.io/en/stable/parameter.html">https://xgboost.readthedocs.io/en/stable/parameter.html</a>
+  </li>
+  <li>
+    Goldstein BA,
+    Navar AM,
+    Pencina MJ,
+    Ioannidis JPA.
+    Opportunities and challenges in developing risk prediction models with electronic health records data.
+    <i>J Am Med Inform Assoc</i>.
+    2017;24:198-208.
+    <a href="https://doi.org/10.1093/jamia/ocw042">DOI: 10.1093/jamia/ocw042</a>
+  </li>
+  <li>
+    Steyerberg EW,
+    Moons KGM,
+    van der Windt DA,
+    et al.
+    Prognosis Research Strategy (PROGRESS) 3: prognostic model research.
+    <i>PLOS Med</i>.
+    2013;10(2):e1001381.
+    <a href="https://doi.org/10.1371/journal.pmed.1001381">DOI: 10.1371/journal.pmed.1001381</a>
+  </li>
+  <li>
+    Kuhn M,
+    Johnson K.
+    Applied Predictive Modeling.
+    Springer;
+    2013.
+    <a href="https://doi.org/10.1007/978-1-4614-6849-3">DOI: 10.1007/978-1-4614-6849-3</a>
+  </li>
+  <li>
+    Collins GS,
+    Reitsma JB,
+    Altman DG,
+    Moons KGM.
+    Transparent Reporting of a multivariable prediction model for Individual Prognosis Or Diagnosis (TRIPOD).
+    <i>Ann Intern Med</i>.
+    2015;162:55-63.
+    <a href="https://doi.org/10.7326/M14-0697">DOI: 10.7326/M14-0697</a>
+  </li>
+  <li>
+    Wolff RF,
+    Moons KGM,
+    Riley RD,
+    et al.
+    PROBAST: A Tool to Assess the Risk of Bias and Applicability of Prediction Model Studies.
+    <i>Ann Intern Med</i>.
+    2019;170:51-58.
+    <a href="https://doi.org/10.7326/M18-1376">DOI: 10.7326/M18-1376</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Permutation feature importance.
+    <a href="https://scikit-learn.org/stable/modules/permutation_importance.html">https://scikit-learn.org/stable/modules/permutation_importance.html</a>
+  </li>
+  <li>
+    Strobl C,
+    Boulesteix AL,
+    Zeileis A,
+    Hothorn T.
+    Bias in random forest variable importance measures.
+    <i>BMC Bioinformatics</i>.
+    2007;8:25.
+    <a href="https://doi.org/10.1186/1471-2105-8-25">DOI: 10.1186/1471-2105-8-25</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Partial Dependence and ICE.
+    <a href="https://scikit-learn.org/stable/modules/partial_dependence.html">https://scikit-learn.org/stable/modules/partial_dependence.html</a>
+  </li>
+  <li>
+    Lundberg SM,
+    Lee SI.
+    A Unified Approach to Interpreting Model Predictions.
+    <i>NeurIPS</i>.
+    2017.
+    <a href="https://doi.org/10.48550/arXiv.1705.07874">DOI: 10.48550/arXiv.1705.07874</a>
+  </li>
+  <li>
+    Lundberg SM,
+    Erion G,
+    Chen H,
+    et al.
+    From local explanations to global understanding with explainable AI for trees.
+    <i>Nature Machine Intelligence</i>.
+    2020;2:56-67.
+    <a href="https://doi.org/10.1038/s42256-019-0138-9">DOI: 10.1038/s42256-019-0138-9</a>
+  </li>
+  <li>
+    Nielsen D.
+    Tree Boosting With XGBoost - Why Does XGBoost Win Every Machine Learning Competition?
+    Master thesis.
+    2016.
+    <a href="https://arxiv.org/abs/1603.02754">https://arxiv.org/abs/1603.02754</a>
+  </li>
+  <li>
+    Rajkomar A,
+    Dean J,
+    Kohane I.
+    Machine Learning in Medicine.
+    <i>N Engl J Med</i>.
+    2019;380:1347-1358.
+    <a href="https://doi.org/10.1056/NEJMra1814259">DOI: 10.1056/NEJMra1814259</a>
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Resumo final:</b>
+  XGBoost Regressor é uma excelente escolha para regressão tabular de alta exigência,
+  principalmente quando há não linearidade,
+  interação complexa entre variáveis,
+  e necessidade de desempenho superior com controle de overfit.
+  O ganho real vem quando tuning, validação externa e governança são tratados como parte do modelo,
+  não como etapa opcional.
+</div>
+
+<h3 id="nota-classificacao">Nota importante: diferença para XGBoost Classifier</h3>
+<div class="warning">
+  Este documento é exclusivo para <b>regressão</b>.
+  Não cobre métricas e decisões de classificação
+  (AUC, F1, sensibilidade/especificidade, calibração de probabilidade).
+  Para classificação,
+  use a documentação específica de <b>XGBoost</b> para tarefa classificatória.
+</div>
+
+</body>
+</html>

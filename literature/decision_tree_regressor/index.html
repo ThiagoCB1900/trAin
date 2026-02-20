@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decision Tree Regressor - trAIn Documentation</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+
+<style>
+  .card {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+  }
+  .callout {
+    border-left: 4px solid #1976d2;
+    background: rgba(25, 118, 210, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .warning {
+    border-left: 4px solid #d32f2f;
+    background: rgba(211, 47, 47, 0.08);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-box {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .formula-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+    font-size: 15px;
+    background: rgba(120, 120, 120, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin: 6px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+  }
+  table th, table td {
+    border: 1px solid rgba(120, 120, 120, 0.35);
+    padding: 8px;
+    text-align: left;
+  }
+  table th {
+    background: rgba(200, 200, 200, 0.1);
+  }
+  a {
+    color: #1976d2;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<h2 style="margin-top:0;">Decision Tree Regressor (Árvore de Decisão para Regressão)</h2>
+
+<p>
+  <b>Decision Tree Regressor</b> é um modelo supervisionado para prever valores contínuos
+  por meio de divisões recursivas do espaço de dados.
+  Ele aprende regras do tipo <i>se-então</i>
+  (ex.: "se creatinina > 1.8 e idade > 70, então tempo de internação esperado é 11 dias"),
+  criando uma estrutura em árvore altamente interpretável.
+  [1][2][3]
+</p>
+
+<div class="callout">
+  <b>Em uma frase:</b>
+  o modelo faz perguntas binárias em sequência,
+  divide pacientes em grupos cada vez mais homogêneos,
+  e prediz em cada folha a média (ou mediana, dependendo do critério) do alvo observado.
+  [1][2]
+</div>
+
+<p>
+  <b>Contexto histórico:</b>
+  a formulação moderna de árvores para classificação e regressão foi consolidada no framework CART
+  (Classification and Regression Trees),
+  base de muitas ferramentas atuais em medicina preditiva,
+  epidemiologia e ciência de dados clínica.
+  [1][4]
+</p>
+
+<h3 id="sumario">Sumário</h3>
+<ul>
+  <li><a href="#visao-geral">Visão geral</a></li>
+  <li><a href="#porque-funciona">Por que funciona</a></li>
+  <li><a href="#glossario">Glossário rápido</a></li>
+  <li><a href="#matematica">Matemática por trás</a></li>
+  <li><a href="#splits">Como o split é escolhido</a></li>
+  <li><a href="#criterios">Critérios de split (squared_error vs friedman_mse)</a></li>
+  <li><a href="#vies-variancia">Trade-off viés-variância</a></li>
+  <li><a href="#normalizacao">Normalização (precisa?)</a></li>
+  <li><a href="#hiperparametros">Hiperparâmetros e impactos</a></li>
+  <li><a href="#criterion">criterion</a></li>
+  <li><a href="#max-depth">max_depth</a></li>
+  <li><a href="#min-samples">min_samples_split e min_samples_leaf</a></li>
+  <li><a href="#max-features">max_features</a></li>
+  <li><a href="#avaliacao">Como avaliar o modelo</a></li>
+  <li><a href="#residuos">Análise de resíduos</a></li>
+  <li><a href="#interpretabilidade">Interpretabilidade</a></li>
+  <li><a href="#importancia">Importância de variáveis</a></li>
+  <li><a href="#saude">Aplicações em saúde</a></li>
+  <li><a href="#exemplos">Exemplos publicados</a></li>
+  <li><a href="#comparacao">Comparação com outros regressores</a></li>
+  <li><a href="#quando-usar">Quando usar (e quando evitar)</a></li>
+  <li><a href="#boas-praticas">Boas práticas clínicas</a></li>
+  <li><a href="#diagnostico">Diagnóstico de problemas</a></li>
+  <li><a href="#playbook">Playbook de tuning</a></li>
+  <li><a href="#fairness">Fairness e subgrupos</a></li>
+  <li><a href="#drift">Monitoramento e drift</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+  <li><a href="#fontes-por-tema">Fontes por tema</a></li>
+  <li><a href="#leitura">Leitura recomendada</a></li>
+  <li><a href="#referencias">Referências</a></li>
+</ul>
+
+<h3 id="visao-geral">Visão geral</h3>
+<p>
+  Uma árvore de regressão começa com todos os dados na raiz e,
+  em cada etapa,
+  escolhe uma variável e um limiar para dividir os dados em dois grupos
+  de forma a reduzir a variabilidade do alvo dentro de cada grupo.
+  O processo continua recursivamente até atender critérios de parada.
+  [1][2][3]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Predição em cada folha (criterion = squared_error)</div>
+  <div class="formula">ŷ_folha = média(yᵢ na folha)</div>
+  <p style="font-size: 13px;">
+    cada paciente novo percorre a árvore até uma folha,
+    recebendo o valor médio daquela região.
+    [1][2]
+  </p>
+</div>
+
+<p><b>Características principais:</b></p>
+<ul>
+  <li><b>Alta interpretabilidade:</b> regras explícitas e auditáveis.</li>
+  <li><b>Não linearidade natural:</b> captura limiares clínicos e interações.</li>
+  <li><b>Sem necessidade de normalização:</b> splits por ordem/limiar.</li>
+  <li><b>Treino rápido:</b> eficiente para muitos cenários tabulares.</li>
+  <li><b>Instabilidade:</b> árvore única tem alta variância.</li>
+  <li><b>Risco de overfit:</b> se crescer sem restrições.</li>
+</ul>
+
+<p style="font-size: 13px;">
+  Fundamentação técnica: [1][2][3][4][8]
+</p>
+
+<div class="callout">
+  <b>Analogia clínica:</b>
+  é como um protocolo de triagem em etapas:
+  a cada pergunta,
+  você direciona o paciente para um subgrupo mais parecido,
+  até chegar a um cenário final com expectativa de desfecho contínuo.
+  [1][4]
+</div>
+
+<h3 id="porque-funciona">Para quem não conhece ML: por que isso funciona?</h3>
+<p>
+  Se você tentar prever tempo de internação com uma única média para todos,
+  vai errar muito.
+  A árvore melhora isso ao separar pacientes por perfis que importam
+  (idade, comorbidades, exames, sinais vitais),
+  criando grupos internos mais homogêneos.
+  [1][2]
+</p>
+
+<p>
+  Em outras palavras,
+  a árvore transforma um problema complexo em vários problemas simples locais.
+  Isso reduz erro dentro de cada folha,
+  desde que a árvore não cresça demais.
+  [1][2][3]
+</p>
+
+<h3 id="glossario">Glossário rápido</h3>
+<ul>
+  <li><b>Nó:</b> ponto de decisão (ex.: idade > 68?).</li>
+  <li><b>Split:</b> divisão binária em um nó.</li>
+  <li><b>Folha:</b> nó terminal com valor de predição.</li>
+  <li><b>Impureza de regressão:</b> variância/MSE dentro do nó.</li>
+  <li><b>Ganho:</b> redução de impureza após o split.</li>
+  <li><b>Profundidade:</b> número máximo de níveis da árvore.</li>
+  <li><b>Poda:</b> simplificação da árvore para generalizar melhor.</li>
+  <li><b>Overfitting:</b> memorizar treino e falhar fora dele.</li>
+</ul>
+
+<h3 id="matematica">Matemática por trás</h3>
+<p>
+  A árvore escolhe o split que maximiza redução de impureza,
+  tipicamente usando MSE para regressão.
+  [1][2][3]
+</p>
+
+<div class="formula-box">
+  <div class="formula-title">Impureza em um nó (MSE)</div>
+  <div class="formula">I(nó) = (1/n) Σ (yᵢ - ȳ_nó)²</div>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Redução de impureza do split</div>
+  <div class="formula">ΔI = I(pai) - [ (n_L/n)I(esq) + (n_R/n)I(dir) ]</div>
+  <p style="font-size: 13px;">
+    o melhor split é o que maximiza ΔI.
+  </p>
+</div>
+
+<div class="formula-box">
+  <div class="formula-title">Predição final para uma amostra x</div>
+  <div class="formula">ŷ(x) = média(y) da folha alcançada por x</div>
+</div>
+
+<h3 id="splits">Como o split é escolhido</h3>
+<ol>
+  <li>Liste candidatos de variável e limiar.</li>
+  <li>Calcule impureza antes/depois para cada candidato.</li>
+  <li>Escolha o split com maior ganho.</li>
+  <li>Repita recursivamente nos nós filhos.</li>
+  <li>Pare por critérios de complexidade (depth, min_samples).</li>
+</ol>
+
+<div class="card">
+  <b>Exemplo simples (tempo de internação):</b>
+  <p style="font-size: 13px;">
+    Se separar por "creatinina > 1.7" reduzir muito a variância de dias de internação,
+    esse split é preferível a "idade > 60" naquele nó específico.
+    A árvore sempre escolhe o split com maior ganho local.
+  </p>
+</div>
+
+<h3 id="criterios">Critérios de split no trAIn</h3>
+<p>
+  No seu `DecisionTreeRegressor`,
+  o parâmetro `criterion` oferece:
+  <b>squared_error</b> e <b>friedman_mse</b>.
+  [3]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Criterion</b></th>
+    <th align="left"><b>Ideia</b></th>
+    <th align="left"><b>Uso prático</b></th>
+  </tr>
+  <tr>
+    <td>squared_error</td>
+    <td>Minimiza MSE clássico</td>
+    <td>Padrão robusto para árvore única</td>
+  </tr>
+  <tr>
+    <td>friedman_mse</td>
+    <td>Variação de MSE com ganho estilo Friedman</td>
+    <td>Pode ajudar em alguns cenários de interação</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Regra prática:</b>
+  comece com `squared_error`.
+  Teste `friedman_mse` por validação;
+  mantenha apenas se houver ganho consistente em CV.
+  [3][5]
+</div>
+
+<h3 id="vies-variancia">Trade-off viés-variância</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Viés</b></th>
+    <th align="left"><b>Variância</b></th>
+    <th align="left"><b>Risco</b></th>
+  </tr>
+  <tr>
+    <td>Árvore rasa</td>
+    <td>Alto</td>
+    <td>Baixo</td>
+    <td>Underfitting</td>
+  </tr>
+  <tr>
+    <td>Árvore profunda sem restrição</td>
+    <td>Baixo</td>
+    <td>Alto</td>
+    <td>Overfitting</td>
+  </tr>
+  <tr>
+    <td>Árvore com regularização moderada</td>
+    <td>Médio</td>
+    <td>Médio</td>
+    <td>Melhor generalização</td>
+  </tr>
+</table>
+
+<h3 id="normalizacao">Normalização (precisa?)</h3>
+<p>
+  Em geral,
+  <b>não é necessária</b> para árvores de decisão,
+  porque os splits dependem de ordem e limiares,
+  não de distância euclidiana.
+  [2][3]
+</p>
+
+<div class="card">
+  <b>Resumo prático:</b>
+  <ul>
+    <li>Sem normalização: normalmente ótimo para árvore.</li>
+    <li>Com normalização: costuma ter pouco efeito no desempenho da árvore.</li>
+    <li>Normalize só se pipeline precisa servir outros modelos sensíveis à escala.</li>
+  </ul>
+</div>
+
+<h3 id="hiperparametros">Hiperparâmetros e impactos</h3>
+<p>
+  No trAIn,
+  o `DecisionTreeRegressor` expõe:
+  `criterion`,
+  `max_depth`,
+  `min_samples_split`,
+  `min_samples_leaf`,
+  `max_features`.
+  [3]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Papel</b></th>
+    <th align="left"><b>Faixa útil</b></th>
+    <th align="left"><b>Risco extremo</b></th>
+  </tr>
+  <tr>
+    <td>criterion</td>
+    <td>Qualidade do split</td>
+    <td>squared_error / friedman_mse</td>
+    <td>Escolha subótima local</td>
+  </tr>
+  <tr>
+    <td>max_depth</td>
+    <td>Complexidade global</td>
+    <td>3-30 ou None</td>
+    <td>Muito alto: overfit</td>
+  </tr>
+  <tr>
+    <td>min_samples_split</td>
+    <td>Mínimo para dividir nó</td>
+    <td>2-30</td>
+    <td>Baixo: fragmentação excessiva</td>
+  </tr>
+  <tr>
+    <td>min_samples_leaf</td>
+    <td>Mínimo por folha</td>
+    <td>1-20</td>
+    <td>1 com ruído: alta variância</td>
+  </tr>
+  <tr>
+    <td>max_features</td>
+    <td>Subconjunto de features por split</td>
+    <td>None / sqrt / log2</td>
+    <td>Baixo demais: perda de sinal</td>
+  </tr>
+</table>
+
+<h3 id="criterion">criterion</h3>
+<p>
+  O critério define como a redução de impureza é medida no split.
+  Na prática clínica tabular,
+  `squared_error` é ponto de partida seguro.
+  [3][5]
+</p>
+
+<h3 id="max-depth">max_depth</h3>
+<p>
+  Controla quantas regras em sequência a árvore pode criar.
+  Quanto maior,
+  mais detalhamento local e mais risco de memorizar ruído.
+  [1][2][3]
+</p>
+
+<div class="warning">
+  <b>Alerta:</b>
+  R² treino muito alto + R² teste baixo
+  geralmente pede reduzir `max_depth`
+  e aumentar `min_samples_leaf`.
+</div>
+
+<h3 id="min-samples">min_samples_split e min_samples_leaf</h3>
+<p>
+  São os principais freios de complexidade local.
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Parâmetro</b></th>
+    <th align="left"><b>Impacto</b></th>
+    <th align="left"><b>Quando aumentar</b></th>
+  </tr>
+  <tr>
+    <td>min_samples_split</td>
+    <td>evita divisões prematuras</td>
+    <td>quando há muitos nós pequenos</td>
+  </tr>
+  <tr>
+    <td>min_samples_leaf</td>
+    <td>suaviza predição das folhas</td>
+    <td>quando há overfit e erro instável</td>
+  </tr>
+</table>
+
+<h3 id="max-features">max_features</h3>
+<p>
+  Define quantas variáveis candidatas são avaliadas em cada split.
+  Em árvore única,
+  `None` costuma ser comum,
+  mas `sqrt`/`log2` podem reduzir overfit em alguns conjuntos.
+  [3][8]
+</p>
+
+<h3 id="avaliacao">Como avaliar o modelo</h3>
+<p>
+  Use múltiplas métricas para regressão,
+  evitando decisão baseada em uma métrica única.
+  [2][3]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Leitura</b></th>
+    <th align="left"><b>Direção</b></th>
+  </tr>
+  <tr>
+    <td>R²</td>
+    <td>variância explicada</td>
+    <td>maior melhor</td>
+  </tr>
+  <tr>
+    <td>RMSE</td>
+    <td>erro típico com penalização quadrática</td>
+    <td>menor melhor</td>
+  </tr>
+  <tr>
+    <td>MAE</td>
+    <td>erro absoluto médio</td>
+    <td>menor melhor</td>
+  </tr>
+  <tr>
+    <td>MAPE</td>
+    <td>erro percentual médio</td>
+    <td>menor melhor (cuidado com y≈0)</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Prática recomendada:</b>
+  reporte CV (média e desvio),
+  teste final hold-out,
+  e comparação com baseline linear.
+  [2][6][7]
+</div>
+
+<h3 id="residuos">Análise de resíduos</h3>
+<p>
+  Árvore pode parecer boa em média,
+  mas falhar em segmentos clínicos específicos.
+  [6][7]
+</p>
+
+<ul>
+  <li>Erro alto em extremos de y (cauda clínica grave).</li>
+  <li>Viés por subgrupo (hospital, faixa etária, sexo).</li>
+  <li>Padrão sistemático em `y_true` vs `y_pred`.</li>
+</ul>
+
+<div class="card">
+  <b>Checklist rápido</b>
+  <ol>
+    <li>Scatter `y_true` vs `y_pred` com linha identidade.</li>
+    <li>Histograma dos resíduos.</li>
+    <li>MAE por quantis do alvo.</li>
+    <li>MAE/RMSE por subgrupos clínicos.</li>
+  </ol>
+</div>
+
+<h3 id="interpretabilidade">Interpretabilidade</h3>
+<p>
+  A principal vantagem da árvore única é explicabilidade direta:
+  dá para seguir caminho nó a nó até a folha de predição.
+  [1][2][3]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Método</b></th>
+    <th align="left"><b>Escopo</b></th>
+    <th align="left"><b>Observação</b></th>
+  </tr>
+  <tr>
+    <td>Regra do caminho (path)</td>
+    <td>Local</td>
+    <td>explica caso individual de modo transparente</td>
+  </tr>
+  <tr>
+    <td>Feature importance (impureza)</td>
+    <td>Global</td>
+    <td>rápida, mas pode ter viés</td>
+  </tr>
+  <tr>
+    <td>Permutation importance</td>
+    <td>Global</td>
+    <td>mais confiável em generalização</td>
+  </tr>
+  <tr>
+    <td>PDP/ICE</td>
+    <td>Global + local</td>
+    <td>mostra efeitos médios e heterogeneidade</td>
+  </tr>
+</table>
+
+<h3 id="importancia">Importância de variáveis</h3>
+<p>
+  Prefira <b>permutation importance</b> no conjunto de validação/teste,
+  pois importance por impureza pode enviesar features de alta cardinalidade.
+  [9][10][11]
+</p>
+
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import r2_score
+
+dt = DecisionTreeRegressor(
+    random_state=42,
+    criterion='squared_error',
+    max_depth=10,
+    min_samples_split=5,
+    min_samples_leaf=3,
+    max_features=None,
+)
+
+dt.fit(X_train, y_train)
+pred = dt.predict(X_test)
+print('R2 teste:', r2_score(y_test, pred))
+
+imp = permutation_importance(dt, X_test, y_test, n_repeats=20, random_state=42)
+for i in imp.importances_mean.argsort()[::-1][:10]:
+    print(feature_names[i], imp.importances_mean[i])
+  </pre>
+</div>
+
+<h3 id="saude">Aplicações em saúde</h3>
+<p>
+  Árvores de regressão são úteis quando clínicos precisam entender regras de decisão
+  e quando há limiares clínicos claros.
+  [4][6][12]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Cenário</b></th>
+    <th align="left"><b>Alvo contínuo</b></th>
+    <th align="left"><b>Vantagem da árvore</b></th>
+  </tr>
+  <tr>
+    <td>UTI</td>
+    <td>dias de internação</td>
+    <td>regras transparentes para auditoria</td>
+  </tr>
+  <tr>
+    <td>Nefrologia</td>
+    <td>eGFR futuro</td>
+    <td>captura limiares não lineares</td>
+  </tr>
+  <tr>
+    <td>Farmacologia</td>
+    <td>dose individual</td>
+    <td>explica cortes de ajuste por perfil</td>
+  </tr>
+  <tr>
+    <td>Gestão hospitalar</td>
+    <td>custo previsto</td>
+    <td>fácil comunicação para gestão</td>
+  </tr>
+</table>
+
+<h3 id="exemplos">Exemplos publicados</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Estudo</b></th>
+    <th align="left"><b>Contexto</b></th>
+    <th align="left"><b>Contribuição</b></th>
+    <th align="left"><b>Comentário</b></th>
+  </tr>
+  <tr>
+    <td>Breiman et al. CART [1]</td>
+    <td>Fundamentos árvores</td>
+    <td>estrutura de regressão por partição recursiva</td>
+    <td>base teórica clássica</td>
+  </tr>
+  <tr>
+    <td>Steyerberg et al. [6]</td>
+    <td>Predição clínica</td>
+    <td>boas práticas de validação e utilidade clínica</td>
+    <td>relevante para governança</td>
+  </tr>
+  <tr>
+    <td>Collins et al. TRIPOD [7]</td>
+    <td>Reporte de modelos</td>
+    <td>padronização de transparência</td>
+    <td>fundamental para publicação</td>
+  </tr>
+  <tr>
+    <td>Wolff et al. PROBAST [13]</td>
+    <td>Risco de viés</td>
+    <td>framework para avaliação crítica</td>
+    <td>essencial para adoção clínica</td>
+  </tr>
+</table>
+
+<h3 id="comparacao">Comparação com outros regressores</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Modelo</b></th>
+    <th align="left"><b>Não-linearidade</b></th>
+    <th align="left"><b>Interpretabilidade</b></th>
+    <th align="left"><b>Estabilidade</b></th>
+    <th align="left"><b>Padrão de uso</b></th>
+  </tr>
+  <tr>
+    <td>Linear Regression</td>
+    <td>Baixa</td>
+    <td>Muito alta</td>
+    <td>Alta</td>
+    <td>baseline causal/inferencial</td>
+  </tr>
+  <tr>
+    <td>Decision Tree Regressor</td>
+    <td>Alta</td>
+    <td>Alta (local)</td>
+    <td>Baixa-média</td>
+    <td>regras explícitas e rápidas</td>
+  </tr>
+  <tr>
+    <td>Random Forest Regressor</td>
+    <td>Alta</td>
+    <td>Média</td>
+    <td>Alta</td>
+    <td>performance robusta tabular</td>
+  </tr>
+  <tr>
+    <td>XGBoost Regressor</td>
+    <td>Muito alta</td>
+    <td>Média</td>
+    <td>Alta</td>
+    <td>máxima performance tabular</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <b>Resumo prático:</b>
+  se o objetivo é explicar decisões com regras claras,
+  Decision Tree Regressor é excelente;
+  se objetivo principal é estabilidade/poder preditivo,
+  normalmente ensembles (RF/Boosting) vencem.
+  [2][3][8]
+</div>
+
+<h3 id="quando-usar">Quando usar (e quando evitar)</h3>
+<h4>Use quando:</h4>
+<ul>
+  <li>transparência clínica é prioridade;</li>
+  <li>há limiares de decisão bem definidos;</li>
+  <li>modelo precisa ser comunicável para equipe multiprofissional;</li>
+  <li>você quer baseline interpretável antes de ensembles.</li>
+</ul>
+
+<h4>Evite quando:</h4>
+<ul>
+  <li>desempenho máximo é prioridade absoluta;</li>
+  <li>dados são muito ruidosos e árvore única fica instável;</li>
+  <li>generalização externa é crítica e você não pode usar ensemble.</li>
+</ul>
+
+<h3 id="boas-praticas">Boas práticas clínicas</h3>
+<ol>
+  <li>Defina desfecho contínuo com significado clínico claro.</li>
+  <li>Evite vazamento temporal e por centro.</li>
+  <li>Reporte CV + teste externo.</li>
+  <li>Reporte R², RMSE, MAE por subgrupos.</li>
+  <li>Documente hiperparâmetros e racional.</li>
+  <li>Descreva limitações do modelo de forma explícita.</li>
+  <li>Use checklist TRIPOD e análise de viés PROBAST.</li>
+</ol>
+
+<p style="font-size: 13px;">
+  Diretrizes formais: [7][13]
+</p>
+
+<h3 id="diagnostico">Diagnóstico de problemas</h3>
+
+<h4>1) Overfitting evidente</h4>
+<p><b>Sintoma:</b> treino excelente, teste fraco.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>reduzir `max_depth`;</li>
+  <li>aumentar `min_samples_leaf`;</li>
+  <li>aumentar `min_samples_split`;</li>
+  <li>avaliar poda por `ccp_alpha` se aplicável no pipeline.</li>
+</ul>
+
+<h4>2) Underfitting</h4>
+<p><b>Sintoma:</b> treino e teste ambos ruins.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>aumentar complexidade da árvore;</li>
+  <li>revisar qualidade de features;</li>
+  <li>testar modelo mais expressivo (RF/Boosting).</li>
+</ul>
+
+<h4>3) Regras pouco estáveis entre folds</h4>
+<p><b>Sintoma:</b> árvore muda completamente em cada split de CV.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>regularizar mais;</li>
+  <li>aumentar amostra;</li>
+  <li>considerar ensemble para produção.</li>
+</ul>
+
+<h4>4) Performance cai em outro hospital</h4>
+<p><b>Sintoma:</b> queda forte de R² em validação externa.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>avaliar shift de distribuição;</li>
+  <li>revisar codificação local de variáveis;</li>
+  <li>adaptar/recalibrar com coorte externa.</li>
+</ul>
+
+<h4>5) Erro maior em pacientes graves</h4>
+<p><b>Sintoma:</b> MAE explode nos quantis altos de y.</p>
+<p><b>Ações:</b></p>
+<ul>
+  <li>avaliar métricas por quantil;</li>
+  <li>ampliar dados de casos graves;</li>
+  <li>testar ensemble para reduzir variância.</li>
+</ul>
+
+<h3 id="playbook">Playbook de tuning (passo a passo)</h3>
+<p>
+  Estratégia prática para tuning eficiente:
+  [2][5][6]
+</p>
+
+<ol>
+  <li><b>Baseline:</b> `criterion='squared_error'`, `max_depth=10`, `min_samples_split=5`, `min_samples_leaf=3`.</li>
+  <li><b>Complexidade:</b> varrer `max_depth` (4, 6, 8, 12, 20, None).</li>
+  <li><b>Regularização local:</b> varrer `min_samples_leaf` (1, 2, 5, 10).</li>
+  <li><b>Robustez:</b> testar `max_features` em `None`, `sqrt`, `log2`.</li>
+  <li><b>Validação:</b> escolher por CV + teste temporal/externo.</li>
+</ol>
+
+<div class="card">
+  <b>Grid sugerido inicial</b>
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+param_grid = {
+    "criterion": ["squared_error", "friedman_mse"],
+    "max_depth": [4, 6, 8, 12, 20, None],
+    "min_samples_split": [2, 5, 10, 20],
+    "min_samples_leaf": [1, 2, 5, 10],
+    "max_features": [None, "sqrt", "log2"]
+}
+  </pre>
+</div>
+
+<h3 id="fairness">Fairness e vieses de subgrupo</h3>
+<p>
+  Mesmo em regressão,
+  um modelo pode performar muito melhor em alguns grupos e pior em outros.
+  [6][7][13]
+</p>
+
+<ul>
+  <li>Reporte MAE/RMSE por sexo e faixa etária.</li>
+  <li>Avalie erro por centro/hospital.</li>
+  <li>Monitore diferença absoluta de erro entre grupos.</li>
+  <li>Investigue gaps clinicamente relevantes antes de deploy.</li>
+</ul>
+
+<div class="warning">
+  <b>Alerta de governança:</b>
+  performance média global não garante segurança para todos os subgrupos.
+</div>
+
+<h3 id="drift">Monitoramento e drift</h3>
+<p>
+  Em produção,
+  mudanças de protocolo clínico ou perfil populacional degradam desempenho.
+  [6][12]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Sinal</b></th>
+    <th align="left"><b>Métrica</b></th>
+    <th align="left"><b>Limiar sugerido</b></th>
+  </tr>
+  <tr>
+    <td>Data drift</td>
+    <td>PSI por feature-chave</td>
+    <td>PSI > 0.2: investigar</td>
+  </tr>
+  <tr>
+    <td>Performance drift</td>
+    <td>RMSE mensal vs baseline</td>
+    <td>Piora > 15%: investigar</td>
+  </tr>
+  <tr>
+    <td>Drift de subgrupo</td>
+    <td>MAE por grupo ao longo do tempo</td>
+    <td>Gap crescente entre grupos</td>
+  </tr>
+</table>
+
+<h3 id="faq">Perguntas frequentes</h3>
+
+<h4>1. Precisa normalizar para Decision Tree Regressor?</h4>
+<p>
+  Em geral, não.
+  Árvores usam limiares e ordenação,
+  não distância euclidiana.
+  [2][3]
+</p>
+
+<h4>2. Qual hiperparâmetro mais crítico?</h4>
+<p>
+  `max_depth` e `min_samples_leaf` costumam ter maior impacto no overfit.
+  [1][3]
+</p>
+
+<h4>3. `friedman_mse` sempre melhora?</h4>
+<p>
+  Não.
+  Deve ser validado empiricamente por CV.
+  [3][5]
+</p>
+
+<h4>4. Árvore extrapola bem fora da faixa observada?</h4>
+<p>
+  Não é o ponto forte.
+  Árvores tendem a prever por regiões aprendidas no treino.
+  [2][3]
+</p>
+
+<h4>5. Posso usar árvore sozinha em produção?</h4>
+<p>
+  Sim,
+  quando interpretabilidade é prioridade e desempenho é suficiente.
+  Caso contrário,
+  compare com RF/Boosting.
+  [2][8]
+</p>
+
+<h4>6. Como reportar incerteza?</h4>
+<p>
+  Use bootstrap de amostras para intervalo de confiança das métricas.
+  [6][7]
+</p>
+
+<h4>7. Árvore lida com multicolinearidade?</h4>
+<p>
+  Melhor que modelos lineares em alguns cenários,
+  mas pode gerar splits alternativos instáveis com variáveis correlacionadas.
+  [2][10]
+</p>
+
+<h4>8. Como reduzir instabilidade da árvore?</h4>
+<p>
+  Regularize hiperparâmetros,
+  aumente amostra,
+  e considere ensemble para produção.
+  [1][8]
+</p>
+
+<h4>9. É obrigatório podar?</h4>
+<p>
+  Não obrigatório,
+  mas controlar complexidade é essencial (depth, min_samples e/ou ccp_alpha).
+  [3]
+</p>
+
+<h4>10. Vale comparar com regras clínicas manuais?</h4>
+<p>
+  Sim,
+  essa comparação é valiosa para adoção prática e confiança clínica.
+  [6][7]
+</p>
+
+<h3 id="fontes-por-tema">Fontes por tema (mapa rápido)</h3>
+<ul>
+  <li><b>Fundamentos de árvores/CART:</b> [1], [2], [4]</li>
+  <li><b>Comportamento do DecisionTreeRegressor (sklearn):</b> [3]</li>
+  <li><b>Validação e boas práticas em predição clínica:</b> [6], [7], [13]</li>
+  <li><b>Importância de variáveis e vieses:</b> [9], [10], [11]</li>
+  <li><b>Interpretabilidade (PDP/ICE/SHAP):</b> [11], [14], [15]</li>
+  <li><b>Uso clínico e governança de ML em saúde:</b> [6], [12], [13]</li>
+</ul>
+
+<h3 id="leitura">Leitura recomendada</h3>
+<ul>
+  <li>Breiman et al., CART [1]</li>
+  <li>Elements of Statistical Learning (árvores e ensembles) [2]</li>
+  <li>scikit-learn: DecisionTreeRegressor [3]</li>
+  <li>TRIPOD + PROBAST para modelos clínicos [7][13]</li>
+  <li>PDP/ICE e SHAP para explicabilidade [14][15]</li>
+</ul>
+
+<h3 id="referencias">Referências</h3>
+<ol>
+  <li>
+    Breiman L,
+    Friedman JH,
+    Olshen RA,
+    Stone CJ.
+    Classification and Regression Trees.
+    Wadsworth;
+    1984.
+    <a href="https://doi.org/10.1201/9781315139470">DOI: 10.1201/9781315139470</a>
+  </li>
+  <li>
+    Hastie T,
+    Tibshirani R,
+    Friedman J.
+    The Elements of Statistical Learning.
+    2nd ed.
+    Springer;
+    2009.
+    <a href="https://doi.org/10.1007/978-0-387-84858-7">DOI: 10.1007/978-0-387-84858-7</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    DecisionTreeRegressor API Reference.
+    <a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html">https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeRegressor.html</a>
+  </li>
+  <li>
+    Safavian SR,
+    Landgrebe D.
+    A survey of decision tree classifier methodology.
+    <i>IEEE Trans SMC</i>.
+    1991;21(3):660-674.
+    <a href="https://doi.org/10.1109/21.97458">DOI: 10.1109/21.97458</a>
+  </li>
+  <li>
+    Friedman JH.
+    Greedy function approximation: A gradient boosting machine.
+    <i>Annals of Statistics</i>.
+    2001;29(5):1189-1232.
+    <a href="https://doi.org/10.1214/aos/1013203451">DOI: 10.1214/aos/1013203451</a>
+  </li>
+  <li>
+    Steyerberg EW,
+    Moons KGM,
+    van der Windt DA,
+    et al.
+    Prognosis Research Strategy (PROGRESS) 3: Prognostic model research.
+    <i>PLOS Med</i>.
+    2013;10(2):e1001381.
+    <a href="https://doi.org/10.1371/journal.pmed.1001381">DOI: 10.1371/journal.pmed.1001381</a>
+  </li>
+  <li>
+    Collins GS,
+    Reitsma JB,
+    Altman DG,
+    Moons KGM.
+    TRIPOD.
+    <i>Ann Intern Med</i>.
+    2015;162:55-63.
+    <a href="https://doi.org/10.7326/M14-0697">DOI: 10.7326/M14-0697</a>
+  </li>
+  <li>
+    Breiman L.
+    Random Forests.
+    <i>Machine Learning</i>.
+    2001;45:5-32.
+    <a href="https://doi.org/10.1023/A:1010933404324">DOI: 10.1023/A:1010933404324</a>
+  </li>
+  <li>
+    Strobl C,
+    Boulesteix AL,
+    Zeileis A,
+    Hothorn T.
+    Bias in random forest variable importance measures.
+    <i>BMC Bioinformatics</i>.
+    2007;8:25.
+    <a href="https://doi.org/10.1186/1471-2105-8-25">DOI: 10.1186/1471-2105-8-25</a>
+  </li>
+  <li>
+    Altmann A,
+    Toloşi L,
+    Sander O,
+    Lengauer T.
+    Permutation importance: a corrected feature importance measure.
+    <i>Bioinformatics</i>.
+    2010;26(10):1340-1347.
+    <a href="https://doi.org/10.1093/bioinformatics/btq134">DOI: 10.1093/bioinformatics/btq134</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Permutation Feature Importance User Guide.
+    <a href="https://scikit-learn.org/stable/modules/permutation_importance.html">https://scikit-learn.org/stable/modules/permutation_importance.html</a>
+  </li>
+  <li>
+    Rajkomar A,
+    Dean J,
+    Kohane I.
+    Machine Learning in Medicine.
+    <i>N Engl J Med</i>.
+    2019;380:1347-1358.
+    <a href="https://doi.org/10.1056/NEJMra1814259">DOI: 10.1056/NEJMra1814259</a>
+  </li>
+  <li>
+    Wolff RF,
+    Moons KGM,
+    Riley RD,
+    et al.
+    PROBAST.
+    <i>Ann Intern Med</i>.
+    2019;170:51-58.
+    <a href="https://doi.org/10.7326/M18-1376">DOI: 10.7326/M18-1376</a>
+  </li>
+  <li>
+    scikit-learn developers.
+    Partial Dependence and ICE.
+    <a href="https://scikit-learn.org/stable/modules/partial_dependence.html">https://scikit-learn.org/stable/modules/partial_dependence.html</a>
+  </li>
+  <li>
+    Lundberg SM,
+    Lee SI.
+    A Unified Approach to Interpreting Model Predictions.
+    <i>NeurIPS</i>.
+    2017.
+    <a href="https://doi.org/10.48550/arXiv.1705.07874">DOI: 10.48550/arXiv.1705.07874</a>
+  </li>
+</ol>
+
+<div class="callout">
+  <b>Resumo final:</b>
+  Decision Tree Regressor é excelente quando você precisa de transparência e regras clínicas explícitas,
+  com treinamento rápido e boa capacidade de capturar não-linearidades.
+  Para maior estabilidade e desempenho,
+  compare sempre com ensembles como Random Forest e Gradient Boosting.
+</div>
+
+<h3 id="ablation">Ablation study simplificado</h3>
+<p>
+  Para demonstrar robustez científica,
+  vale executar uma ablação de blocos de variáveis
+  e medir impacto no erro.
+  [2][6][7]
+</p>
+
+<div class="card">
+  <b>Plano de ablação recomendado</b>
+  <ol>
+    <li>Modelo completo com todas as features.</li>
+    <li>Remover variáveis laboratoriais.</li>
+    <li>Remover comorbidades.</li>
+    <li>Remover sinais vitais.</li>
+    <li>Comparar R², RMSE e MAE por cenário.</li>
+  </ol>
+</div>
+
+<p>
+  Essa análise evita interpretações frágeis do tipo
+  "feature X é essencial" sem evidência de impacto incremental real.
+</p>
+
+<h3 id="validacao-externa">Validação externa (hospital/tempo)</h3>
+<p>
+  Em medicina,
+  validação interna não basta.
+  É essencial testar o modelo em contexto externo
+  (outro hospital, outro período, outra população).
+  [6][7][13]
+</p>
+
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Nível de validação</b></th>
+    <th align="left"><b>O que mede</b></th>
+    <th align="left"><b>Limitação</b></th>
+  </tr>
+  <tr>
+    <td>CV interna</td>
+    <td>consistência dentro da mesma base</td>
+    <td>não captura shift entre centros</td>
+  </tr>
+  <tr>
+    <td>Hold-out temporal</td>
+    <td>robustez no tempo</td>
+    <td>ainda no mesmo ecossistema</td>
+  </tr>
+  <tr>
+    <td>Validação externa</td>
+    <td>transportabilidade real</td>
+    <td>custo operacional maior</td>
+  </tr>
+</table>
+
+<h3 id="calibracao-erro">Calibração de erro em regressão</h3>
+<p>
+  Para regressão clínica,
+  é útil avaliar como o erro se comporta por faixa do alvo,
+  não só a média global.
+  [6][12]
+</p>
+
+<ul>
+  <li><b>MAE por quantil:</b> detecta degradação em casos graves.</li>
+  <li><b>Erro por subgrupo:</b> detecta desigualdade de desempenho.</li>
+  <li><b>Viés sistemático:</b> identifica super/subestimação constante.</li>
+</ul>
+
+<div class="card">
+  <b>Regra de inspeção</b>
+  <p style="font-size: 13px;">
+    Se erro no último decil for > 2x erro mediano,
+    considere reforçar dados de cauda,
+    ajustar complexidade,
+    e comparar com ensemble para estabilidade.
+  </p>
+</div>
+
+<h3 id="comparacao-configs">Comparação de configurações típicas</h3>
+<table>
+  <tr style="background: rgba(200, 200, 200, 0.1);">
+    <th align="left"><b>Perfil</b></th>
+    <th align="left"><b>Configuração</b></th>
+    <th align="left"><b>Quando usar</b></th>
+  </tr>
+  <tr>
+    <td>Conservador</td>
+    <td>depth=6, leaf=10, split=20</td>
+    <td>prioriza estabilidade e menor overfit</td>
+  </tr>
+  <tr>
+    <td>Intermediário</td>
+    <td>depth=10, leaf=3, split=5</td>
+    <td>equilíbrio geral em tabular clínico</td>
+  </tr>
+  <tr>
+    <td>Agressivo</td>
+    <td>depth=None, leaf=1, split=2</td>
+    <td>exploração máxima (alto risco de overfit)</td>
+  </tr>
+</table>
+
+<h3 id="governanca">Governança e auditabilidade</h3>
+<p>
+  Modelos clínicos precisam de trilha de auditoria.
+  Para árvore de regressão,
+  a vantagem é que as regras podem ser exportadas explicitamente,
+  facilitando revisão por comitês clínicos.
+  [7][13]
+</p>
+
+<ol>
+  <li>Versionar dataset, código e hiperparâmetros.</li>
+  <li>Registrar métricas por subgrupo e período.</li>
+  <li>Documentar critérios de atualização de modelo.</li>
+  <li>Registrar responsável por aprovação clínica.</li>
+  <li>Definir gatilhos de rollback operacional.</li>
+</ol>
+
+<div class="warning">
+  <b>Ponto crítico:</b>
+  interpretabilidade não substitui validação externa.
+  Modelo explicável pode estar enviesado se dados forem enviesados.
+</div>
+
+<h3 id="pipeline-clinico">Pipeline clínico recomendado (end-to-end)</h3>
+<div class="card">
+  <pre style="font-size: 12px; background: rgba(120,120,120,0.08); padding: 6px; border-radius: 4px;">
+1) Definir desfecho contínuo e janela temporal
+2) Definir população-alvo e critérios de inclusão
+3) Preparar dados sem vazamento
+4) Treinar baseline linear
+5) Treinar Decision Tree Regressor com tuning
+6) Avaliar CV + teste temporal
+7) Avaliar fairness por subgrupos
+8) Validar externamente
+9) Documentar TRIPOD/PROBAST
+10) Implantar com monitoramento de drift
+  </pre>
+</div>
+
+<h3 id="faq-avancado">FAQ avançado</h3>
+
+<h4>11. Árvore única é suficiente para produção?</h4>
+<p>
+  Depende.
+  Se desempenho for adequado e transparência for prioridade,
+  pode ser suficiente.
+  Caso contrário,
+  use ensemble e mantenha árvore como baseline interpretável.
+  [2][8]
+</p>
+
+<h4>12. Posso usar transformação log no alvo?</h4>
+<p>
+  Pode.
+  Em alvos muito assimétricos,
+  `log1p(y)` pode melhorar estabilidade de erro relativo.
+  [2][6]
+</p>
+
+<h4>13. Como comparar árvore com score clínico manual?</h4>
+<p>
+  Compare em mesma coorte e mesmas métricas,
+  com análise por subgrupo e decisão clínica.
+  [6][7]
+</p>
+
+<h4>14. Feature importance pode enganar?</h4>
+<p>
+  Sim.
+  Importance por impureza pode ter viés,
+  especialmente com alta cardinalidade e correlação.
+  Prefira confirmar com permutation importance.
+  [9][10][11]
+</p>
+
+<h4>15. Vale usar `max_features='sqrt'` em árvore única?</h4>
+<p>
+  Em alguns cenários reduz overfit,
+  mas pode perder sinal.
+  Deve ser validado empiricamente.
+  [3][8]
+</p>
+
+<h4>16. Quando migrar para Random Forest?</h4>
+<p>
+  Quando houver alta variância entre folds,
+  queda na validação externa,
+  ou necessidade de ganho preditivo com estabilidade.
+  [8]
+</p>
+
+<h4>17. Árvore lida com missing nativamente?</h4>
+<p>
+  Depende da implementação e versão.
+  Para robustez de pipeline clínico,
+  é recomendável política explícita de imputação/versionamento.
+  [3][7]
+</p>
+
+<h4>18. Como reportar incerteza de métricas?</h4>
+<p>
+  Use bootstrap para intervalos de confiança de RMSE/MAE/R²,
+  além de distribuição por folds de CV.
+  [6][7]
+</p>
+
+<h4>19. Como detectar overfitting local de regra?</h4>
+<p>
+  Verifique folhas com poucos casos e erro extremo.
+  Se comum,
+  aumente `min_samples_leaf` e reduza `max_depth`.
+  [1][3]
+</p>
+
+<h4>20. Qual maior erro ao usar árvores em saúde?</h4>
+<p>
+  Confiar na interpretabilidade sem validar transportabilidade.
+  Regras bonitas podem falhar fora do hospital de origem.
+  [6][7][13]
+</p>
+
+<h3 id="nota-classificacao">Nota importante: diferença para Decision Tree Classifier</h3>
+<div class="warning">
+  Este documento é exclusivo para <b>regressão</b>.
+  Não cobre métricas e decisões de classificação (AUC, F1, limiar, sensibilidade/especificidade).
+  Para classificação,
+  use documentação específica do Decision Tree Classifier.
+</div>
+
+</body>
+</html>

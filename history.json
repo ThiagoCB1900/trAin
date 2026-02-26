@@ -1,1 +1,639 @@
-[]
+[
+  {
+    "timestamp": "2026-02-26 14:16:41",
+    "modelo": "Gradient Boosting #1",
+    "params": {
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 3,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "subsample": 1.0,
+      "max_features": "None"
+    },
+    "tempo_sec": 0.09971480000240263,
+    "metricas": {
+      "accuracy": 0.9033613445378151,
+      "balanced_accuracy": 0.9027777777777778,
+      "mcc": 0.8059840197928376,
+      "specificity": 0.8928571428571429,
+      "precision_weighted": 0.905511811023622,
+      "recall_weighted": 0.9126984126984127,
+      "f1_weighted": 0.9090909090909091,
+      "precision_macro": 0.9032063559622614,
+      "recall_macro": 0.9027777777777778,
+      "f1_macro": 0.9029759478189971,
+      "log_loss": 0.28547969044950794,
+      "roc_auc": 0.9494756235827665,
+      "pr_auc": 0.9509485512435347
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:16:41",
+    "modelo": "Decision Tree #2",
+    "params": {
+      "criterion": "gini",
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "None",
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.014786500003538094,
+    "metricas": {
+      "accuracy": 0.8781512605042017,
+      "balanced_accuracy": 0.8799603174603174,
+      "mcc": 0.758711916746712,
+      "specificity": 0.9107142857142857,
+      "precision_weighted": 0.9145299145299145,
+      "recall_weighted": 0.8492063492063492,
+      "f1_weighted": 0.8806584362139918,
+      "precision_macro": 0.8787525605707424,
+      "recall_macro": 0.8799603174603174,
+      "f1_macro": 0.8780974584503436,
+      "log_loss": 4.391873732287384,
+      "roc_auc": 0.8799603174603176,
+      "pr_auc": 0.8564565427310525
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:16:41",
+    "modelo": "SVM #3",
+    "params": {
+      "C": 1.0,
+      "kernel": "rbf",
+      "gamma": "scale",
+      "degree": 3,
+      "coef0": 0.0,
+      "class_weight": "None",
+      "probability": true
+    },
+    "tempo_sec": 0.08650019999186043,
+    "metricas": {
+      "accuracy": 0.7352941176470589,
+      "balanced_accuracy": 0.7356150793650793,
+      "mcc": 0.4704806272254415,
+      "specificity": 0.7410714285714286,
+      "precision_weighted": 0.7603305785123967,
+      "recall_weighted": 0.7301587301587301,
+      "f1_weighted": 0.7449392712550608,
+      "precision_macro": 0.7348661439570531,
+      "recall_macro": 0.7356150793650793,
+      "f1_macro": 0.734915050474692,
+      "log_loss": 0.5356255659125683,
+      "roc_auc": 0.8111536281179138,
+      "pr_auc": 0.8003716409596838
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:32:28",
+    "modelo": "Logistic Regression #1",
+    "params": {
+      "C": 1.0,
+      "penalty": "l2",
+      "solver": "lbfgs",
+      "l1_ratio": 0.5,
+      "class_weight": "None",
+      "fit_intercept": true,
+      "max_iter": 1000
+    },
+    "tempo_sec": 0.08819100000255276,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8392857142857142,
+      "mcc": 0.6793420948374845,
+      "specificity": 0.8214285714285714,
+      "precision_weighted": 0.84375,
+      "recall_weighted": 0.8571428571428571,
+      "f1_weighted": 0.8503937007874016,
+      "precision_macro": 0.8400568181818182,
+      "recall_macro": 0.8392857142857142,
+      "f1_macro": 0.8396112648081152,
+      "log_loss": 0.387579880530799,
+      "roc_auc": 0.905187074829932,
+      "pr_auc": 0.8980539154661269
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:32:28",
+    "modelo": "XGBoost #2",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 6,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.11059890000615269,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9201388888888888,
+      "mcc": 0.83989101226749,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.928,
+      "recall_weighted": 0.9206349206349206,
+      "f1_weighted": 0.9243027888446215,
+      "precision_macro": 0.9197522123893805,
+      "recall_macro": 0.9201388888888888,
+      "f1_macro": 0.9199291722000885,
+      "log_loss": 0.21798896349010458,
+      "roc_auc": 0.9692460317460317,
+      "pr_auc": 0.9624226422867118
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:32:29",
+    "modelo": "RandomForestClassifier #3",
+    "params": {
+      "n_estimators": 200,
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "sqrt",
+      "bootstrap": true,
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.2102444999909494,
+    "metricas": {
+      "accuracy": 0.9285714285714286,
+      "balanced_accuracy": 0.9280753968253967,
+      "mcc": 0.856606168819235,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.9291338582677166,
+      "recall_weighted": 0.9365079365079365,
+      "f1_weighted": 0.932806324110672,
+      "precision_macro": 0.9285308930978222,
+      "recall_macro": 0.9280753968253967,
+      "f1_macro": 0.9282865701270848,
+      "log_loss": 0.23532689435896945,
+      "roc_auc": 0.9731079931972789,
+      "pr_auc": 0.9574836970109717
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:34:26",
+    "modelo": "Logistic Regression #1",
+    "params": {
+      "C": 1.0,
+      "penalty": "l2",
+      "solver": "lbfgs",
+      "l1_ratio": 0.5,
+      "class_weight": "None",
+      "fit_intercept": true,
+      "max_iter": 1000
+    },
+    "tempo_sec": 0.08765820000553504,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8392857142857142,
+      "mcc": 0.6793420948374845,
+      "specificity": 0.8214285714285714,
+      "precision_weighted": 0.84375,
+      "recall_weighted": 0.8571428571428571,
+      "f1_weighted": 0.8503937007874016,
+      "precision_macro": 0.8400568181818182,
+      "recall_macro": 0.8392857142857142,
+      "f1_macro": 0.8396112648081152,
+      "log_loss": 0.387579880530799,
+      "roc_auc": 0.905187074829932,
+      "pr_auc": 0.8980539154661269
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:34:26",
+    "modelo": "XGBoost #2",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 6,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.1339359000121476,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9201388888888888,
+      "mcc": 0.83989101226749,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.928,
+      "recall_weighted": 0.9206349206349206,
+      "f1_weighted": 0.9243027888446215,
+      "precision_macro": 0.9197522123893805,
+      "recall_macro": 0.9201388888888888,
+      "f1_macro": 0.9199291722000885,
+      "log_loss": 0.21798896349010458,
+      "roc_auc": 0.9692460317460317,
+      "pr_auc": 0.9624226422867118
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:34:26",
+    "modelo": "RandomForestClassifier #3",
+    "params": {
+      "n_estimators": 200,
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "sqrt",
+      "bootstrap": true,
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.2095860000117682,
+    "metricas": {
+      "accuracy": 0.9285714285714286,
+      "balanced_accuracy": 0.9280753968253967,
+      "mcc": 0.856606168819235,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.9291338582677166,
+      "recall_weighted": 0.9365079365079365,
+      "f1_weighted": 0.932806324110672,
+      "precision_macro": 0.9285308930978222,
+      "recall_macro": 0.9280753968253967,
+      "f1_macro": 0.9282865701270848,
+      "log_loss": 0.23532689435896945,
+      "roc_auc": 0.9731079931972789,
+      "pr_auc": 0.9574836970109717
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:34:26",
+    "modelo": "XGBoost #4",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 12,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.14260649999778252,
+    "metricas": {
+      "accuracy": 0.9285714285714286,
+      "balanced_accuracy": 0.9280753968253967,
+      "mcc": 0.856606168819235,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.9291338582677166,
+      "recall_weighted": 0.9365079365079365,
+      "f1_weighted": 0.932806324110672,
+      "precision_macro": 0.9285308930978222,
+      "recall_macro": 0.9280753968253967,
+      "f1_macro": 0.9282865701270848,
+      "log_loss": 0.21786057461830224,
+      "roc_auc": 0.9704506802721089,
+      "pr_auc": 0.9657047651928887
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:36:52",
+    "modelo": "Logistic Regression #1",
+    "params": {
+      "C": 1.0,
+      "penalty": "l2",
+      "solver": "lbfgs",
+      "l1_ratio": 0.5,
+      "class_weight": "None",
+      "fit_intercept": true,
+      "max_iter": 1000
+    },
+    "tempo_sec": 0.09189470000274014,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8392857142857142,
+      "mcc": 0.6793420948374845,
+      "specificity": 0.8214285714285714,
+      "precision_weighted": 0.84375,
+      "recall_weighted": 0.8571428571428571,
+      "f1_weighted": 0.8503937007874016,
+      "precision_macro": 0.8400568181818182,
+      "recall_macro": 0.8392857142857142,
+      "f1_macro": 0.8396112648081152,
+      "log_loss": 0.387579880530799,
+      "roc_auc": 0.905187074829932,
+      "pr_auc": 0.8980539154661269
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:36:52",
+    "modelo": "XGBoost #2",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 6,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.11285189999034628,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9201388888888888,
+      "mcc": 0.83989101226749,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.928,
+      "recall_weighted": 0.9206349206349206,
+      "f1_weighted": 0.9243027888446215,
+      "precision_macro": 0.9197522123893805,
+      "recall_macro": 0.9201388888888888,
+      "f1_macro": 0.9199291722000885,
+      "log_loss": 0.21798896349010458,
+      "roc_auc": 0.9692460317460317,
+      "pr_auc": 0.9624226422867118
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:36:52",
+    "modelo": "RandomForestClassifier #3",
+    "params": {
+      "n_estimators": 200,
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "sqrt",
+      "bootstrap": true,
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.21304229999077506,
+    "metricas": {
+      "accuracy": 0.9285714285714286,
+      "balanced_accuracy": 0.9280753968253967,
+      "mcc": 0.856606168819235,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.9291338582677166,
+      "recall_weighted": 0.9365079365079365,
+      "f1_weighted": 0.932806324110672,
+      "precision_macro": 0.9285308930978222,
+      "recall_macro": 0.9280753968253967,
+      "f1_macro": 0.9282865701270848,
+      "log_loss": 0.23532689435896945,
+      "roc_auc": 0.9731079931972789,
+      "pr_auc": 0.9574836970109717
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:36:52",
+    "modelo": "XGBoost #4",
+    "params": {
+      "n_estimators": 400,
+      "learning_rate": 0.1,
+      "max_depth": 12,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.15695390000473708,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9191468253968254,
+      "mcc": 0.8398125427466646,
+      "specificity": 0.9017857142857143,
+      "precision_weighted": 0.9147286821705426,
+      "recall_weighted": 0.9365079365079365,
+      "f1_weighted": 0.9254901960784314,
+      "precision_macro": 0.9206670933788492,
+      "recall_macro": 0.9191468253968254,
+      "f1_macro": 0.9197586726998492,
+      "log_loss": 0.22006622314450136,
+      "roc_auc": 0.9713010204081632,
+      "pr_auc": 0.9671773922793022
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:47:29",
+    "modelo": "Logistic Regression #1",
+    "params": {
+      "C": 1.0,
+      "penalty": "l2",
+      "solver": "lbfgs",
+      "l1_ratio": 0.5,
+      "class_weight": "None",
+      "fit_intercept": true,
+      "max_iter": 1000
+    },
+    "tempo_sec": 0.17454940000607166,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8392857142857142,
+      "mcc": 0.6793420948374845,
+      "specificity": 0.8214285714285714,
+      "precision_weighted": 0.84375,
+      "recall_weighted": 0.8571428571428571,
+      "f1_weighted": 0.8503937007874016,
+      "precision_macro": 0.8400568181818182,
+      "recall_macro": 0.8392857142857142,
+      "f1_macro": 0.8396112648081152,
+      "log_loss": 0.387579880530799,
+      "roc_auc": 0.905187074829932,
+      "pr_auc": 0.8980539154661269
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:47:30",
+    "modelo": "Naive Bayes #2",
+    "params": {
+      "var_smoothing": 0.0
+    },
+    "tempo_sec": 0.09551220000139438,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8407738095238095,
+      "mcc": 0.6805837554355847,
+      "specificity": 0.8482142857142857,
+      "precision_weighted": 0.860655737704918,
+      "recall_weighted": 0.8333333333333334,
+      "f1_weighted": 0.8467741935483871,
+      "precision_macro": 0.8398106274731487,
+      "recall_macro": 0.8407738095238095,
+      "f1_macro": 0.8400537634408602,
+      "log_loss": 0.61777484755339,
+      "roc_auc": 0.903061224489796,
+      "pr_auc": 0.8970878657257109
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:47:30",
+    "modelo": "Decision Tree #3",
+    "params": {
+      "criterion": "gini",
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "None",
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.08497440000064671,
+    "metricas": {
+      "accuracy": 0.8781512605042017,
+      "balanced_accuracy": 0.8799603174603174,
+      "mcc": 0.758711916746712,
+      "specificity": 0.9107142857142857,
+      "precision_weighted": 0.9145299145299145,
+      "recall_weighted": 0.8492063492063492,
+      "f1_weighted": 0.8806584362139918,
+      "precision_macro": 0.8787525605707424,
+      "recall_macro": 0.8799603174603174,
+      "f1_macro": 0.8780974584503436,
+      "log_loss": 4.391873732287384,
+      "roc_auc": 0.8799603174603176,
+      "pr_auc": 0.8564565427310525
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:47:30",
+    "modelo": "XGBoost #4",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 6,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.2215530000103172,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9201388888888888,
+      "mcc": 0.83989101226749,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.928,
+      "recall_weighted": 0.9206349206349206,
+      "f1_weighted": 0.9243027888446215,
+      "precision_macro": 0.9197522123893805,
+      "recall_macro": 0.9201388888888888,
+      "f1_macro": 0.9199291722000885,
+      "log_loss": 0.21798896349010458,
+      "roc_auc": 0.9692460317460317,
+      "pr_auc": 0.9624226422867118
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:49:16",
+    "modelo": "Logistic Regression #1",
+    "params": {
+      "C": 1.0,
+      "penalty": "l2",
+      "solver": "lbfgs",
+      "l1_ratio": 0.5,
+      "class_weight": "None",
+      "fit_intercept": true,
+      "max_iter": 1000
+    },
+    "tempo_sec": 0.16266040000482462,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8392857142857142,
+      "mcc": 0.6793420948374845,
+      "specificity": 0.8214285714285714,
+      "precision_weighted": 0.84375,
+      "recall_weighted": 0.8571428571428571,
+      "f1_weighted": 0.8503937007874016,
+      "precision_macro": 0.8400568181818182,
+      "recall_macro": 0.8392857142857142,
+      "f1_macro": 0.8396112648081152,
+      "log_loss": 0.387579880530799,
+      "roc_auc": 0.905187074829932,
+      "pr_auc": 0.8980539154661269
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:49:17",
+    "modelo": "Naive Bayes #2",
+    "params": {
+      "var_smoothing": 0.0
+    },
+    "tempo_sec": 0.11283389999880455,
+    "metricas": {
+      "accuracy": 0.8403361344537815,
+      "balanced_accuracy": 0.8407738095238095,
+      "mcc": 0.6805837554355847,
+      "specificity": 0.8482142857142857,
+      "precision_weighted": 0.860655737704918,
+      "recall_weighted": 0.8333333333333334,
+      "f1_weighted": 0.8467741935483871,
+      "precision_macro": 0.8398106274731487,
+      "recall_macro": 0.8407738095238095,
+      "f1_macro": 0.8400537634408602,
+      "log_loss": 0.61777484755339,
+      "roc_auc": 0.903061224489796,
+      "pr_auc": 0.8970878657257109
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:49:17",
+    "modelo": "Decision Tree #3",
+    "params": {
+      "criterion": "gini",
+      "max_depth": 0,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "None",
+      "class_weight": "None"
+    },
+    "tempo_sec": 0.08512419999169651,
+    "metricas": {
+      "accuracy": 0.8781512605042017,
+      "balanced_accuracy": 0.8799603174603174,
+      "mcc": 0.758711916746712,
+      "specificity": 0.9107142857142857,
+      "precision_weighted": 0.9145299145299145,
+      "recall_weighted": 0.8492063492063492,
+      "f1_weighted": 0.8806584362139918,
+      "precision_macro": 0.8787525605707424,
+      "recall_macro": 0.8799603174603174,
+      "f1_macro": 0.8780974584503436,
+      "log_loss": 4.391873732287384,
+      "roc_auc": 0.8799603174603176,
+      "pr_auc": 0.8564565427310525
+    }
+  },
+  {
+    "timestamp": "2026-02-26 14:49:17",
+    "modelo": "XGBoost #4",
+    "params": {
+      "n_estimators": 300,
+      "learning_rate": 0.1,
+      "max_depth": 6,
+      "min_child_weight": 1.0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "gamma": 0.0,
+      "reg_lambda": 1.0,
+      "reg_alpha": 0.0
+    },
+    "tempo_sec": 0.21566520001215395,
+    "metricas": {
+      "accuracy": 0.9201680672268907,
+      "balanced_accuracy": 0.9201388888888888,
+      "mcc": 0.83989101226749,
+      "specificity": 0.9196428571428571,
+      "precision_weighted": 0.928,
+      "recall_weighted": 0.9206349206349206,
+      "f1_weighted": 0.9243027888446215,
+      "precision_macro": 0.9197522123893805,
+      "recall_macro": 0.9201388888888888,
+      "f1_macro": 0.9199291722000885,
+      "log_loss": 0.21798896349010458,
+      "roc_auc": 0.9692460317460317,
+      "pr_auc": 0.9624226422867118
+    }
+  }
+]

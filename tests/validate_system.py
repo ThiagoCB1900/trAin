@@ -19,7 +19,7 @@ print("=" * 60)
 print("\n[1/6] Testing imports...")
 try:
     from src.core.data_handler import load_data, identify_problem_type, split_data, separate_features_target
-    from src.core.pipeline_builder import build_pipeline, SCALER_OPTIONS, SAMPLER_OPTIONS
+    from src.core.pipeline_builder import build_pipeline
     from src.utils.evaluator import evaluate_model, generate_plots
     from src.utils.reporter import generate_report
     from src.models.registry import get_model_specs_by_problem, build_model

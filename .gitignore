@@ -79,3 +79,4 @@ site/
 # PDF references (keep in docs if needed)
 *.pdf
 !docs/*.pdf
+docs/

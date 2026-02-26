@@ -194,7 +194,6 @@ class MLWorker(QThread):
                     model_name, model_params, self.problem_type, self.params['seed']
                 )
                 res = evaluate_model(pipeline, X_train, y_train, X_test, y_test, self.problem_type)
-                duration_sec = time.perf_counter() - start_time
                 
                 self.progress.emit(f"Gerando gráficos para {run_name}...")
                 plots = generate_plots(y_test, res["y_pred"], res["y_score"], self.problem_type)
@@ -205,6 +204,8 @@ class MLWorker(QThread):
                     model_params,
                     res["metrics"], self.problem_type, self.params['seed']
                 )
+
+                duration_sec = time.perf_counter() - start_time
                 
                 all_results[run_name] = {
                     "metrics": res["metrics"],
@@ -243,6 +244,7 @@ class MLApp(QMainWindow):
         self.current_instance_id = None
         self.is_dark_theme = False
         self.last_metrics = []
+        self.experiment_start_time = None
         self.history_records = []
         self.history_path = os.path.join(os.path.dirname(__file__), "history.json")
         
@@ -475,6 +477,7 @@ class MLApp(QMainWindow):
         self.worker.error.connect(self.handle_error)
         
         # UI Feedback
+        self.experiment_start_time = time.perf_counter()
         self.btn_run.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0) # Modo indeterminado
@@ -516,6 +519,18 @@ class MLApp(QMainWindow):
         table.horizontalHeader().setStretchLastSection(True)
         table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         comp_layout.addWidget(table)
+
+        total_time_sec = sum(float(m_res.get("duration_sec", 0.0)) for m_res in results.values())
+        if self.experiment_start_time is not None:
+            total_time_elapsed_sec = time.perf_counter() - self.experiment_start_time
+        else:
+            total_time_elapsed_sec = total_time_sec
+
+        lbl_total_time = QLabel(
+            f"Tempo total (soma dos modelos): {total_time_sec:.4f}s | "
+            f"Tempo total do experimento: {total_time_elapsed_sec:.4f}s"
+        )
+        comp_layout.addWidget(lbl_total_time)
         self.tabs.addTab(comp_tab, "Comparação")
         
         metrics_list = []
@@ -539,6 +554,7 @@ class MLApp(QMainWindow):
             self.tabs.addTab(model_tab, m_name)
             
             m_data = {"Modelo": m_name}; m_data.update(m_res["metrics"])
+            m_data["tempo_sec"] = float(m_res.get("duration_sec", 0.0))
             metrics_list.append(m_data)
 
             history_entry = {
@@ -564,6 +580,7 @@ class MLApp(QMainWindow):
         self.tabs.setCurrentIndex(1)
         self.update_history_table()
         self.save_history()
+        self.experiment_start_time = None
 
     def export_results(self):
         if not self.last_metrics:

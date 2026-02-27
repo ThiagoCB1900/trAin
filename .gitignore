@@ -57,7 +57,7 @@ htmlcov/
 # Application specific
 history.json
 *.log
-*.csv
+# *.csv
 *.parquet
 bases_teste_temp/
 !bases_teste_temp/.gitkeep
